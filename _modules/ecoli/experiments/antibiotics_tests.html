@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.experiments.antibiotics_tests &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.experiments.antibiotics_tests</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.experiments.antibiotics_tests</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.control</span> <span class="kn">import</span> <span class="n">run_library_cli</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="n">EXPERIMENT_OUT_DIR</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.topology</span> <span class="kn">import</span> <span class="n">get_in</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.serialize</span> <span class="kn">import</span> <span class="n">deserialize_value</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">remove_units</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.experiments.ecoli_master_sim</span> <span class="kn">import</span> <span class="n">EcoliSim</span><span class="p">,</span> <span class="n">CONFIG_DIR_PATH</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.snapshots</span> <span class="kn">import</span> <span class="n">plot_snapshots</span>
+
+
+<span class="k">def</span> <span class="nf">test_antibiotics_tetracycline</span><span class="p">():</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">EcoliSim</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">CONFIG_DIR_PATH</span> <span class="o">+</span> <span class="s1">&#39;antibiotics_tetracycline.json&#39;</span><span class="p">)</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">emitter</span> <span class="o">=</span> <span class="s1">&#39;timeseries&#39;</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">total_time</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">build_ecoli</span><span class="p">()</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">query</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="remove_empty_values">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.antibiotics_tests.html#ecoli.experiments.antibiotics_tests.remove_empty_values">[docs]</a>
+<span class="k">def</span> <span class="nf">remove_empty_values</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;remove {key: value} pairs with values that are None&quot;&quot;&quot;</span>
+    <span class="n">to_delete</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span><span class="p">:</span>
+            <span class="n">to_delete</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">v2</span> <span class="o">=</span> <span class="n">remove_empty_values</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">v2</span><span class="p">:</span>
+                <span class="n">to_delete</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v2</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">to_delete</span><span class="p">:</span>
+        <span class="k">del</span> <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">d</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_lysis_rxn_dff_environment</span><span class="p">(</span><span class="n">total_time</span> <span class="o">=</span> <span class="mi">10</span><span class="p">):</span>
+    <span class="n">beta_lactamase</span> <span class="o">=</span> <span class="s1">&#39;EG10040-MONOMER[p]&#39;</span>
+    <span class="n">beta_lactam</span> <span class="o">=</span> <span class="s1">&#39;beta-lactam[p]&#39;</span>
+    <span class="n">hydrolyzed_beta_lactam</span> <span class="o">=</span> <span class="s1">&#39;hydrolyzed-beta-lactam[p]&#39;</span>
+    <span class="n">lysis_time</span> <span class="o">=</span> <span class="mi">4</span>
+
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">EcoliSim</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">CONFIG_DIR_PATH</span> <span class="o">+</span> <span class="s1">&#39;lysis_trigger.json&#39;</span><span class="p">)</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">emitter</span> <span class="o">=</span> <span class="s1">&#39;timeseries&#39;</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">total_time</span> <span class="o">=</span> <span class="n">total_time</span>
+
+    <span class="c1"># add to the timeline, triggering burst</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">process_configs</span><span class="p">[</span><span class="s1">&#39;bulk-timeline&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;timeline&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
+                <span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">,</span> <span class="n">beta_lactamase</span><span class="p">):</span> <span class="mi">100</span><span class="p">,</span>
+                <span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">,</span> <span class="n">beta_lactam</span><span class="p">):</span> <span class="mi">100</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">lysis_time</span><span class="p">:</span> <span class="p">{</span>
+                <span class="p">(</span><span class="s1">&#39;burst&#39;</span><span class="p">,):</span> <span class="kc">True</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">build_ecoli</span><span class="p">()</span>
+    <span class="n">bulk_array</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">generated_initial_state</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">][</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span>
+    <span class="c1"># For simplicity, estimate hydrolyzed beta-lactam as same mass</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">generated_initial_state</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">][</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">bulk_array</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([(</span><span class="n">beta_lactam</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">5.8e-7</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="n">hydrolyzed_beta_lactam</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">5.8e-7</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">bulk_array</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+    <span class="n">mass_listener</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">ecoli</span><span class="o">.</span><span class="n">steps</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">][</span><span class="s1">&#39;ecoli-mass-listener&#39;</span><span class="p">]</span>
+    <span class="n">mass_listener</span><span class="o">.</span><span class="n">_bulk_molecule_by_compartment</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">defchararray</span><span class="o">.</span><span class="n">chararray</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span>
+            <span class="n">mass_listener</span><span class="o">.</span><span class="n">bulk_ids</span><span class="p">,</span> <span class="n">abbrev</span> <span class="o">+</span> <span class="s1">&#39;]&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">abbrev</span> <span class="ow">in</span> <span class="n">mass_listener</span><span class="o">.</span><span class="n">compartment_abbrev_to_index</span>
+    <span class="p">])</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="c1"># retrieve data and pre-process for plotting</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;dimensions&#39;</span><span class="p">,</span> <span class="s1">&#39;bounds&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;fields&#39;</span><span class="p">,</span> <span class="n">beta_lactamase</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;fields&#39;</span><span class="p">,</span> <span class="n">beta_lactam</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;fields&#39;</span><span class="p">,</span> <span class="n">hydrolyzed_beta_lactam</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;boundary&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;burst&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;bulk&#39;</span><span class="p">,</span> <span class="n">beta_lactamase</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;bulk&#39;</span><span class="p">,</span> <span class="n">beta_lactam</span><span class="p">),</span>
+    <span class="p">]</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">deserialize_value</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">remove_units</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="s1">&#39;agents&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># add empty agents back in</span>
+
+    <span class="k">assert</span> <span class="s1">&#39;0&#39;</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="mf">0.0</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span> \
+           <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mf">0.0</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span>  <span class="c1"># agent 0 is present at time=0</span>
+    <span class="n">after_lysis</span> <span class="o">=</span> <span class="n">remove_empty_values</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">lysis_time</span> <span class="o">+</span> <span class="mf">2.0</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">after_lysis</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>  <span class="c1"># no agents after lysis_time</span>
+
+    <span class="c1"># plot</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">EXPERIMENT_OUT_DIR</span><span class="p">,</span> <span class="s1">&#39;lysis_environment&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+    <span class="n">plot_snapshots</span><span class="p">(</span>
+        <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">get_in</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="s1">&#39;dimensions&#39;</span><span class="p">,</span> <span class="s1">&#39;bounds&#39;</span><span class="p">)),</span>
+        <span class="n">agents</span><span class="o">=</span><span class="p">{</span>
+            <span class="n">time</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">},</span>
+        <span class="n">fields</span><span class="o">=</span><span class="p">{</span>
+            <span class="n">time</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">},</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;snapshots&#39;</span><span class="p">,</span>
+        <span class="n">colorbar_decimals</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="n">library</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;1&#39;</span><span class="p">:</span> <span class="n">test_antibiotics_tetracycline</span><span class="p">,</span>
+    <span class="s1">&#39;2&#39;</span><span class="p">:</span> <span class="n">test_lysis_rxn_dff_environment</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># python ecoli/experiments/antibiotics_tests.py -n library_id</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">run_library_cli</span><span class="p">(</span><span class="n">library</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

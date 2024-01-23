@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.environment.multibody_physics &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.environment.multibody_physics</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.environment.multibody_physics</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">==========================</span>
+<span class="sd">Multibody physics process</span>
+<span class="sd">==========================</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="nn">patches</span>
+
+<span class="c1"># vivarium imports</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span><span class="p">,</span> <span class="n">Quantity</span><span class="p">,</span> <span class="n">remove_units</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">process_in_experiment</span><span class="p">,</span>
+    <span class="n">simulate_experiment</span><span class="p">,</span>
+    <span class="n">PROCESS_OUT_DIR</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># vivarium-cell imports</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.environment.derive_globals</span> <span class="kn">import</span> <span class="n">volume_from_length</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.pymunk_multibody</span> <span class="kn">import</span> <span class="n">PymunkMultibody</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.snapshots</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">plot_snapshots</span><span class="p">,</span>
+    <span class="n">format_snapshot_data</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;multibody&#39;</span>
+
+<span class="n">DEFAULT_BOUNDS</span> <span class="o">=</span> <span class="p">[</span><span class="mi">40</span><span class="p">,</span> <span class="mi">40</span><span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+<span class="n">DEFAULT_LENGTH_UNIT</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+<span class="n">DEFAULT_MASS_UNIT</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span>
+<span class="n">DEFAULT_VELOCITY_UNIT</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span>
+<span class="n">DEFAULT_VOLUME_UNIT</span> <span class="o">=</span> <span class="n">DEFAULT_LENGTH_UNIT</span> <span class="o">**</span> <span class="mi">3</span>
+
+<span class="c1"># constants</span>
+<span class="n">PI</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+
+
+<div class="viewcode-block" id="random_body_position">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.random_body_position">[docs]</a>
+<span class="k">def</span> <span class="nf">random_body_position</span><span class="p">(</span><span class="n">body</span><span class="p">):</span>
+    <span class="c1"># pick a random point along the boundary</span>
+    <span class="n">width</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">dimensions</span>
+    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># force along ends</span>
+        <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># force on the left end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># force on the right end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="n">length</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># force along length</span>
+        <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># force on the bottom end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">length</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># force on the top end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">length</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">location</span></div>
+
+
+
+<div class="viewcode-block" id="daughter_locations">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.daughter_locations">[docs]</a>
+<span class="k">def</span> <span class="nf">daughter_locations</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="n">parent_length</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]</span>
+    <span class="n">parent_angle</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;angle&#39;</span><span class="p">]</span>
+    <span class="n">pos_ratios</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">]</span>
+    <span class="n">daughter_locations</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">daughter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">parent_length</span> <span class="o">*</span> <span class="n">pos_ratios</span><span class="p">[</span><span class="n">daughter</span><span class="p">]</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">parent_angle</span><span class="p">)</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">parent_length</span> <span class="o">*</span> <span class="n">pos_ratios</span><span class="p">[</span><span class="n">daughter</span><span class="p">]</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">parent_angle</span><span class="p">)</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">dy</span><span class="p">]</span>
+        <span class="n">daughter_locations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">daughter_locations</span></div>
+
+
+
+<div class="viewcode-block" id="Multibody">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.Multibody">[docs]</a>
+<span class="k">class</span> <span class="nc">Multibody</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simulates collisions and forces between agent bodies with a multi-body physics engine.</span>
+
+<span class="sd">    :term:`Ports`:</span>
+<span class="sd">        * ``agents``: The store containing all agent sub-compartments. Each agent in</span>
+<span class="sd">            this store has values for location, angle, length, width, mass, thrust, and torque.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        initial_parameters(dict): Accepts the following configuration keys:</span>
+
+<span class="sd">        jitter_force: force applied to random positions along agent</span>
+<span class="sd">          bodies to mimic thermal fluctuations. Produces Brownian motion.</span>
+<span class="sd">        agent_shape (:py:class:`str`): agents can take the shapes</span>
+<span class="sd">          ``rectangle``, ``segment``, or ``circle``.</span>
+<span class="sd">        bounds (:py:class:`list`): size of the environment in</span>
+<span class="sd">          micrometers, with ``[x, y]``.</span>
+<span class="sd">        mother_machine (:py:class:`bool`): if set to ``True``, mother</span>
+<span class="sd">          machine barriers are introduced.</span>
+<span class="sd">        animate (:py:class:`bool`): interactive matplotlib option to</span>
+<span class="sd">          animate multibody. To run with animation turned on set True, and use</span>
+<span class="sd">          the TKAgg matplotlib backend:</span>
+
+<span class="sd">          .. code-block:: console</span>
+
+<span class="sd">              $ MPLBACKEND=TKAgg python vivarium/processes/snapshots.py</span>
+
+<span class="sd">    Notes:</span>
+<span class="sd">        * rotational diffusion in liquid medium with viscosity = 1 mPa.s: :math:`Dr = 3.5 \\pm0.3 rad^{2}/s`</span>
+<span class="sd">          (Saragosti, et al. 2012. Modeling E. coli tumbles by rotational diffusion.)</span>
+<span class="sd">        * translational diffusion in liquid medium with viscosity = 1 mPa.s: :math:`Dt = 100 um^{2}/s`</span>
+<span class="sd">          (Saragosti, et al. 2012. Modeling E. coli tumbles by rotational diffusion.)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;jitter_force&#39;</span><span class="p">:</span> <span class="mf">1e-4</span><span class="p">,</span>  <span class="c1"># pN</span>
+        <span class="s1">&#39;agent_shape&#39;</span><span class="p">:</span> <span class="s1">&#39;segment&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">DEFAULT_BOUNDS</span><span class="p">,</span>
+        <span class="s1">&#39;length_unit&#39;</span><span class="p">:</span> <span class="n">DEFAULT_LENGTH_UNIT</span><span class="p">,</span>
+        <span class="s1">&#39;mass_unit&#39;</span><span class="p">:</span> <span class="n">DEFAULT_MASS_UNIT</span><span class="p">,</span>
+        <span class="s1">&#39;velocity_unit&#39;</span><span class="p">:</span> <span class="n">DEFAULT_VELOCITY_UNIT</span><span class="p">,</span>
+        <span class="s1">&#39;boundary_key&#39;</span><span class="p">:</span> <span class="s1">&#39;boundary&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;mother_machine&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;animate&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># multibody parameters</span>
+        <span class="n">jitter_force</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;jitter_force&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;agent_shape&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mother_machine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mother_machine&#39;</span><span class="p">]</span>
+
+        <span class="c1"># units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">length_unit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;length_unit&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mass_unit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mass_unit&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">velocity_unit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;velocity_unit&#39;</span><span class="p">]</span>
+
+        <span class="c1"># make the multibody object</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother_machine</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mother_machine</span><span class="p">,</span> <span class="nb">dict</span><span class="p">),</span> \
+                <span class="s1">&#39;mother_machine must be a dictionary with keys &#39;</span> \
+                <span class="s1">&#39;spacer_thickness, channel_height, channel_space&#39;</span>
+        <span class="n">multibody_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;agent_shape&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span><span class="p">,</span>
+            <span class="s1">&#39;jitter_force&#39;</span><span class="p">:</span> <span class="n">jitter_force</span><span class="p">,</span>
+            <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">remove_units</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">),</span>
+            <span class="s1">&#39;barriers&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother_machine</span><span class="p">,</span>
+            <span class="s1">&#39;physics_dt&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">physics</span> <span class="o">=</span> <span class="n">PymunkMultibody</span><span class="p">(</span><span class="n">multibody_config</span><span class="p">)</span>
+
+        <span class="c1"># interactive plot for visualization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">animate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;animate&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">animate</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Multibody.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.Multibody.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">glob_schema</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;*&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;boundary_key&#39;</span><span class="p">]:</span> <span class="p">{</span>
+                    <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="p">[</span>
+                            <span class="mf">0.5</span> <span class="o">*</span> <span class="n">bound</span> <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span>
+                        <span class="p">],</span>
+                        <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="p">{</span>
+                            <span class="s1">&#39;divider&#39;</span><span class="p">:</span> <span class="n">daughter_locations</span><span class="p">,</span>
+                            <span class="s1">&#39;topology&#39;</span><span class="p">:</span> <span class="p">{</span>
+                                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;length&#39;</span><span class="p">,),</span>
+                                <span class="s1">&#39;angle&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;angle&#39;</span><span class="p">,)}}},</span>
+                    <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+                    <span class="p">},</span>
+                    <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+                    <span class="p">},</span>
+                    <span class="s1">&#39;angle&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                        <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">1339</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="s1">&#39;thrust&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                        <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="s1">&#39;torque&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                        <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                    <span class="p">},</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="n">schema</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">glob_schema</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">schema</span></div>
+
+
+<div class="viewcode-block" id="Multibody.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.Multibody.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">agents</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+
+        <span class="c1"># animate before update</span>
+        <span class="n">agents</span> <span class="o">=</span> <span class="n">remove_units</span><span class="p">(</span><span class="n">agents</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">animate</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">animate_frame</span><span class="p">(</span><span class="n">agents</span><span class="p">)</span>
+
+        <span class="c1"># update multibody with new agents</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">update_bodies</span><span class="p">(</span><span class="n">agents</span><span class="p">)</span>
+
+        <span class="c1"># run simulation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">timestep</span><span class="p">)</span>
+
+        <span class="c1"># get new agent positions</span>
+        <span class="n">agent_positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">get_body_positions</span><span class="p">()</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">agent_positions</span><span class="p">}</span>
+
+        <span class="c1"># for mother machine configurations, remove agents above the channel height</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother_machine</span><span class="p">:</span>
+            <span class="n">channel_height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mother_machine</span><span class="p">[</span><span class="s1">&#39;channel_height&#39;</span><span class="p">]</span>
+            <span class="n">delete_agents</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">position</span> <span class="ow">in</span> <span class="n">agent_positions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">location</span> <span class="o">=</span> <span class="n">position</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;location&#39;</span><span class="p">]</span>
+                <span class="n">y_loc</span> <span class="o">=</span> <span class="n">location</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">y_loc</span> <span class="o">&gt;</span> <span class="n">channel_height</span><span class="p">:</span>
+                    <span class="c1"># cell has moved past the channels</span>
+                    <span class="n">delete_agents</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">delete_agents</span><span class="p">:</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="n">agent_id</span><span class="p">:</span> <span class="n">position</span>
+                    <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">position</span> <span class="ow">in</span> <span class="n">agent_positions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">agent_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">delete_agents</span><span class="p">}</span>
+
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;_delete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">agent_id</span> <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">delete_agents</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">agent</span> <span class="ow">in</span> <span class="n">update</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">*=</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+
+        <span class="k">return</span> <span class="n">update</span></div>
+
+
+    <span class="c1">## matplotlib interactive plot</span>
+<div class="viewcode-block" id="Multibody.animate_frame">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.Multibody.animate_frame">[docs]</a>
+    <span class="k">def</span> <span class="nf">animate_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agents</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">cla</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># location, orientation, length</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">]</span>
+            <span class="n">x_center</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">y_center</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">angle</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;angle&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">PI</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">+</span> <span class="mi">90</span>  <span class="c1"># rotate 90 degrees to match field</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]</span>
+
+            <span class="c1"># get bottom left position</span>
+            <span class="n">x_offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">y_offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">theta_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+            <span class="n">dx</span> <span class="o">=</span> <span class="n">x_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span> <span class="o">-</span> <span class="n">y_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span>
+            <span class="n">dy</span> <span class="o">=</span> <span class="n">x_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span> <span class="o">+</span> <span class="n">y_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span>
+
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x_center</span> <span class="o">-</span> <span class="n">dx</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y_center</span> <span class="o">-</span> <span class="n">dy</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s1">&#39;rectangle&#39;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s1">&#39;segment&#39;</span><span class="p">:</span>
+                <span class="c1"># Create a rectangle</span>
+                <span class="n">rect</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">Rectangle</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">width</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">angle</span><span class="o">=</span><span class="n">angle</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">rect</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s1">&#39;circle&#39;</span><span class="p">:</span>
+                <span class="c1"># Create a circle</span>
+                <span class="n">circle</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">Circle</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">width</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">circle</span><span class="p">)</span>
+
+        <span class="n">bounds</span> <span class="o">=</span> <span class="n">remove_units</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">pause</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="c1"># configs</span>
+<div class="viewcode-block" id="make_random_position">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.make_random_position">[docs]</a>
+<span class="k">def</span> <span class="nf">make_random_position</span><span class="p">(</span><span class="n">bounds</span><span class="p">):</span>
+    <span class="n">unitless_bounds</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">bound</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="n">bounds</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">unitless_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">unitless_bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+    <span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span></div>
+
+
+
+<div class="viewcode-block" id="single_agent_config">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.single_agent_config">[docs]</a>
+<span class="k">def</span> <span class="nf">single_agent_config</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="c1"># cell dimensions</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="n">volume_from_length</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;bounds&#39;</span><span class="p">,</span> <span class="n">DEFAULT_BOUNDS</span><span class="p">)</span>
+    <span class="n">location</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;location&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">location</span><span class="p">:</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="p">[</span><span class="n">loc</span> <span class="o">*</span> <span class="n">bounds</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">loc</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">location</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">make_random_position</span><span class="p">(</span><span class="n">bounds</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="n">location</span><span class="p">,</span>
+            <span class="s1">&#39;angle&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">PI</span><span class="p">),</span>
+            <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">volume</span><span class="p">,</span>
+            <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="n">length</span><span class="p">,</span>
+            <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="n">width</span><span class="p">,</span>
+            <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="mi">1339</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">,</span>
+            <span class="s1">&#39;thrust&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;torque&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}}</span></div>
+
+
+
+<div class="viewcode-block" id="agent_body_config">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.agent_body_config">[docs]</a>
+<span class="k">def</span> <span class="nf">agent_body_config</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="n">agent_ids</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;agent_ids&#39;</span><span class="p">]</span>
+    <span class="n">agent_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">agent_id</span><span class="p">:</span> <span class="n">single_agent_config</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">agent_ids</span><span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">agent_config</span><span class="p">}</span></div>
+
+
+
+<span class="n">default_gd_config</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">DEFAULT_BOUNDS</span><span class="p">}</span>
+<span class="n">default_gd_config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">agent_body_config</span><span class="p">({</span>
+    <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">DEFAULT_BOUNDS</span><span class="p">,</span>
+    <span class="s1">&#39;agent_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">]}))</span>
+
+
+<div class="viewcode-block" id="InvokeUpdate">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.InvokeUpdate">[docs]</a>
+<span class="k">class</span> <span class="nc">InvokeUpdate</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span> <span class="o">=</span> <span class="n">update</span>
+<div class="viewcode-block" id="InvokeUpdate.get">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.InvokeUpdate.get">[docs]</a>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">update</span></div>
+</div>
+
+
+<span class="c1"># tests and simulations</span>
+<span class="k">def</span> <span class="nf">test_multibody</span><span class="p">(</span><span class="n">n_agents</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">agent_ids</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_agents</span><span class="p">)]</span>
+    <span class="n">multibody_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">agent_body_config</span><span class="p">({</span>
+            <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">DEFAULT_BOUNDS</span><span class="p">,</span>
+            <span class="s1">&#39;agent_ids&#39;</span><span class="p">:</span> <span class="n">agent_ids</span><span class="p">})}</span>
+
+    <span class="n">multibody</span> <span class="o">=</span> <span class="n">Multibody</span><span class="p">(</span><span class="n">multibody_config</span><span class="p">)</span>
+
+    <span class="c1"># initialize agent&#39;s boundary state</span>
+    <span class="n">initial_agents_state</span> <span class="o">=</span> <span class="n">multibody_config</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">initial_agents_state</span><span class="p">}</span>
+    <span class="n">experiment</span> <span class="o">=</span> <span class="n">process_in_experiment</span><span class="p">(</span><span class="n">multibody</span><span class="p">,</span> <span class="n">initial_state</span><span class="o">=</span><span class="n">initial_state</span><span class="p">)</span>
+
+    <span class="c1"># run experiment</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;total_time&#39;</span><span class="p">:</span> <span class="n">time</span><span class="p">,</span>
+        <span class="s1">&#39;return_raw_data&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">simulate_experiment</span><span class="p">(</span><span class="n">experiment</span><span class="p">,</span> <span class="n">settings</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+
+<span class="k">def</span> <span class="nf">test_growth_division</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">default_gd_config</span><span class="p">,</span>
+        <span class="n">growth_rate</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">growth_rate_noise</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
+        <span class="n">division_volume</span><span class="o">=</span><span class="mf">0.4</span><span class="o">**</span><span class="mi">3</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fL</span><span class="p">,</span>
+        <span class="n">total_time</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">timestep</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">experiment_settings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">return_data</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">experiment_settings</span><span class="p">:</span>
+        <span class="n">experiment_settings</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">initial_agents_state</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+
+    <span class="c1"># make the process</span>
+    <span class="n">multibody</span> <span class="o">=</span> <span class="n">Multibody</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    <span class="n">experiment</span> <span class="o">=</span> <span class="n">process_in_experiment</span><span class="p">(</span><span class="n">multibody</span><span class="p">,</span> <span class="n">experiment_settings</span><span class="p">)</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">_update_subschema</span><span class="p">(</span>
+        <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,),</span> <span class="p">{</span>
+            <span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;split&#39;</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;split&#39;</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;split&#39;</span>
+                <span class="p">}}})</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">_apply_subschemas</span><span class="p">()</span>
+
+    <span class="c1"># make initial agent state</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">set_value</span><span class="p">({</span><span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">initial_agents_state</span><span class="p">})</span>
+    <span class="n">agents_store</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">([</span><span class="s1">&#39;agents&#39;</span><span class="p">])</span>
+
+    <span class="c1"># emit initial state</span>
+    <span class="n">experiment</span><span class="o">.</span><span class="n">_emit_store_data</span><span class="p">()</span>
+
+    <span class="c1"># run simulation</span>
+    <span class="n">time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">time</span> <span class="o">&lt;</span> <span class="n">total_time</span><span class="p">:</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">timestep</span><span class="p">)</span>
+        <span class="n">time</span> <span class="o">+=</span> <span class="n">timestep</span>
+        <span class="n">agents_state</span> <span class="o">=</span> <span class="n">agents_store</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span>
+
+        <span class="n">invoked_update</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">agents_state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">]</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;length&#39;</span><span class="p">]</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]</span>
+            <span class="n">mass</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span>  <span class="c1"># .magnitude</span>
+
+            <span class="c1"># update</span>
+            <span class="n">growth_rate2</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">growth_rate</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">growth_rate_noise</span><span class="p">))</span> <span class="o">*</span> <span class="n">timestep</span>
+            <span class="n">new_mass</span> <span class="o">=</span> <span class="n">mass</span> <span class="o">+</span> <span class="n">mass</span> <span class="o">*</span> <span class="n">growth_rate2</span>
+            <span class="n">new_length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">+</span> <span class="n">length</span> <span class="o">*</span> <span class="n">growth_rate2</span>
+            <span class="n">new_volume</span> <span class="o">=</span> <span class="n">volume_from_length</span><span class="p">(</span><span class="n">new_length</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">new_volume</span> <span class="o">&gt;</span> <span class="n">division_volume</span><span class="p">:</span>
+                <span class="n">daughter_ids</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span><span class="p">]</span>
+                <span class="n">daughter_updates</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">daughter_id</span> <span class="ow">in</span> <span class="n">daughter_ids</span><span class="p">:</span>
+                    <span class="n">daughter_updates</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                        <span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="n">daughter_id</span><span class="p">,</span>
+                        <span class="s1">&#39;processes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                        <span class="s1">&#39;topology&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                        <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="p">{}})</span>
+                <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;_divide&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;mother&#39;</span><span class="p">:</span> <span class="n">agent_id</span><span class="p">,</span>
+                        <span class="s1">&#39;daughters&#39;</span><span class="p">:</span> <span class="n">daughter_updates</span><span class="p">}}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="n">agent_id</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="p">{</span>
+                            <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">new_volume</span><span class="p">,</span>
+                            <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="n">new_length</span><span class="p">,</span>
+                            <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="n">new_mass</span><span class="p">}}}</span>  <span class="c1"># * units.fg</span>
+
+            <span class="n">invoked_update</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">InvokeUpdate</span><span class="p">({</span><span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">update</span><span class="p">}),</span> <span class="kc">None</span><span class="p">))</span>
+
+        <span class="c1"># update experiment</span>
+        <span class="n">experiment</span><span class="o">.</span><span class="n">_send_updates</span><span class="p">(</span><span class="n">invoked_update</span><span class="p">)</span>
+
+    <span class="n">experiment</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">experiment</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data_unitless</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="run_growth_division">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.run_growth_division">[docs]</a>
+<span class="k">def</span> <span class="nf">run_growth_division</span><span class="p">(</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;out&#39;</span><span class="p">,</span>
+        <span class="n">animate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">n_agents</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">agent_ids</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_agents</span><span class="p">)]</span>
+
+    <span class="c1"># configure the multibody process</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="n">DEFAULT_BOUNDS</span>
+    <span class="n">multibody_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;animate&#39;</span><span class="p">:</span> <span class="n">animate</span><span class="p">,</span>
+        <span class="c1"># &#39;jitter_force&#39;: 1e0,</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">bounds</span><span class="p">}</span>
+    <span class="n">body_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">bounds</span><span class="p">,</span>
+        <span class="s1">&#39;agent_ids&#39;</span><span class="p">:</span> <span class="n">agent_ids</span><span class="p">}</span>
+    <span class="n">multibody_config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">agent_body_config</span><span class="p">(</span><span class="n">body_config</span><span class="p">))</span>
+
+    <span class="c1"># experiment settings</span>
+    <span class="n">experiment_settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;progress_bar&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;display_info&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+
+    <span class="c1"># run the test</span>
+    <span class="n">gd_data</span> <span class="o">=</span> <span class="n">test_growth_division</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">multibody_config</span><span class="p">,</span>
+        <span class="n">growth_rate</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">growth_rate_noise</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
+        <span class="n">division_volume</span><span class="o">=</span><span class="n">volume_from_length</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fL</span><span class="p">,</span>
+        <span class="n">total_time</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+        <span class="n">experiment_settings</span><span class="o">=</span><span class="n">experiment_settings</span><span class="p">,</span>
+        <span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">agents</span><span class="p">,</span> <span class="n">fields</span> <span class="o">=</span> <span class="n">format_snapshot_data</span><span class="p">(</span><span class="n">gd_data</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">plot_snapshots</span><span class="p">(</span>
+        <span class="n">bounds</span><span class="p">,</span> <span class="n">agents</span><span class="o">=</span><span class="n">agents</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span> <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_daughter_locations</span><span class="p">():</span>
+    <span class="n">locations</span> <span class="o">=</span> <span class="n">daughter_locations</span><span class="p">(</span>
+        <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+        <span class="p">{</span><span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="s1">&#39;angle&#39;</span><span class="p">:</span> <span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="n">locations</span> <span class="o">==</span> <span class="p">[[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">2.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">]]</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.multibody_physics.html#ecoli.processes.environment.multibody_physics.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROCESS_OUT_DIR</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+    <span class="n">run_growth_division</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

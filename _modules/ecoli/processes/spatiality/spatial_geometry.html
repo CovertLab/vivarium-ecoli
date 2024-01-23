@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.spatiality.spatial_geometry &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.spatiality.spatial_geometry</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.spatiality.spatial_geometry</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">================</span>
+<span class="sd">Spatial Geometry</span>
+<span class="sd">================</span>
+
+<span class="sd">SpatialGeometry :term:`Process`  calculates geometric parameters of nodes a</span>
+<span class="sd">nd edges utilized in diffusion_network.py. This process assumes E. coli is</span>
+<span class="sd">a spherocylinder with constant radius. This process is currently unfinished.</span>
+<span class="sd">This process assumes that there are properties of the nodes that specify</span>
+<span class="sd">which type of compartment it is such that the geometry rules below apply.</span>
+<span class="sd">This is not currently implemented in ecoli_spatial.py in vivarium-ecoli.</span>
+<span class="sd">Much of the geometry rules have been specified, however it should be</span>
+<span class="sd">checked to see if it leads to consistent results.</span>
+
+<span class="sd">References:</span>
+<span class="sd"> - width of 0.73 um: Cluzel et al., Nucleic Acids Research (2008)</span>
+<span class="sd"> - strain: K-12 Frag1</span>
+<span class="sd"> - periplasm width of 21 nm: Matias et al., J Bacteriology (2003)</span>
+<span class="sd"> - cell density of 1100 g/L (from WCM): Baldwin et al., Arch microbiol. (1995)</span>
+
+<span class="sd">.. WARNING:: This process is unfinished.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Deriver</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">simulate_process</span><span class="p">,</span>
+    <span class="n">PROCESS_OUT_DIR</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="n">array_from</span>
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;spatial_geometry&#39;</span>
+<span class="n">WIDTH</span> <span class="o">=</span> <span class="mf">0.73</span>  <span class="c1"># in um</span>
+<span class="n">PERIPLASM_WIDTH</span> <span class="o">=</span> <span class="mi">21</span>  <span class="c1"># in nm</span>
+<span class="n">DENSITY</span> <span class="o">=</span> <span class="mi">1100</span>  <span class="c1"># fg/um^3</span>
+
+<div class="viewcode-block" id="SpatialGeometry">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.spatial_geometry.html#ecoli.processes.spatiality.spatial_geometry.SpatialGeometry">[docs]</a>
+<span class="k">class</span> <span class="nc">SpatialGeometry</span><span class="p">(</span><span class="n">Deriver</span><span class="p">):</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="s1">&#39;nucleoid&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;periplasm&#39;</span><span class="p">,</span>
+        <span class="p">],</span>
+        <span class="s1">&#39;edges&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;density&#39;</span><span class="p">:</span> <span class="n">DENSITY</span><span class="p">,</span>
+        <span class="s1">&#39;mw&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="n">WIDTH</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;edges&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mw&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mw&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">density</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;density&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="SpatialGeometry.initial_state">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.spatial_geometry.html#ecoli.processes.spatiality.spatial_geometry.SpatialGeometry.initial_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="SpatialGeometry.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.spatial_geometry.html#ecoli.processes.spatiality.spatial_geometry.SpatialGeometry.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">node_schema</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node_id</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;radius&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;*&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">}</span> <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">]</span>
+        <span class="p">}</span>
+        <span class="n">edge_schema</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">edge_id</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                <span class="s1">&#39;cross_sectional_area&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+            <span class="p">}</span> <span class="k">for</span> <span class="n">edge_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;edges&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="n">node_schema</span><span class="p">,</span>
+            <span class="s1">&#39;edges&#39;</span><span class="p">:</span> <span class="n">edge_schema</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SpatialGeometry.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.spatial_geometry.html#ecoli.processes.spatiality.spatial_geometry.SpatialGeometry.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
+        <span class="n">nodes</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">]</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="p">[</span><span class="n">nodes</span><span class="p">[</span><span class="n">node_id</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">]</span>
+        <span class="n">cross_sectional_area</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">))</span>
+        <span class="n">inner_radius</span> <span class="o">=</span> <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">][</span><span class="s1">&#39;radius&#39;</span><span class="p">]</span>
+        <span class="n">outer_radius</span> <span class="o">=</span> <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;periplasm&#39;</span><span class="p">][</span><span class="s1">&#39;radius&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">inner_radius</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">):</span>
+            <span class="c1"># if nucleoid or nucleoid region of membrane</span>
+            <span class="n">nucleoid</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">volume</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">array_from</span><span class="p">(</span><span class="n">nodes</span><span class="p">[</span><span class="n">node_id</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">]))</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">density</span>
+            <span class="k">if</span> <span class="n">nucleoid</span><span class="p">:</span>
+                <span class="n">length</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">inner_radius</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">edge_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">):</span>
+            <span class="n">nodes</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="n">edge_id</span><span class="p">][</span><span class="s1">&#39;nodes&#39;</span><span class="p">]</span>
+            <span class="n">nucleoid</span> <span class="o">=</span> <span class="s1">&#39;nucleoid&#39;</span> <span class="ow">in</span> <span class="n">nodes</span>
+            <span class="n">cytosol</span> <span class="o">=</span> <span class="s1">&#39;cytosol_front&#39;</span> <span class="ow">or</span> <span class="s1">&#39;cytosol_rear&#39;</span> <span class="ow">in</span> <span class="n">nodes</span>
+            <span class="n">periplasm</span> <span class="o">=</span> <span class="s1">&#39;periplasm&#39;</span> <span class="ow">in</span> <span class="n">nodes</span>
+            <span class="n">cytosol_inner_membrane</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">cytosol_outer_membrane</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">nucleoid_inner_membrane</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">nucleoid_outer_membrane</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="c1"># series of if statements for each interface</span>
+            <span class="k">if</span> <span class="n">nucleoid</span> <span class="ow">and</span> <span class="n">cytosol</span><span class="p">:</span>
+                <span class="n">cross_sectional_area</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">inner_radius</span><span class="o">**</span><span class="mi">2</span>
+                <span class="k">continue</span>
+                <span class="c1"># find if node is membrane</span>
+            <span class="k">if</span> <span class="n">nucleoid</span> <span class="ow">and</span> <span class="n">nucleoid_inner_membrane</span><span class="p">:</span>
+                <span class="n">node_id</span> <span class="o">=</span> <span class="s1">&#39;membrane&#39;</span>
+                <span class="n">cross_sectional_area</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">inner_radius</span> <span class="o">*</span> <span class="n">states</span><span class="p">[</span>
+                    <span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="n">node_id</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">cytosol</span> <span class="ow">and</span> <span class="n">cytosol_inner_membrane</span><span class="p">:</span>
+                <span class="n">cross_sectional_area</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">inner_radius</span><span class="o">**</span><span class="mi">2</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">periplasm</span> <span class="ow">and</span> <span class="n">nucleoid_inner_membrane</span><span class="p">:</span>
+                <span class="n">cross_sectional_area</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">inner_radius</span> <span class="o">*</span> <span class="n">states</span><span class="p">[</span>
+                        <span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="n">node_id</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">periplasm</span> <span class="ow">and</span> <span class="n">nucleoid_outer_membrane</span><span class="p">:</span>
+                <span class="n">cross_sectional_area</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">outer_radius</span> <span class="o">*</span> <span class="n">states</span><span class="p">[</span>
+                    <span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="n">node_id</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">periplasm</span> <span class="ow">and</span> <span class="n">cytosol_inner_membrane</span><span class="p">:</span>
+                <span class="n">cross_sectional_area</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">inner_radius</span><span class="o">**</span><span class="mi">2</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">periplasm</span> <span class="ow">and</span> <span class="n">cytosol_outer_membrane</span><span class="p">:</span>
+                <span class="n">cross_sectional_area</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">outer_radius</span><span class="o">**</span><span class="mi">2</span>
+                <span class="k">continue</span>
+
+        <span class="n">node_update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node_id</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">volume</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">==</span> <span class="n">node_id</span><span class="p">)][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="n">volume</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">==</span> <span class="n">node_id</span><span class="p">)][</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">}</span> <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span>
+        <span class="p">}</span>
+        <span class="n">edge_update</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="o">**</span><span class="n">node_update</span><span class="p">,</span> <span class="o">**</span><span class="n">edge_update</span><span class="p">}</span></div>
+</div>
+
+
+
+<span class="c1"># functions to configure and run the process</span>
+<div class="viewcode-block" id="run_spatial_geometry_process">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.spatial_geometry.html#ecoli.processes.spatiality.spatial_geometry.run_spatial_geometry_process">[docs]</a>
+<span class="k">def</span> <span class="nf">run_spatial_geometry_process</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Run a simulation of the process.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The simulation output.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># initialize the process by passing in parameters</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">spatial_geometry_process</span> <span class="o">=</span> <span class="n">SpatialGeometry</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+    <span class="c1"># declare the initial state, mirroring the ports structure</span>
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># run the simulation</span>
+    <span class="n">sim_settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;total_time&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="n">initial_state</span><span class="p">}</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">simulate_process</span><span class="p">(</span><span class="n">spatial_geometry_process</span><span class="p">,</span> <span class="n">sim_settings</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">output</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_spatial_geometry_process</span><span class="p">(</span><span class="n">return_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Test that the process runs correctly.</span>
+
+<span class="sd">    This will be executed by pytest.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">run_spatial_geometry_process</span><span class="p">()</span>
+    <span class="c1"># TODO(vivarium): Add assert statements to ensure correct performance.</span>
+
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.spatial_geometry.html#ecoli.processes.spatiality.spatial_geometry.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Simulate the process and plot results.&quot;&quot;&quot;</span>
+    <span class="c1"># make an output directory to save plots</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROCESS_OUT_DIR</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">test_spatial_geometry_process</span><span class="p">(</span><span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

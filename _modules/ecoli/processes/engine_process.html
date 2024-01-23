@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.engine_process &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.engine_process</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.engine_process</h1><div class="highlight"><pre>
+<span></span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">=============</span>
+<span class="sd">EngineProcess</span>
+<span class="sd">=============</span>
+
+<span class="sd">Tunnel Ports</span>
+<span class="sd">============</span>
+
+<span class="sd">Sometimes, a process inside the EngineProcess might need to be wired to</span>
+<span class="sd">a store outside the EngineProcess, or an outside process might need to</span>
+<span class="sd">be wired to an inside store. We handle this with _tunnels_.</span>
+
+<span class="sd">Here is a state hierarchy showing how a tunnel connects an outside</span>
+<span class="sd">process (``A``) to an inside store (``store1``). We call this a &quot;tunnel</span>
+<span class="sd">in&quot; because the exterior process is tunneling into EngineProcess to see</span>
+<span class="sd">an internal store.</span>
+
+<span class="sd">.. code-block:: text</span>
+
+<span class="sd">         /\</span>
+<span class="sd">        /  \         EngineProcess</span>
+<span class="sd">    +---+   +-------------------------+</span>
+<span class="sd">    | A |   |                         |</span>
+<span class="sd">    +---+   |        /\               |</span>
+<span class="sd">      :     |       /  \              |</span>
+<span class="sd">      :     |  +---+    store1        |</span>
+<span class="sd">   ...:     |  | B |       ^          |</span>
+<span class="sd">   :        |  +---+       |          |</span>
+<span class="sd">   :        |              |          |</span>
+<span class="sd">   :..tunnel_outer &lt;----- next_update |</span>
+<span class="sd">            |                         |</span>
+<span class="sd">            +-------------------------+</span>
+
+<span class="sd">Here is another example where a tunnel connects an inside process</span>
+<span class="sd">(``B``) to an outside store (``store2``). We call this a &quot;tunnel out&quot;</span>
+<span class="sd">because the interior process is tunneling outside of EngineProcess to</span>
+<span class="sd">see an external store.</span>
+
+<span class="sd">.. code-block:: text</span>
+
+<span class="sd">         /\</span>
+<span class="sd">        /  \         EngineProcess</span>
+<span class="sd">       /    +-------------------------+</span>
+<span class="sd">    store2  |                         |</span>
+<span class="sd">      :     |        /\               |</span>
+<span class="sd">      :     |       /  \              |</span>
+<span class="sd">      :     |  +---+    tunnel_inner  |</span>
+<span class="sd">   ...:     |  | B |.......:    ^     |</span>
+<span class="sd">   :        |  +---+            |     |</span>
+<span class="sd">   :        |                   |     |</span>
+<span class="sd">   :..tunnel_outer &lt;----- next_update |</span>
+<span class="sd">            |                         |</span>
+<span class="sd">            +-------------------------+</span>
+
+<span class="sd">In these diagrams, processes are boxes, stores are labeled nodes in the</span>
+<span class="sd">tree, solid lines show the state hierarchy, and dotted lines show the</span>
+<span class="sd">topology wiring.</span>
+
+<span class="sd">These tunnels are the only way that the EngineProcess exchanges</span>
+<span class="sd">information with the outside simulation.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composer</span> <span class="kn">import</span> <span class="n">Composer</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.emitter</span> <span class="kn">import</span> <span class="n">get_emitter</span><span class="p">,</span> <span class="n">SharedRamEmitter</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.engine</span> <span class="kn">import</span> <span class="n">Engine</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span><span class="p">,</span> <span class="n">Step</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.registry</span> <span class="kn">import</span> <span class="n">updater_registry</span><span class="p">,</span> <span class="n">divider_registry</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.store</span> <span class="kn">import</span> <span class="n">DEFAULT_SCHEMA</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.topology</span> <span class="kn">import</span> <span class="n">get_in</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.sim_data</span> <span class="kn">import</span> <span class="n">RAND_MAX</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">remove_properties</span><span class="p">,</span> <span class="n">empty_dict_divider</span><span class="p">,</span> <span class="n">not_a_process</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.updaters</span> <span class="kn">import</span> <span class="n">inverse_updater_registry</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.cell_division</span> <span class="kn">import</span> <span class="n">daughter_phylogeny_id</span>
+
+
+<div class="viewcode-block" id="_get_path_net_depth">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._get_path_net_depth">[docs]</a>
+<span class="k">def</span> <span class="nf">_get_path_net_depth</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="n">depth</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">node</span> <span class="o">==</span> <span class="s1">&#39;..&#39;</span><span class="p">:</span>
+            <span class="n">depth</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">depth</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">depth</span></div>
+
+
+
+<div class="viewcode-block" id="cap_tunneling_paths">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.cap_tunneling_paths">[docs]</a>
+<span class="k">def</span> <span class="nf">cap_tunneling_paths</span><span class="p">(</span><span class="n">topology</span><span class="p">,</span> <span class="n">outer</span><span class="o">=</span><span class="nb">tuple</span><span class="p">()):</span>
+    <span class="n">tunnels</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">caps</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">topology</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">tunnels</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cap_tunneling_paths</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">outer</span> <span class="o">+</span> <span class="p">(</span><span class="n">key</span><span class="p">,)))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="n">val</span><span class="p">:</span>  <span class="c1"># Never cap empty paths</span>
+            <span class="n">path_depth</span> <span class="o">=</span> <span class="n">_get_path_net_depth</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+            <span class="c1"># Note that the last node in ``outer`` is the process name,</span>
+            <span class="c1"># which doesn&#39;t count as part of the path depth.</span>
+            <span class="n">outer_path</span> <span class="o">=</span> <span class="n">outer</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c1"># Paths are relative to the process&#39;s parent node.</span>
+            <span class="k">if</span> <span class="o">-</span><span class="n">path_depth</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer_path</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># Path extends ouside EngineProcess, so cap it.</span>
+                <span class="k">assert</span> <span class="n">val</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;..&#39;</span>
+                <span class="n">tunnel_inner</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">_tunnel&#39;</span>
+                <span class="c1"># Capped path is to tunnel_inner, which is at the top</span>
+                <span class="c1"># level of the hierarchy.</span>
+                <span class="n">capped_path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                    <span class="p">[</span><span class="s1">&#39;..&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">outer_path</span><span class="p">))</span> <span class="o">+</span> <span class="p">(</span><span class="n">tunnel_inner</span><span class="p">,)</span>
+                <span class="n">tunnels</span><span class="p">[</span><span class="n">outer</span> <span class="o">+</span> <span class="p">(</span><span class="n">key</span><span class="p">,)]</span> <span class="o">=</span> <span class="n">tunnel_inner</span>
+                <span class="n">caps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="n">capped_path</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">cap_key</span><span class="p">,</span> <span class="n">cap_path</span> <span class="ow">in</span> <span class="n">caps</span><span class="p">:</span>
+        <span class="n">topology</span><span class="p">[</span><span class="n">cap_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">cap_path</span>
+    <span class="k">return</span> <span class="n">tunnels</span></div>
+
+
+
+<div class="viewcode-block" id="SchemaStub">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.SchemaStub">[docs]</a>
+<span class="k">class</span> <span class="nc">SchemaStub</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;Stub process for providing schemas to an inner simulation. Run as</span>
+<span class="sd">    a Step otherwise its timestep could influence when other Steps run.</span>
+<span class="sd">    For example, if a SchemaStub was a process with timestep 1 while all</span>
+<span class="sd">    other processes had timestep 2, Steps like mass listener would run</span>
+<span class="sd">    after every second instead of every 2 seconds, wasting time.</span>
+
+<span class="sd">    When using :py:class:`ecoli.processes.engine_process.EngineProcess`,</span>
+<span class="sd">    there may be processes in the outer simulation whose schemas you are</span>
+<span class="sd">    expecting to affect variables in the inner simulation. You can</span>
+<span class="sd">    include this stub process in your inner simulation to provide those</span>
+<span class="sd">    schemas from the outer simulation.</span>
+
+<span class="sd">    The process takes a single parameter, ``ports_schema``, whose value</span>
+<span class="sd">    is the process&#39;s ports schema to be provided to the inner</span>
+<span class="sd">    simulation.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;ports_schema&#39;</span><span class="p">:</span> <span class="p">{},</span>
+    <span class="p">}</span>
+
+
+<div class="viewcode-block" id="SchemaStub.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.SchemaStub.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ports_schema&#39;</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="SchemaStub.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.SchemaStub.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="EngineProcess">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.EngineProcess">[docs]</a>
+<span class="k">class</span> <span class="nc">EngineProcess</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="c1"># Map from tunnel name to path to internal store.</span>
+        <span class="s1">&#39;tunnels_in&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="c1"># Map from tunnel name to schema. Schemas are optional.</span>
+        <span class="s1">&#39;tunnel_out_schemas&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;emit_paths&#39;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+        <span class="c1"># Map from process name to a map from path in the inner</span>
+        <span class="c1"># simulation to the schema that should be stubbed in at that</span>
+        <span class="c1"># path. A stub process will be added with a port for each</span>
+        <span class="c1"># schema, and the topology will wire each port to the specified</span>
+        <span class="c1"># path.</span>
+        <span class="s1">&#39;stub_schemas&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;agent_id&#39;</span><span class="p">:</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;inner_composer&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;outer_composer&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;inner_composer_config&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;outer_composer_config&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;inner_emitter&#39;</span><span class="p">:</span> <span class="s1">&#39;null&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;divide&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;division_threshold&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;division_variable&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;start_time&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;experiment_id&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;inner_same_timestep&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="c1"># TODO: Handle name clashes between tunnels.</span>
+
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="n">parameters</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="c1"># Pass config to generate() to avoid deep copy</span>
+        <span class="n">inner_composite</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_composer&#39;</span><span class="p">]()</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_composer_config&#39;</span><span class="p">])</span>
+        <span class="n">inner_initial_state</span> <span class="o">=</span> <span class="n">inner_composite</span><span class="o">.</span><span class="n">initial_state</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_composer_config&#39;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_out</span> <span class="o">=</span> <span class="n">cap_tunneling_paths</span><span class="p">(</span>
+            <span class="n">inner_composite</span><span class="p">[</span><span class="s1">&#39;topology&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_in</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;tunnels_in&#39;</span><span class="p">]</span>
+
+        <span class="n">processes</span> <span class="o">=</span> <span class="n">inner_composite</span><span class="p">[</span><span class="s1">&#39;processes&#39;</span><span class="p">]</span>
+        <span class="n">topology</span> <span class="o">=</span> <span class="n">inner_composite</span><span class="p">[</span><span class="s1">&#39;topology&#39;</span><span class="p">]</span>
+        <span class="n">steps</span> <span class="o">=</span> <span class="n">inner_composite</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;steps&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">process</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;stub_schemas&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">stub_ports_schema</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">stub_process_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">process</span><span class="si">}</span><span class="s1">_stub&#39;</span>
+            <span class="n">topology</span><span class="p">[</span><span class="n">stub_process_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">schema</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">port</span> <span class="o">=</span> <span class="s1">&#39;&gt;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="n">stub_ports_schema</span><span class="p">[</span><span class="n">port</span><span class="p">]</span> <span class="o">=</span> <span class="n">schema</span>
+                <span class="n">topology</span><span class="p">[</span><span class="n">stub_process_name</span><span class="p">][</span><span class="n">port</span><span class="p">]</span> <span class="o">=</span> <span class="n">path</span>
+            <span class="n">stub</span> <span class="o">=</span> <span class="n">SchemaStub</span><span class="p">({</span><span class="s1">&#39;ports_schema&#39;</span><span class="p">:</span> <span class="n">stub_ports_schema</span><span class="p">})</span>
+            <span class="n">steps</span><span class="p">[</span><span class="n">stub_process_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">stub</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">emitter</span> <span class="o">=</span> <span class="kc">None</span>
+        
+        <span class="c1"># Since unique numpy updater is an class method, internal</span>
+        <span class="c1"># deepcopying in vivarium-core causes this warning to appear</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Incompatible schema assignment at &quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sim</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span>
+            <span class="n">processes</span><span class="o">=</span><span class="n">processes</span><span class="p">,</span>
+            <span class="n">steps</span><span class="o">=</span><span class="n">steps</span><span class="p">,</span>
+            <span class="n">flow</span><span class="o">=</span><span class="n">inner_composite</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;flow&#39;</span><span class="p">),</span>
+            <span class="n">topology</span><span class="o">=</span><span class="n">topology</span><span class="p">,</span>
+            <span class="n">initial_state</span><span class="o">=</span><span class="n">inner_initial_state</span><span class="p">,</span>
+            <span class="n">experiment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;experiment_id&#39;</span><span class="p">],</span>
+            <span class="n">emitter</span><span class="o">=</span><span class="s1">&#39;null&#39;</span><span class="p">,</span>
+            <span class="n">display_info</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">progress_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">initial_global_time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;start_time&#39;</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="c1"># Unnecessary references to initial_state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">initial_state</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_composer_config&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;initial_state&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        
+        <span class="c1"># Only apply overrides to first cell in simulation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_composer_config&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span>
+            <span class="s1">&#39;initial_state_overrides&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_paths&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">set_emit_values</span><span class="p">([</span><span class="nb">tuple</span><span class="p">()],</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">set_emit_values</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_paths&#39;</span><span class="p">],</span>
+                <span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span>
+            <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">updater_registry_reverse</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">updater_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">key</span><span class="p">):</span> <span class="n">key</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">updater_registry</span><span class="o">.</span><span class="n">main_keys</span>
+        <span class="p">}</span>
+
+
+<div class="viewcode-block" id="EngineProcess.create_emitter">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.EngineProcess.create_emitter">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_emitter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_emitter&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emitter_config</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_emitter&#39;</span><span class="p">]}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emitter_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_emitter&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emitter_config</span><span class="p">[</span><span class="s1">&#39;experiment_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;experiment_id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emitter</span> <span class="o">=</span> <span class="n">get_emitter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">emitter_config</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EngineProcess.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.EngineProcess.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">port_path</span><span class="p">,</span> <span class="n">tunnel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_out</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">process_path</span> <span class="o">=</span> <span class="n">port_path</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="n">port_path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">process</span> <span class="o">=</span> <span class="n">get_in</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">processes</span><span class="p">,</span>
+                <span class="n">process_path</span><span class="p">,</span>
+                <span class="n">get_in</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span> <span class="n">process_path</span><span class="p">))</span>
+            <span class="n">tunnel_schema</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">get_schema</span><span class="p">()[</span><span class="n">port</span><span class="p">]</span>
+            <span class="n">schema</span><span class="p">[</span><span class="n">tunnel</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">tunnel_schema</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tunnel</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_in</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">tunnel_schema</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+            <span class="c1"># Don&#39;t waste time dividing outer sim state since it will be</span>
+            <span class="c1"># overwritten by inner daughter states (also removes need to </span>
+            <span class="c1"># emit all unique molecules required by certain dividers like </span>
+            <span class="c1"># that for active_ribosome)</span>
+            <span class="n">tunnel_schema</span><span class="p">[</span><span class="s1">&#39;_divider&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">empty_dict_divider</span>
+            <span class="c1"># Internal sim state is fully defined, making subschemas</span>
+            <span class="c1"># redundant (also not properly parsed during store generation)</span>
+            <span class="c1"># This also avoids duplicated emits from the outer sim.</span>
+            <span class="n">tunnel_schema</span> <span class="o">=</span> <span class="n">remove_properties</span><span class="p">(</span><span class="n">tunnel_schema</span><span class="p">,</span> <span class="p">[</span>
+                <span class="s1">&#39;_subschema&#39;</span><span class="p">,</span> <span class="s1">&#39;_emit&#39;</span><span class="p">,</span> <span class="s1">&#39;_value&#39;</span><span class="p">])</span>
+            <span class="n">schema</span><span class="p">[</span><span class="n">tunnel</span><span class="p">]</span> <span class="o">=</span> <span class="n">tunnel_schema</span>
+        <span class="k">for</span> <span class="n">tunnel</span><span class="p">,</span> <span class="n">tunnel_schema</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+                <span class="s1">&#39;tunnel_out_schemas&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">schema</span><span class="p">[</span><span class="n">tunnel</span><span class="p">]</span> <span class="o">=</span> <span class="n">tunnel_schema</span>
+        <span class="k">return</span> <span class="n">schema</span></div>
+
+
+
+<div class="viewcode-block" id="EngineProcess.initial_state">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.EngineProcess.initial_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># We ignore tunnels out because those are to stores like fields</span>
+        <span class="c1"># or dimensions that are outside the cell and therefore don&#39;t</span>
+        <span class="c1"># get divided.</span>
+        <span class="k">for</span> <span class="n">tunnel</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_in</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">state</span><span class="p">[</span><span class="n">tunnel</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">state</span></div>
+
+
+
+<div class="viewcode-block" id="EngineProcess.calculate_timestep">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.EngineProcess.calculate_timestep">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_timestep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">timestep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="k">for</span> <span class="n">proc_path</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">process_paths</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">proc_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">_process_state</span><span class="p">(</span><span class="n">proc_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_same_timestep&#39;</span><span class="p">]:</span>
+                <span class="c1"># Warn user if inner process has different timestep from rest</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">timestep</span> <span class="o">!=</span> <span class="n">process</span><span class="o">.</span><span class="n">calculate_timestep</span><span class="p">(</span><span class="n">proc_state</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">timestep</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">):</span>
+                    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Time step mismatch for process &quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">process</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">timestep</span><span class="si">}</span><span class="s2"> != &quot;</span> <span class="o">+</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">calculate_timestep</span><span class="p">({})))</span>
+            <span class="n">timestep</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">process</span><span class="o">.</span><span class="n">calculate_timestep</span><span class="p">(</span><span class="n">proc_state</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">timestep</span></div>
+
+
+
+<div class="viewcode-block" id="EngineProcess.send_command">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.EngineProcess.send_command">[docs]</a>
+    <span class="k">def</span> <span class="nf">send_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">run_pre_check</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Override to handle special command &#39;get_inner_state&#39; which</span>
+<span class="sd">        lets engine process pull out a dictionary containing the entire</span>
+<span class="sd">        inner simulation state.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">run_pre_check</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pre_send_command</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">args</span> <span class="ow">or</span> <span class="nb">tuple</span><span class="p">()</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span> <span class="ow">or</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">command</span> <span class="o">==</span> <span class="s1">&#39;get_inner_state&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_command_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span>
+                <span class="n">condition</span><span class="o">=</span><span class="n">not_a_process</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pending_command</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EngineProcess.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process.EngineProcess.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># Create emitter only after all pickling/unpickling/forking</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitter</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_emitter</span><span class="p">()</span>
+        
+        <span class="c1"># Check whether we are being forced to finish early. This check</span>
+        <span class="c1"># should happen before we mutate the inner simulation state to</span>
+        <span class="c1"># make sure that self.calculate_timestep() returns the same</span>
+        <span class="c1"># value as it did to the Engine. However, this is just</span>
+        <span class="c1"># precautionary for now because currently,</span>
+        <span class="c1"># self.calculate_timestep() does not depend on the inner state.</span>
+        <span class="c1"># This only works because self.calculate_timestep() returns the</span>
+        <span class="c1"># same timestep that the inner Engine would normally use. If</span>
+        <span class="c1"># self.calculate_timestep() returned a timestep smaller than</span>
+        <span class="c1"># what the inner Engine would normally use, the outer simulation</span>
+        <span class="c1"># could be ending and forcing this process to complete, but</span>
+        <span class="c1"># since the timestep could by chance equal</span>
+        <span class="c1"># self.calculate_timestep(), we would not know to force the</span>
+        <span class="c1"># inner simulation to complete.</span>
+        <span class="n">force_complete</span> <span class="o">=</span> <span class="n">timestep</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_timestep</span><span class="p">({})</span>
+
+        <span class="c1"># Assert that nothing got wired into `null`.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">miswired_vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">((</span><span class="s1">&#39;null&#39;</span><span class="p">,))</span><span class="o">.</span><span class="n">inner</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># There might not be a (&#39;null&#39;,) store, which is okay.</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;(&#39;null&#39;,) is not a valid path from ()&quot;</span><span class="p">:</span>
+                <span class="n">miswired_vars</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">e</span>
+        <span class="k">if</span> <span class="n">miswired_vars</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Variables mistakenly wired to (&quot;null&quot;,): </span><span class="si">{</span><span class="n">miswired_vars</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Update the internal state with tunnel data.</span>
+        <span class="c1"># TODO: Check whether we need to deepcopy. Even if there are mutable</span>
+        <span class="c1"># states, mutating both the outer and inner states seems like it would</span>
+        <span class="c1"># save time because we end up crafting an update at the end to make</span>
+        <span class="c1"># the outer state match the inner state anyways</span>
+        <span class="k">for</span> <span class="n">tunnel</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_in</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="n">tunnel</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">tunnel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_out</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">((</span><span class="n">tunnel</span><span class="p">,))</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="n">tunnel</span><span class="p">])</span>
+
+        <span class="c1"># Emit data from inner simulation. We emit at the start of</span>
+        <span class="c1"># next_update() because the inner simulation is in-sync with the</span>
+        <span class="c1"># outer simulation here after the internal state has been</span>
+        <span class="c1"># synchronized with the tunnels from the outer simulation. In</span>
+        <span class="c1"># other words, since we rely on the outer Engine to apply the</span>
+        <span class="c1"># updates, we have to wait for those updates from the previous</span>
+        <span class="c1"># timestep to be applied before we emit data.</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">emit_data</span><span class="p">()</span>
+        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">global_time</span>
+        <span class="n">emit_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;table&#39;</span><span class="p">:</span> <span class="s1">&#39;history&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">emit_config</span><span class="p">)</span>
+
+        <span class="c1"># Run inner simulation for timestep.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">run_for</span><span class="p">(</span><span class="n">timestep</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">force_complete</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">complete</span><span class="p">()</span>
+
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Check for division and perform if needed.</span>
+        <span class="n">division_threshold</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;division_threshold&#39;</span><span class="p">]</span>
+        <span class="n">division_variable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;division_variable&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">get_value</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;divide&#39;</span><span class="p">]</span> 
+            <span class="ow">and</span> <span class="n">division_variable</span> <span class="o">&gt;=</span> <span class="n">division_threshold</span>
+        <span class="p">):</span>
+            <span class="c1"># Perform division.</span>
+            <span class="n">daughters</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">daughter_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">divide_value</span><span class="p">()</span>
+            <span class="n">daughter_ids</span> <span class="o">=</span> <span class="n">daughter_phylogeny_id</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;agent_id&#39;</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">daughter_id</span><span class="p">,</span> <span class="n">inner_state</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                    <span class="n">daughter_ids</span><span class="p">,</span> <span class="n">daughter_states</span><span class="p">):</span>
+                <span class="n">emitter_config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">emitter_config</span><span class="p">)</span>
+                <span class="n">emitter_config</span><span class="p">[</span><span class="s1">&#39;embed_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="n">daughter_id</span><span class="p">)</span>
+                <span class="n">new_seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">RAND_MAX</span><span class="p">)</span>
+                <span class="n">inner_composer_config</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inner_composer_config&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="n">new_seed</span><span class="p">,</span>
+                    <span class="s1">&#39;agent_id&#39;</span><span class="p">:</span> <span class="n">daughter_id</span><span class="p">,</span>
+                    <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="n">inner_state</span>
+                <span class="p">}</span>
+                <span class="c1"># Pass config to generate() to avoid deep copy</span>
+                <span class="n">outer_composite</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;outer_composer&#39;</span><span class="p">](</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">generate</span><span class="p">({</span>
+                        <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;outer_composer_config&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;agent_id&#39;</span><span class="p">:</span> <span class="n">daughter_id</span><span class="p">,</span>
+                        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="n">new_seed</span><span class="p">,</span>
+                        <span class="s1">&#39;start_time&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">global_time</span><span class="p">,</span>
+                        <span class="s1">&#39;inner_emitter&#39;</span><span class="p">:</span> <span class="n">emitter_config</span><span class="p">,</span>
+                        <span class="s1">&#39;inner_composer_config&#39;</span><span class="p">:</span> <span class="n">inner_composer_config</span>
+                    <span class="p">})</span>
+                <span class="n">daughter</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="n">daughter_id</span><span class="p">,</span>
+                    <span class="s1">&#39;processes&#39;</span><span class="p">:</span> <span class="n">outer_composite</span><span class="o">.</span><span class="n">processes</span><span class="p">,</span>
+                    <span class="s1">&#39;steps&#39;</span><span class="p">:</span> <span class="n">outer_composite</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span>
+                    <span class="s1">&#39;flow&#39;</span><span class="p">:</span> <span class="n">outer_composite</span><span class="o">.</span><span class="n">flow</span><span class="p">,</span>
+                    <span class="s1">&#39;topology&#39;</span><span class="p">:</span> <span class="n">outer_composite</span><span class="o">.</span><span class="n">topology</span><span class="p">,</span>
+                    <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="n">outer_composite</span><span class="o">.</span><span class="n">initial_state</span><span class="p">(),</span>
+                <span class="p">}</span>
+                <span class="n">daughters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">daughter</span><span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;_divide&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;mother&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;agent_id&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;daughters&#39;</span><span class="p">:</span> <span class="n">daughters</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">}</span>
+
+        <span class="c1"># Craft an update to pass data back out through the tunnels.</span>
+        <span class="k">for</span> <span class="n">tunnel</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_in</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">store</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="n">inverted_update</span> <span class="o">=</span> <span class="n">_inverse_update</span><span class="p">(</span>
+                <span class="n">states</span><span class="p">[</span><span class="n">tunnel</span><span class="p">],</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">get_value</span><span class="p">(),</span>
+                <span class="n">store</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">updater_registry_reverse</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">inverted_update</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">inverted_update</span> <span class="o">==</span> <span class="p">{}):</span>
+                <span class="n">update</span><span class="p">[</span><span class="n">tunnel</span><span class="p">]</span> <span class="o">=</span> <span class="n">inverted_update</span>
+        <span class="k">for</span> <span class="n">tunnel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tunnels_out</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">store</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sim</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_path</span><span class="p">((</span><span class="n">tunnel</span><span class="p">,))</span>
+            <span class="n">inverted_update</span> <span class="o">=</span> <span class="n">_inverse_update</span><span class="p">(</span>
+                <span class="n">states</span><span class="p">[</span><span class="n">tunnel</span><span class="p">],</span>
+                <span class="n">store</span><span class="o">.</span><span class="n">get_value</span><span class="p">(),</span>
+                <span class="n">store</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">updater_registry_reverse</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">inverted_update</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">inverted_update</span> <span class="o">==</span> <span class="p">{}):</span>
+                <span class="n">update</span><span class="p">[</span><span class="n">tunnel</span><span class="p">]</span> <span class="o">=</span> <span class="n">inverted_update</span>
+        <span class="k">return</span> <span class="n">update</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="_inverse_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._inverse_update">[docs]</a>
+<span class="k">def</span> <span class="nf">_inverse_update</span><span class="p">(</span>
+    <span class="n">initial_state</span><span class="p">,</span> <span class="n">final_state</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="n">updater_registry_reverse</span>
+<span class="p">):</span>
+    <span class="c1"># Handle the base case where we are on a leaf node.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">store</span><span class="o">.</span><span class="n">inner</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">store</span><span class="o">.</span><span class="n">updater</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">updater_name</span> <span class="o">=</span> <span class="n">store</span><span class="o">.</span><span class="n">updater</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># If the updater is not a string, look up its name using the</span>
+            <span class="c1"># reverse lookup table.</span>
+            <span class="n">updater_name</span> <span class="o">=</span> <span class="n">updater_registry_reverse</span><span class="p">[</span><span class="n">store</span><span class="o">.</span><span class="n">updater</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">updater_name</span> <span class="o">==</span> <span class="n">DEFAULT_SCHEMA</span><span class="p">:</span>
+            <span class="n">updater_name</span> <span class="o">=</span> <span class="s1">&#39;accumulate&#39;</span>
+
+        <span class="n">inverse_updater</span> <span class="o">=</span> <span class="n">inverse_updater_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">updater_name</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">inverse_updater</span>
+        <span class="k">return</span> <span class="n">inverse_updater</span><span class="p">(</span><span class="n">initial_state</span><span class="p">,</span> <span class="n">final_state</span><span class="p">)</span>
+
+    <span class="c1"># Loop over the keys in the initial state (to be updated) and recurse.</span>
+    <span class="c1"># TODO: Handle edge case where we add/remove stores in final_state</span>
+    <span class="n">update</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">initial_state</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">sub_update</span> <span class="o">=</span> <span class="n">_inverse_update</span><span class="p">(</span>
+            <span class="n">initial_state</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">final_state</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">store</span><span class="o">.</span><span class="n">inner</span><span class="p">[</span><span class="n">key</span><span class="p">],</span>
+            <span class="n">updater_registry_reverse</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sub_update</span><span class="p">:</span>
+            <span class="n">update</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">sub_update</span>
+    <span class="k">return</span> <span class="n">update</span></div>
+
+
+
+<div class="viewcode-block" id="_ProcA">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcA">[docs]</a>
+<span class="k">class</span> <span class="nc">_ProcA</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+
+<div class="viewcode-block" id="_ProcA.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcA.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;port_a&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;split&#39;</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;port_c&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;port_d&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;zero&#39;</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="_ProcA.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcA.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Each timestep, ``port_a += port_c``.&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;port_a&#39;</span><span class="p">:</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;port_c&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;port_d&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="_ProcB">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcB">[docs]</a>
+<span class="k">class</span> <span class="nc">_ProcB</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+
+<div class="viewcode-block" id="_ProcB.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcB.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;port_b&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="_ProcB.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcB.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Each timestep, ``port_b += 1``.&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;port_b&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="_ProcC">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcC">[docs]</a>
+<span class="k">class</span> <span class="nc">_ProcC</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+
+<div class="viewcode-block" id="_ProcC.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcC.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;port_c&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;port_b&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="_ProcC.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._ProcC.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Each timestep, ``port_c += port_b``.&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;port_c&#39;</span><span class="p">:</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;port_b&#39;</span><span class="p">],</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="_InnerComposer">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._InnerComposer">[docs]</a>
+<span class="k">class</span> <span class="nc">_InnerComposer</span><span class="p">(</span><span class="n">Composer</span><span class="p">):</span>
+
+<div class="viewcode-block" id="_InnerComposer.generate_processes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._InnerComposer.generate_processes">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;procA&#39;</span><span class="p">:</span> <span class="n">_ProcA</span><span class="p">(),</span>
+            <span class="s1">&#39;procB&#39;</span><span class="p">:</span> <span class="n">_ProcB</span><span class="p">(),</span>
+        <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="_InnerComposer.generate_topology">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._InnerComposer.generate_topology">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;procA&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;port_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;port_c&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;port_d&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">,),</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;procB&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;port_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="_OuterComposer">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._OuterComposer">[docs]</a>
+<span class="k">class</span> <span class="nc">_OuterComposer</span><span class="p">(</span><span class="n">Composer</span><span class="p">):</span>
+
+<div class="viewcode-block" id="_OuterComposer.generate_processes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._OuterComposer.generate_processes">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">inner_composer_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;inner_composer_config&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">proc</span> <span class="o">=</span> <span class="n">EngineProcess</span><span class="p">({</span>
+            <span class="s1">&#39;inner_composer&#39;</span><span class="p">:</span> <span class="n">_InnerComposer</span><span class="p">,</span>
+            <span class="s1">&#39;inner_composer_config&#39;</span><span class="p">:</span> <span class="n">inner_composer_config</span><span class="p">,</span>
+            <span class="s1">&#39;outer_composer&#39;</span><span class="p">:</span> <span class="n">_OuterComposer</span><span class="p">,</span>
+            <span class="s1">&#39;outer_composer_config&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">,</span>
+            <span class="s1">&#39;agent_id&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;agent_id&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;tunnels_in&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;c_tunnel&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,),</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;divide&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;division_threshold&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s1">&#39;division_variable&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">,),</span>
+            <span class="s1">&#39;inner_emitter&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;inner_emitter&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;start_time&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;start_time&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;experiment_id&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;experiment_id&#39;</span><span class="p">],</span>
+        <span class="p">})</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;engine&#39;</span><span class="p">:</span> <span class="n">proc</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="_OuterComposer.generate_topology">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.engine_process.html#ecoli.processes.engine_process._OuterComposer.generate_topology">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;engine&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;c_tunnel&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;agents&#39;</span><span class="p">),</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<span class="k">def</span> <span class="nf">test_engine_process</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Here&#39;s a schematic diagram of the hierarchy created in this test:</span>
+
+<span class="sd">    .. code-block:: text</span>
+
+<span class="sd">            +-------------+------------+------------------+</span>
+<span class="sd">            |             |            |                  |</span>
+<span class="sd">            |           +-+-+          |                  |</span>
+<span class="sd">            b...........| C |..........c    +-------------+-----------+</span>
+<span class="sd">            :           +---+          :    |       EngineProcess     |</span>
+<span class="sd">            :                          :    | +---+----+-----+-----+  |</span>
+<span class="sd">            :                          :    | |   |    |     |     |  |</span>
+<span class="sd">            :                          :    | | +-+-+..c     |     |  |</span>
+<span class="sd">            :                          :    | | | A |        |     |  |</span>
+<span class="sd">            :                          :    | | +---+........a     |  |</span>
+<span class="sd">            :                          :    | |                    |  |</span>
+<span class="sd">            :                          :    | +---+                |  |</span>
+<span class="sd">            :                          :    | | B |..........b_tunnel |</span>
+<span class="sd">            :                          :    | +---+                   |</span>
+<span class="sd">            :                          :    |                         |</span>
+<span class="sd">            :                          :    +---c_tunnel---b_tunnel---+</span>
+<span class="sd">            :                          :...........:           :</span>
+<span class="sd">            :                                                  :</span>
+<span class="sd">            :..................................................:</span>
+
+<span class="sd">    Notice that ``c_tunnel`` is a tunnel in from outer process ``C`` to</span>
+<span class="sd">    inner store `c`, and ``b_tunnel`` is a tunnel out from inner process</span>
+<span class="sd">    ``B`` to outer store ``b``.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">experiment_id</span> <span class="o">=</span> <span class="s1">&#39;test_experiment_id&#39;</span>
+
+    <span class="c1"># Clear the emitter&#39;s data in case it has been filled by another</span>
+    <span class="c1"># test.</span>
+    <span class="n">SharedRamEmitter</span><span class="o">.</span><span class="n">saved_data</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+    <span class="n">agent_path</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span>
+    <span class="n">outer_composer</span> <span class="o">=</span> <span class="n">_OuterComposer</span><span class="p">({</span>
+        <span class="s1">&#39;experiment_id&#39;</span><span class="p">:</span> <span class="n">experiment_id</span><span class="p">,</span>
+        <span class="s1">&#39;agent_id&#39;</span><span class="p">:</span> <span class="n">agent_path</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+        <span class="s1">&#39;inner_composer_config&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;start_time&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;inner_emitter&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;shared_ram&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;embed_path&#39;</span><span class="p">:</span> <span class="n">agent_path</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">})</span>
+    <span class="n">outer_composite</span> <span class="o">=</span> <span class="n">outer_composer</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">agent_path</span><span class="p">)</span>
+
+    <span class="n">schema</span> <span class="o">=</span> <span class="n">get_in</span><span class="p">(</span>
+        <span class="n">outer_composite</span><span class="o">.</span><span class="n">processes</span><span class="p">,</span>
+        <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;engine&#39;</span><span class="p">),</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">get_schema</span><span class="p">()</span>
+    <span class="n">expected_schema</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="c1"># The schema for c_tunnel is complete, even though we only</span>
+        <span class="c1"># specified a partial schema, because this schema is pulled from</span>
+        <span class="c1"># the filled inner simulation hierarchy.</span>
+        <span class="s1">&#39;c_tunnel&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="n">updater_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="s1">&#39;accumulate&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="n">divider_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="s1">&#39;empty_dict&#39;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="k">assert</span> <span class="n">schema</span> <span class="o">==</span> <span class="n">expected_schema</span>
+
+    <span class="n">enviro_composite</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;processes&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;procC&#39;</span><span class="p">:</span> <span class="n">_ProcC</span><span class="p">(),</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;steps&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;flow&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;topology&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;procC&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;port_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;port_c&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,),</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="n">outer_composite</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">enviro_composite</span><span class="p">)</span>
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span>
+        <span class="n">composite</span><span class="o">=</span><span class="n">outer_composite</span><span class="p">,</span>
+        <span class="n">experiment_id</span><span class="o">=</span><span class="n">experiment_id</span><span class="p">,</span>
+        <span class="n">emitter</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;shared_ram&#39;</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>
+    <span class="n">expected_data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="mi">0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;0&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="mf">1.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;0&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="mf">2.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;0&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="mf">3.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;0&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">3</span>
+        <span class="p">},</span>
+        <span class="mf">4.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;00&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+                <span class="s1">&#39;01&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="c1"># Note that now b is incrementing by 2 because it&#39;s getting +1</span>
+        <span class="c1"># updates from both cells.</span>
+        <span class="mf">5.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;00&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+                <span class="s1">&#39;01&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="mf">6.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;00&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">18</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+                <span class="s1">&#39;01&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">18</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">},</span>
+        <span class="mf">7.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;00&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">34</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+                <span class="s1">&#39;01&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">34</span><span class="p">,</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">24</span><span class="p">},</span>
+        <span class="mf">8.0</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;000&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s1">&#39;001&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s1">&#39;010&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s1">&#39;011&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+            <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">34</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="k">assert</span> <span class="n">data</span> <span class="o">==</span> <span class="n">expected_data</span>
+
+
+<span class="k">def</span> <span class="nf">test_cap_tunneling_paths</span><span class="p">():</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;procA&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;port_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,),</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;procB&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;port_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="n">capped</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;procA&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;port_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,),</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;procB&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;port_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;b_tunnel&#39;</span><span class="p">,),</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="n">expected_tunnels</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">(</span><span class="s1">&#39;procB&#39;</span><span class="p">,</span> <span class="s1">&#39;port_b&#39;</span><span class="p">):</span> <span class="s1">&#39;b_tunnel&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">tunnels</span> <span class="o">=</span> <span class="n">cap_tunneling_paths</span><span class="p">(</span><span class="n">topology</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">topology</span> <span class="o">==</span> <span class="n">capped</span>
+    <span class="k">assert</span> <span class="n">tunnels</span> <span class="o">==</span> <span class="n">expected_tunnels</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">test_engine_process</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

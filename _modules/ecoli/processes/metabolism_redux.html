@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.metabolism_redux &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.metabolism_redux</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.metabolism_redux</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">MetabolismRedux</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">unum</span> <span class="kn">import</span> <span class="n">Unum</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">scipy.sparse</span> <span class="kn">import</span> <span class="n">csr_matrix</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Step</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span> <span class="k">as</span> <span class="n">vivunits</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="p">(</span><span class="n">numpy_schema</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span><span class="p">,</span>
+    <span class="n">listener_schema</span><span class="p">,</span> <span class="n">counts</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+<span class="kn">import</span> <span class="nn">cvxpy</span> <span class="k">as</span> <span class="nn">cp</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Mapping</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.process.metabolism</span> <span class="kn">import</span> <span class="n">REVERSE_TAG</span>
+
+<span class="n">COUNTS_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">mmol</span>
+<span class="n">VOLUME_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+<span class="n">MASS_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span>
+<span class="n">TIME_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span>
+<span class="n">CONC_UNITS</span> <span class="o">=</span> <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+<span class="n">CONVERSION_UNITS</span> <span class="o">=</span> <span class="n">MASS_UNITS</span> <span class="o">*</span> <span class="n">TIME_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+<span class="n">GDCW_BASIS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">h</span>
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-metabolism-redux&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="n">topology_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">)</span>
+<span class="c1"># TODO (Cyrus) - Re-add when kinetics are added.</span>
+<span class="c1"># TOPOLOGY[&#39;kinetic_flux_targets&#39;] = (&#39;rates&#39;, &#39;fluxes&#39;)</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+<span class="c1"># TODO (Cyrus) - Remove when have a better way to handle these rxns.</span>
+<span class="c1"># ParCa mistakes in carbon gen, efflux/influx proton gen, mass gen</span>
+<span class="n">BAD_RXNS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;RXN-12440&quot;</span><span class="p">,</span> <span class="s2">&quot;TRANS-RXN-121&quot;</span><span class="p">,</span> <span class="s2">&quot;TRANS-RXN-300&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;TRANS-RXN-8&quot;</span><span class="p">,</span> <span class="s2">&quot;R15-RXN-MET/CPD-479//CPD-479/MET.25.&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="MetabolismRedux">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.MetabolismRedux">[docs]</a>
+<span class="k">class</span> <span class="nc">MetabolismRedux</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;stoich_dict&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;reaction_catalysts&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="c1"># TODO (Cyrus) -- get these passed in, subset of the stoichimetry</span>
+        <span class="s1">&#39;kinetic_rates&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;imports&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;concentration_updates&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;maintenance_reaction&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;nutrient_to_doubling_time&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;use_trna_charging&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;include_ppgpp&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;mechanistic_aa_transport&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;aa_targets_not_updated&#39;</span><span class="p">:</span> <span class="nb">set</span><span class="p">(),</span>
+        <span class="s1">&#39;import_constraint_threshold&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;exchange_molecules&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;non_growth_associated_maintenance&#39;</span><span class="p">:</span> <span class="mf">8.39</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">h</span><span class="p">),</span>
+        <span class="s1">&#39;avogadro&#39;</span><span class="p">:</span> <span class="mf">6.02214076e+23</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">,</span>
+        <span class="s1">&#39;cell_density&#39;</span><span class="p">:</span> <span class="mi">1100</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">,</span>
+        <span class="s1">&#39;dark_atp&#39;</span><span class="p">:</span> <span class="mf">33.565052868380675</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span><span class="p">,</span>
+        <span class="s1">&#39;cell_dry_mass_fraction&#39;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span>
+        <span class="s1">&#39;get_biomass_as_concentrations&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">doubling_time</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;ppgpp_id&#39;</span><span class="p">:</span> <span class="s1">&#39;ppgpp&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;get_ppGpp_conc&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">media</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="s1">&#39;exchange_data_from_media&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">media</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;get_masses&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">exchanges</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;doubling_time&#39;</span><span class="p">:</span> <span class="mf">44.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">,</span>
+        <span class="s1">&#39;amino_acid_ids&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;linked_metabolites&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;aa_exchange_names&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;removed_aa_uptake&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;base_reaction_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;fba_reaction_ids_to_base_reaction_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;constraints_to_disable&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;kinetic_objective_weight&#39;</span><span class="p">:</span> <span class="mf">1e-7</span><span class="p">,</span>
+        <span class="s1">&#39;kinetic_objective_weight_in_range&#39;</span><span class="p">:</span> <span class="mf">1e-10</span><span class="p">,</span>
+        <span class="s1">&#39;secretion_penalty_coeff&#39;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># Use information from the environment and sim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nutrient_to_doubling_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;nutrient_to_doubling_time&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_trna_charging</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;use_trna_charging&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_ppgpp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;include_ppgpp&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mechanistic_aa_transport</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;mechanistic_aa_transport&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_timeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;current_timeline&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">media_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;media_id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_molecules</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;exchange_molecules&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;aa_names&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets_not_updated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;aa_targets_not_updated&#39;</span><span class="p">]</span>
+
+        <span class="n">stoich_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;stoich_dict&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+        <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">BAD_RXNS</span><span class="p">:</span>
+            <span class="n">stoich_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">rxn</span><span class="p">)</span>
+        <span class="c1"># Add maintenance reaction</span>
+        <span class="n">stoich_dict</span><span class="p">[</span><span class="s1">&#39;maintenance_reaction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;maintenance_reaction&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Get all metabolite names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">reaction</span><span class="p">,</span> <span class="n">stoich</span> <span class="ow">in</span> <span class="n">stoich_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">stoich</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;exchange_molecules&#39;</span><span class="p">]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metabolite_names</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reaction_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">stoich_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="n">metabolites_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">species</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">species</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metabolite_names</span><span class="p">)}</span>
+
+        <span class="c1"># Get indices of catalysts for each reaction</span>
+        <span class="n">reaction_catalysts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;reaction_catalysts&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalyst_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;catalyst_ids&#39;</span><span class="p">]</span>
+        <span class="n">catalyst_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">catalyst</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">catalyst</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catalyst_ids</span><span class="p">)}</span>
+
+        <span class="c1"># Create stoichiometry matrix (dot reaction fluxes to get</span>
+        <span class="c1"># molecule deltas) and catalysis matrix (dot catalyst counts</span>
+        <span class="c1"># to get catalyst counts per enzyme-catalyzed reaction)</span>
+        <span class="n">coeffs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">met_ind</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">rxn_ind</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">catalyst_ind</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">catalyzed_rxn_ind</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">catalyzed_rxn_idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">rxn_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">reaction</span><span class="p">,</span> <span class="n">stoich</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stoich_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">coefficient</span> <span class="ow">in</span> <span class="n">stoich</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">met_ind</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metabolites_idx</span><span class="p">[</span><span class="n">species</span><span class="p">])</span>
+                <span class="n">rxn_ind</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rxn_idx</span><span class="p">)</span>
+                <span class="n">coeffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coefficient</span><span class="p">)</span>
+            <span class="n">enzyme_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">catalyst_idx</span><span class="p">[</span><span class="n">catalyst</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">catalyst</span> <span class="ow">in</span> <span class="n">reaction_catalysts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">reaction</span><span class="p">,</span> <span class="p">[])]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">enzyme_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">catalyst_ind</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">enzyme_idx</span><span class="p">)</span>
+                <span class="n">catalyzed_rxn_ind</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">catalyzed_rxn_idx</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">enzyme_idx</span><span class="p">))</span>
+                <span class="n">catalyzed_rxn_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">((</span><span class="n">coeffs</span><span class="p">,</span> <span class="p">(</span><span class="n">met_ind</span><span class="p">,</span> <span class="n">rxn_ind</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalysis_matrix</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">(([</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">catalyst_ind</span><span class="p">),</span>
+            <span class="p">(</span><span class="n">catalyzed_rxn_ind</span><span class="p">,</span> <span class="n">catalyst_ind</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">media_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;media_id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_density</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;cell_density&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_avogadro</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;avogadro&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ngam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;non_growth_associated_maintenance&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gam</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;dark_atp&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;cell_dry_mass_fraction&#39;</span><span class="p">]</span>
+
+        <span class="c1"># new variables for the model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_mass</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">previous_mass</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reaction_fluxes</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># methods from config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_biomass_concentrations</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># type: dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_getBiomassAsConcentrations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;get_biomass_as_concentrations&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">concentration_updates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;concentration_updates&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_constraints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;exchange_constraints&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_kinetic_constraints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;get_kinetic_constraints&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_constraint_reactions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;kinetic_constraint_reactions&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Include ppGpp concentration target in objective if not handled</span>
+        <span class="c1"># kinetically in other processes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ppgpp_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ppgpp_id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">getppGppConc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;get_ppGpp_conc&#39;</span><span class="p">]</span>
+
+        <span class="c1"># go through all media in the timeline and add to metaboliteNames</span>
+        <span class="n">homeostatic_metabolites</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">conc_from_nutrients</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">concentration_updates</span><span class="o">.</span>
+            <span class="n">concentrations_based_on_nutrients</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_ppgpp</span><span class="p">:</span>
+            <span class="n">homeostatic_metabolites</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ppgpp_id</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">media_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_timeline</span><span class="p">:</span>
+            <span class="n">exchanges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;exchange_data_from_media&#39;</span><span class="p">](</span><span class="n">media_id</span><span class="p">)</span>
+            <span class="n">homeostatic_metabolites</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">conc_from_nutrients</span><span class="p">(</span>
+                <span class="n">imports</span><span class="o">=</span><span class="n">exchanges</span><span class="p">[</span><span class="s1">&#39;importExchangeMolecules&#39;</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolites</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">homeostatic_metabolites</span><span class="p">))</span>
+
+        <span class="c1"># Setup homeostatic objective concentration targets</span>
+        <span class="c1"># Determine concentrations based on starting environment</span>
+        <span class="n">conc_dict</span> <span class="o">=</span> <span class="n">conc_from_nutrients</span><span class="p">(</span><span class="n">media_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">current_timeline</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+                                        <span class="n">imports</span><span class="o">=</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;imports&#39;</span><span class="p">])</span>
+        <span class="n">doubling_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;doubling_time&#39;</span><span class="p">]</span>
+        <span class="n">conc_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getBiomassAsConcentrations</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_ppgpp</span><span class="p">:</span>
+            <span class="n">conc_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ppgpp_id</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getppGppConc</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_objective</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">conc_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">CONC_UNITS</span><span class="p">))</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">conc_dict</span><span class="p">)</span>
+
+        <span class="c1"># Include all concentrations that will be present in a sim for constant</span>
+        <span class="c1"># length listeners</span>
+        <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolites</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">met</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_objective</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_objective</span><span class="p">[</span><span class="n">met</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.</span>
+
+        <span class="c1"># Molecules with concentration updates for listener</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linked_metabolites</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;linked_metabolites&#39;</span><span class="p">]</span>
+        <span class="n">doubling_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nutrient_to_doubling_time</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">media_id</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nutrient_to_doubling_time</span><span class="p">[</span><span class="s1">&#39;minimal&#39;</span><span class="p">])</span>
+        <span class="n">update_molecules</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getBiomassAsConcentrations</span><span class="p">(</span>
+            <span class="n">doubling_time</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_trna_charging</span><span class="p">:</span>
+            <span class="n">update_molecules</span> <span class="o">+=</span> <span class="p">[</span><span class="n">aa</span> <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_names</span>
+                <span class="k">if</span> <span class="n">aa</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets_not_updated</span><span class="p">]</span>
+            <span class="n">update_molecules</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">linked_metabolites</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_ppgpp</span><span class="p">:</span>
+            <span class="n">update_molecules</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ppgpp_id&#39;</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conc_update_molecules</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">update_molecules</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_exchange_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;aa_exchange_names&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">removed_aa_uptake</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;removed_aa_uptake&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_environment_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">aa</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">aa</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_exchange_names</span><span class="p">]</span>
+
+        <span class="c1"># Remove disabled reactions so they don&#39;t get included in the FBA</span>
+        <span class="c1"># problem setup</span>
+        <span class="n">constraints_to_disable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;constraints_to_disable&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_constraints_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[(</span><span class="n">rxn</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">constraints_to_disable</span><span class="p">)</span>
+             <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_constraint_reactions</span><span class="p">])</span>
+
+        <span class="c1"># Network flow initialization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span> <span class="o">=</span> <span class="n">NetworkFlowModel</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_names</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reaction_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolites</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_constraint_reactions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;get_mass&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gam</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_constraints_mask</span><span class="p">)</span>
+
+        <span class="c1"># important bulk molecule names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">catalyst_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;catalyst_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;aa_names&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_constraint_enzymes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;kinetic_constraint_enzymes&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_constraint_substrates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;kinetic_constraint_substrates&#39;</span><span class="p">]</span>
+
+        <span class="c1"># objective weights</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_objective_weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;kinetic_objective_weight&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">secretion_penalty_coeff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;secretion_penalty_coeff&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_objective_weight_in_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;kinetic_objective_weight_in_range&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Helper indices for Numpy indexing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolite_idx</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Cache uptake parameters from previous timestep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">allowed_exchange_uptake</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Track updated AA concentration targets with tRNA charging</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets_not_updated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;aa_targets_not_updated&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aa_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;aa_names&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">import_constraint_threshold</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;import_constraint_threshold&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Get conversion matrix to compile individual fluxes in the FBA</span>
+        <span class="c1"># solution to the fluxes of base reactions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_reaction_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;base_reaction_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_reaction_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;maintenance_reaction&#39;</span><span class="p">)</span>
+        <span class="n">fba_reaction_ids_to_base_reaction_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;fba_reaction_ids_to_base_reaction_ids&#39;</span><span class="p">]</span>
+        <span class="n">fba_reaction_ids_to_base_reaction_ids</span><span class="p">[</span><span class="s1">&#39;maintenance_reaction&#39;</span>
+            <span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;maintenance_reaction&#39;</span>
+        <span class="n">fba_reaction_id_to_index</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">rxn_id</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">rxn_id</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reaction_names</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="n">base_reaction_id_to_index</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">rxn_id</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">rxn_id</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_reaction_ids</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="n">base_rxn_indexes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">fba_rxn_indexes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">fba_rxn_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reaction_names</span><span class="p">:</span>
+            <span class="n">base_rxn_id</span> <span class="o">=</span> <span class="n">fba_reaction_ids_to_base_reaction_ids</span><span class="p">[</span><span class="n">fba_rxn_id</span><span class="p">]</span>
+            <span class="n">base_rxn_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">base_reaction_id_to_index</span><span class="p">[</span><span class="n">base_rxn_id</span><span class="p">])</span>
+            <span class="n">fba_rxn_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fba_reaction_id_to_index</span><span class="p">[</span><span class="n">fba_rxn_id</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">fba_rxn_id</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">REVERSE_TAG</span><span class="p">):</span>
+                <span class="n">v</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">v</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">base_rxn_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">base_rxn_indexes</span><span class="p">)</span>
+        <span class="n">fba_rxn_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fba_rxn_indexes</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_reaction_ids</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reaction_names</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">reaction_mapping_matrix</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="n">base_rxn_indexes</span><span class="p">,</span> <span class="n">fba_rxn_indexes</span><span class="p">)),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MetabolismRedux.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.MetabolismRedux.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;bulk_total&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+            <span class="c1"># &#39;kinetic_flux_targets&#39;: {reaction_id: {} for reaction_id</span>
+            <span class="c1">#     in self.parameters[&#39;kinetic_rates&#39;]},</span>
+
+            <span class="s1">&#39;environment&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">},</span>
+                <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">element</span><span class="p">):</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+                    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_molecules</span><span class="p">},</span>
+                <span class="s1">&#39;exchange_data&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;unconstrained&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="p">{}},</span>
+                    <span class="s1">&#39;constrained&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="nb">set</span><span class="p">()}</span>
+                <span class="p">}},</span>
+
+            <span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;*&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">vivunits</span><span class="o">.</span><span class="n">mM</span><span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+
+            <span class="s1">&#39;polypeptide_elongation&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;aa_count_diff&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                    <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;empty_dict&#39;</span><span class="p">},</span>
+                <span class="s1">&#39;gtp_to_hydrolyze&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;zero&#39;</span><span class="p">},</span>
+                <span class="s1">&#39;aa_exchange_rates&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;zero&#39;</span><span class="p">},</span>
+            <span class="p">},</span>
+
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;cell_mass&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                    <span class="s1">&#39;dry_mass&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                    <span class="s1">&#39;rna_mass&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                    <span class="s1">&#39;protein_mass&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}),</span>
+
+                <span class="s1">&#39;fba_results&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;conc_updates&#39;</span><span class="p">:</span> <span class="p">([],</span> <span class="bp">self</span><span class="o">.</span><span class="n">conc_update_molecules</span><span class="p">),</span>
+                    <span class="s1">&#39;base_reaction_fluxes&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[],</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_reaction_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;solution_fluxes&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[],</span> <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">rxns</span><span class="p">),</span>
+                    <span class="s1">&#39;solution_dmdt&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[],</span> <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">mets</span><span class="p">),</span>
+                    <span class="s1">&#39;time_per_step&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                    <span class="s1">&#39;estimated_fluxes&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[],</span> <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">rxns</span><span class="p">),</span>
+                    <span class="s1">&#39;estimated_homeostatic_dmdt&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">mets</span><span class="p">)[</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">homeostatic_idx</span><span class="p">]),</span>
+                    <span class="s1">&#39;target_homeostatic_dmdt&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">mets</span><span class="p">)[</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">homeostatic_idx</span><span class="p">]),</span>
+                    <span class="s1">&#39;estimated_exchange_dmdt&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                    <span class="s1">&#39;estimated_intermediate_dmdt&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;target_kinetic_fluxes&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;target_kinetic_bounds&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;reaction_catalyst_counts&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;maintenance_target&#39;</span><span class="p">:</span> <span class="mi">0</span>
+                <span class="p">})</span>
+            <span class="p">},</span>
+
+            <span class="s1">&#39;global_time&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]},</span>
+            <span class="s1">&#39;next_update_time&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">},</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="MetabolismRedux.update_condition">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.MetabolismRedux.update_condition">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        See :py:meth:`~ecoli.processes.partition.Requester.update_condition`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> updated at t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> instead of t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">. Decrease the &quot;</span>
+                    <span class="s2">&quot;timestep for the global clock process for more &quot;</span>
+                    <span class="s2">&quot;accurate timekeeping.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="MetabolismRedux.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.MetabolismRedux.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># Initialize indices</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolite_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolite_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolites</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">catalyst_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catalyst_ids</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kinetics_enzymes_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_constraint_enzymes</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kinetics_substrates_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_constraint_substrates</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">aa_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aa_names</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+
+        <span class="n">unconstrained</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="s1">&#39;exchange_data&#39;</span><span class="p">][</span><span class="s1">&#39;unconstrained&#39;</span><span class="p">]</span>
+        <span class="n">constrained</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="s1">&#39;exchange_data&#39;</span><span class="p">][</span><span class="s1">&#39;constrained&#39;</span><span class="p">]</span>
+        <span class="n">new_allowed_exchange_uptake</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">unconstrained</span><span class="p">)</span><span class="o">.</span><span class="n">union</span><span class="p">(</span>
+            <span class="n">constrained</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">new_exchange_molecules</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_molecules</span><span class="p">)</span><span class="o">.</span><span class="n">union</span><span class="p">(</span>
+            <span class="nb">set</span><span class="p">(</span><span class="n">new_allowed_exchange_uptake</span><span class="p">))</span>
+
+        <span class="c1"># set up network flow model exchanges and uptakes</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">new_exchange_molecules</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_molecules</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span>
+            <span class="n">new_allowed_exchange_uptake</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">allowed_exchange_uptake</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">set_up_exchanges</span><span class="p">(</span>
+                <span class="n">new_exchange_molecules</span><span class="p">,</span> <span class="n">new_allowed_exchange_uptake</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchange_molecules</span> <span class="o">=</span> <span class="n">new_exchange_molecules</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">allowed_exchange_uptake</span> <span class="o">=</span> <span class="n">new_allowed_exchange_uptake</span>
+
+        <span class="c1"># extract the states from the ports</span>
+        <span class="n">homeostatic_metabolite_counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolite_idx</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timestep</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span>
+
+        <span class="c1"># TODO (Cyrus) - Implement kinetic model</span>
+        <span class="c1"># kinetic_flux_targets = states[&#39;kinetic_flux_targets&#39;]</span>
+        <span class="c1"># needed for kinetics</span>
+        <span class="n">current_catalyst_counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalyst_idx</span><span class="p">)</span>
+        <span class="n">translation_gtp</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;polypeptide_elongation&#39;</span><span class="p">][</span><span class="s1">&#39;gtp_to_hydrolyze&#39;</span><span class="p">]</span>
+        <span class="n">kinetic_enzyme_counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetics_enzymes_idx</span><span class="p">)</span> <span class="c1"># kinetics related</span>
+        <span class="n">kinetic_substrate_counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetics_substrates_idx</span><span class="p">)</span>
+
+        <span class="c1"># cell mass difference for calculating GAM</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_mass</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">previous_mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_mass</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">][</span><span class="s1">&#39;cell_mass&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span>
+        <span class="n">dry_mass</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">][</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span>
+
+        <span class="n">cell_volume</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_mass</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_density</span>
+        <span class="c1"># Coefficient to convert between flux (mol/g DCW/hr) basis</span>
+        <span class="c1"># and concentration (M) basis</span>
+        <span class="n">conversion_coeff</span> <span class="o">=</span> <span class="p">(</span><span class="n">dry_mass</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_mass</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_density</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestep</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">counts_to_molar</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_avogadro</span> <span class="o">*</span> <span class="n">cell_volume</span><span class="p">))</span><span class="o">.</span><span class="n">asUnit</span><span class="p">(</span><span class="n">CONC_UNITS</span><span class="p">)</span>
+
+        <span class="c1"># maintenance target</span>
+        <span class="n">flux_ngam</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngam</span> <span class="o">*</span> <span class="n">conversion_coeff</span><span class="p">)</span>
+        <span class="n">flux_gtp</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">counts_to_molar</span> <span class="o">*</span> <span class="n">translation_gtp</span><span class="p">)</span>
+
+        <span class="n">total_ngam</span> <span class="o">=</span> <span class="n">flux_ngam</span> <span class="o">+</span> <span class="n">flux_gtp</span>
+        <span class="n">ngam_target</span> <span class="o">=</span> <span class="n">total_ngam</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span>
+
+        <span class="c1"># binary kinetic targets - sum up enzyme counts for each reaction</span>
+        <span class="n">reaction_catalyst_counts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">catalysis_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">current_catalyst_counts</span><span class="p">)</span>
+        <span class="c1"># Get reaction indices whose fluxes should be set to zero</span>
+        <span class="c1"># because there are no enzymes to catalyze the rxn</span>
+        <span class="n">binary_kinetic_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">reaction_catalyst_counts</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># TODO: Figure out how to handle changing media ID</span>
+
+        <span class="c1">## Determine updates to concentrations depending on the current state</span>
+        <span class="n">doubling_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nutrient_to_doubling_time</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="s1">&#39;media_id&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nutrient_to_doubling_time</span><span class="p">[</span><span class="s1">&#39;minimal&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_ppgpp</span><span class="p">:</span>
+            <span class="c1"># Sim does not include ppGpp regulation so do not update biomass</span>
+            <span class="c1"># by RNA/protein ratio and include ppGpp concentration as a</span>
+            <span class="c1"># homeostatic target</span>
+            <span class="n">conc_updates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getBiomassAsConcentrations</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+            <span class="n">conc_updates</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ppgpp_id</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getppGppConc</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="p">)</span><span class="o">.</span><span class="n">asUnit</span><span class="p">(</span><span class="n">CONC_UNITS</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Sim includes ppGpp regulation so update biomass based on</span>
+            <span class="c1"># RNA/protein ratio which is controlled by ppGpp and other growth</span>
+            <span class="c1"># regulation</span>
+            <span class="n">rp_ratio</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">][</span><span class="s1">&#39;rna_mass&#39;</span>
+                <span class="p">]</span> <span class="o">/</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">][</span><span class="s1">&#39;protein_mass&#39;</span><span class="p">]</span>
+            <span class="n">conc_updates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getBiomassAsConcentrations</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="p">,</span> <span class="n">rp_ratio</span><span class="o">=</span><span class="n">rp_ratio</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_trna_charging</span><span class="p">:</span>
+            <span class="n">conc_updates</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">update_amino_acid_targets</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">counts_to_molar</span><span class="p">,</span>
+                <span class="n">states</span><span class="p">[</span><span class="s1">&#39;polypeptide_elongation&#39;</span><span class="p">][</span><span class="s1">&#39;aa_count_diff&#39;</span><span class="p">],</span>
+                <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aa_names</span><span class="p">,</span>
+                         <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk_total&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_idx</span><span class="p">)))</span>
+            <span class="p">))</span>
+
+        <span class="c1"># Converted from units to make reproduction from listener data</span>
+        <span class="c1"># accurate to model results (otherwise can have floating point diffs)</span>
+        <span class="n">conc_updates</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">met</span><span class="p">:</span> <span class="n">conc</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">CONC_UNITS</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">met</span><span class="p">,</span> <span class="n">conc</span> <span class="ow">in</span> <span class="n">conc_updates</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_objective</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_objective</span><span class="p">,</span> <span class="o">**</span><span class="n">conc_updates</span><span class="p">}</span>
+
+        <span class="n">homeostatic_concs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolite_idx</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">met</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolites</span><span class="p">):</span>
+            <span class="n">homeostatic_concs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_objective</span><span class="p">[</span><span class="n">met</span><span class="p">]</span>
+
+        <span class="n">homeostatic_metabolite_concentrations</span> <span class="o">=</span> <span class="p">(</span><span class="n">homeostatic_metabolite_counts</span>
+            <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_to_molar</span><span class="o">.</span><span class="n">asNumber</span><span class="p">())</span>
+        <span class="n">target_homeostatic_dmdt</span> <span class="o">=</span> <span class="p">(</span><span class="n">homeostatic_concs</span>
+            <span class="o">-</span> <span class="n">homeostatic_metabolite_concentrations</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestep</span>
+
+        <span class="n">aa_uptake_package</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mechanistic_aa_transport</span><span class="p">:</span>
+            <span class="n">aa_in_media</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="n">states</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;external&#39;</span><span class="p">][</span><span class="n">aa_name</span>
+                    <span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;mM&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">import_constraint_threshold</span>
+                <span class="k">for</span> <span class="n">aa_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_environment_names</span>
+            <span class="p">])</span>
+            <span class="n">aa_in_media</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">removed_aa_uptake</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">exchange_rates</span> <span class="o">=</span> <span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;polypeptide_elongation&#39;</span><span class="p">][</span>
+                <span class="s1">&#39;aa_exchange_rates&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">timestep</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+                    <span class="n">CONC_UNITS</span> <span class="o">/</span> <span class="n">TIME_UNITS</span><span class="p">)</span>
+            <span class="n">aa_uptake_package</span> <span class="o">=</span> <span class="p">(</span><span class="n">exchange_rates</span><span class="p">[</span><span class="n">aa_in_media</span><span class="p">],</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">aa_exchange_names</span><span class="p">[</span><span class="n">aa_in_media</span><span class="p">],</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># kinetic constraints</span>
+        <span class="c1"># TODO (Cyrus) eventually collect isozymes in single reactions, map</span>
+        <span class="c1"># enzymes to reacts via stoich instead of kinetic_constraint_reactions</span>
+        <span class="n">kinetic_enzyme_conc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_to_molar</span> <span class="o">*</span> <span class="n">kinetic_enzyme_counts</span>
+        <span class="n">kinetic_substrate_conc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_to_molar</span> <span class="o">*</span> <span class="n">kinetic_substrate_counts</span>
+        <span class="n">kinetic_constraints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_kinetic_constraints</span><span class="p">(</span><span class="n">kinetic_enzyme_conc</span><span class="p">,</span> <span class="n">kinetic_substrate_conc</span><span class="p">)</span> <span class="c1"># kinetic</span>
+        <span class="n">enzyme_kinetic_boundaries</span> <span class="o">=</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">timestep</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span> <span class="o">*</span> <span class="n">kinetic_constraints</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">CONC_UNITS</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">target_kinetic_values</span> <span class="o">=</span> <span class="n">enzyme_kinetic_boundaries</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">target_kinetic_bounds</span> <span class="o">=</span> <span class="n">enzyme_kinetic_boundaries</span><span class="p">[:,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span>
+
+        <span class="n">objective_weights</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;secretion&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">secretion_penalty_coeff</span><span class="p">,</span>
+            <span class="s1">&#39;efficiency&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span>
+            <span class="s1">&#39;kinetics&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_objective_weight</span><span class="p">,</span>
+            <span class="s1">&#39;kinetics_in_range&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_objective_weight_in_range</span><span class="p">}</span>
+        <span class="n">solution</span><span class="p">:</span> <span class="n">FlowResult</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
+            <span class="n">homeostatic_concs</span><span class="o">=</span><span class="n">homeostatic_metabolite_concentrations</span><span class="p">,</span>
+            <span class="n">homeostatic_dm_targets</span><span class="o">=</span><span class="n">target_homeostatic_dmdt</span><span class="p">,</span>
+            <span class="n">ngam_target</span><span class="o">=</span><span class="n">ngam_target</span><span class="p">,</span>
+            <span class="n">kinetic_targets</span><span class="o">=</span><span class="n">enzyme_kinetic_boundaries</span><span class="p">,</span>
+            <span class="n">binary_kinetic_idx</span><span class="o">=</span><span class="n">binary_kinetic_idx</span><span class="p">,</span>
+            <span class="n">objective_weights</span><span class="o">=</span><span class="n">objective_weights</span><span class="p">,</span>
+            <span class="n">aa_uptake_package</span><span class="o">=</span><span class="n">aa_uptake_package</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">reaction_fluxes</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">velocities</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_dmdt</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">dm_dt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_exchange</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">exchanges</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maintenance_flux</span> <span class="o">=</span> <span class="n">solution</span><span class="o">.</span><span class="n">maintenance_flux</span>
+
+
+        <span class="c1"># recalculate flux concentrations to counts</span>
+        <span class="n">estimated_reaction_fluxes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concentrationToCounts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reaction_fluxes</span><span class="p">)</span>
+        <span class="n">metabolite_dmdt_counts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concentrationToCounts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metabolite_dmdt</span><span class="p">)</span>
+        <span class="n">target_kinetic_flux</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concentrationToCounts</span><span class="p">(</span><span class="n">target_kinetic_values</span><span class="p">)</span>
+        <span class="n">maintenance_flux</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concentrationToCounts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">maintenance_flux</span><span class="p">)</span>
+        <span class="n">target_homeostatic_dmdt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concentrationToCounts</span><span class="p">(</span><span class="n">target_homeostatic_dmdt</span><span class="p">)</span>
+        <span class="n">estimated_exchange_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concentrationToCounts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metabolite_exchange</span><span class="p">)</span>
+        <span class="n">target_kinetic_bounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">concentrationToCounts</span><span class="p">(</span><span class="n">target_kinetic_bounds</span><span class="p">)</span>
+
+        <span class="n">estimated_homeostatic_dmdt</span> <span class="o">=</span> <span class="n">metabolite_dmdt_counts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">homeostatic_idx</span><span class="p">]</span>
+        <span class="c1"># Ensure counts do not go negative</span>
+        <span class="n">final_metabolite_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fmax</span><span class="p">(</span><span class="n">homeostatic_metabolite_counts</span> <span class="o">+</span> <span class="n">estimated_homeostatic_dmdt</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">estimated_homeostatic_dmdt</span> <span class="o">=</span> <span class="n">final_metabolite_counts</span> <span class="o">-</span> <span class="n">homeostatic_metabolite_counts</span>
+        <span class="n">estimated_intermediate_dmdt</span> <span class="o">=</span> <span class="n">metabolite_dmdt_counts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">intermediates_idx</span><span class="p">]</span>
+        <span class="n">estimated_exchange_dmdt</span> <span class="o">=</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">metabolite</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]):</span> <span class="o">-</span><span class="n">exchange</span>
+            <span class="k">for</span> <span class="n">metabolite</span><span class="p">,</span> <span class="n">exchange</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network_flow_model</span><span class="o">.</span><span class="n">mets</span><span class="p">,</span>
+            <span class="n">estimated_exchange_array</span><span class="p">)</span> <span class="k">if</span> <span class="n">metabolite</span> <span class="ow">in</span> <span class="n">new_exchange_molecules</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_metabolite_idx</span><span class="p">,</span> <span class="n">estimated_homeostatic_dmdt</span><span class="p">)],</span>
+            <span class="s1">&#39;environment&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">estimated_exchange_dmdt</span>  <span class="c1"># changes to external metabolites</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;fba_results&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="s1">&#39;media_id&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;conc_updates&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">conc_updates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">conc_update_molecules</span><span class="p">],</span>
+                    <span class="s1">&#39;estimated_fluxes&#39;</span><span class="p">:</span> <span class="n">estimated_reaction_fluxes</span><span class="p">,</span>
+                    <span class="s1">&#39;estimated_homeostatic_dmdt&#39;</span><span class="p">:</span> <span class="n">estimated_homeostatic_dmdt</span><span class="p">,</span>
+                    <span class="s1">&#39;target_homeostatic_dmdt&#39;</span><span class="p">:</span> <span class="n">target_homeostatic_dmdt</span><span class="p">,</span>
+                    <span class="s1">&#39;target_kinetic_fluxes&#39;</span><span class="p">:</span> <span class="n">target_kinetic_flux</span><span class="p">,</span>
+                    <span class="s1">&#39;target_kinetic_bounds&#39;</span><span class="p">:</span> <span class="n">target_kinetic_bounds</span><span class="p">,</span>
+                    <span class="s1">&#39;estimated_exchange_dmdt&#39;</span><span class="p">:</span> <span class="n">estimated_exchange_dmdt</span><span class="p">,</span>
+                    <span class="s1">&#39;estimated_intermediate_dmdt&#39;</span><span class="p">:</span> <span class="n">estimated_intermediate_dmdt</span><span class="p">,</span>
+                    <span class="s1">&#39;maintenance_target&#39;</span><span class="p">:</span> <span class="n">maintenance_flux</span><span class="p">,</span>
+                    <span class="s1">&#39;solution_fluxes&#39;</span><span class="p">:</span> <span class="n">solution</span><span class="o">.</span><span class="n">velocities</span><span class="p">,</span>
+                    <span class="s1">&#39;solution_dmdt&#39;</span><span class="p">:</span> <span class="n">solution</span><span class="o">.</span><span class="n">dm_dt</span><span class="p">,</span>
+                    <span class="s1">&#39;reaction_catalyst_counts&#39;</span><span class="p">:</span> <span class="n">reaction_catalyst_counts</span><span class="p">,</span>
+                    <span class="s1">&#39;time_per_step&#39;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
+                    <span class="s1">&#39;base_reaction_fluxes&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reaction_mapping_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+                        <span class="n">estimated_reaction_fluxes</span><span class="p">)</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;next_update_time&#39;</span><span class="p">:</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="MetabolismRedux.concentrationToCounts">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.MetabolismRedux.concentrationToCounts">[docs]</a>
+    <span class="k">def</span> <span class="nf">concentrationToCounts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">concs</span><span class="p">,</span> <span class="p">(</span><span class="n">CONC_UNITS</span> <span class="o">/</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">counts_to_molar</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestep</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MetabolismRedux.getBiomassAsConcentrations">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.MetabolismRedux.getBiomassAsConcentrations">[docs]</a>
+    <span class="k">def</span> <span class="nf">getBiomassAsConcentrations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">:</span> <span class="n">Unum</span><span class="p">,</span> 
+                                   <span class="n">rp_ratio</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Unum</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Caches the result of the sim_data function to improve performance since</span>
+<span class="sd">        function requires computation but won&#39;t change for a given doubling_time.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            doubling_time: doubling time of the cell to</span>
+<span class="sd">                get the metabolite concentrations for</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Mapping from metabolite IDs to concentration targets</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO (Cyrus) Repeats code found in processes/metabolism.py Should think of a way to share.</span>
+
+        <span class="n">minutes</span> <span class="o">=</span> <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">)</span>  <span class="c1"># hashable</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">minutes</span><span class="p">,</span> <span class="n">rp_ratio</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_biomass_concentrations</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_biomass_concentrations</span><span class="p">[(</span><span class="n">minutes</span><span class="p">,</span> <span class="n">rp_ratio</span><span class="p">)]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getBiomassAsConcentrations</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="p">,</span> <span class="n">rp_ratio</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_biomass_concentrations</span><span class="p">[(</span><span class="n">minutes</span><span class="p">,</span> <span class="n">rp_ratio</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="MetabolismRedux.update_amino_acid_targets">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.MetabolismRedux.update_amino_acid_targets">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_amino_acid_targets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">counts_to_molar</span><span class="p">:</span> <span class="n">Unum</span><span class="p">,</span> 
+        <span class="n">count_diff</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">amino_acid_counts</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Unum</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Finds new amino acid concentration targets based on difference in</span>
+<span class="sd">        supply and number of amino acids used in polypeptide_elongation. </span>
+<span class="sd">        Skips updates to molecules defined in self.aa_targets_not_updated:</span>
+<span class="sd">        - L-SELENOCYSTEINE: rare AA that led to high variability when updated</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            counts_to_molar: conversion from counts to molar</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ``{AA name (str): new target AA conc (float with mol/volume units)}``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">aa_targets</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">aa</span><span class="p">,</span> <span class="n">diff</span> <span class="ow">in</span> <span class="n">count_diff</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">aa</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets_not_updated</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets</span><span class="p">[</span><span class="n">aa</span><span class="p">]</span> <span class="o">+=</span> <span class="n">diff</span>
+                <span class="c1"># TODO (Santiago): Improve targets update</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets</span><span class="p">[</span><span class="n">aa</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Warning: updated amino acid target for &#39;</span>
+                          <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">aa</span><span class="si">}</span><span class="s1"> was negative - adjusted to be positive.&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets</span><span class="p">[</span><span class="n">aa</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="c1"># First time step of a simulation so set target to current counts to</span>
+        <span class="c1"># prevent concentration jumps between generations</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">aa</span><span class="p">,</span> <span class="n">counts</span> <span class="ow">in</span> <span class="n">amino_acid_counts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">aa</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets_not_updated</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets</span><span class="p">[</span><span class="n">aa</span><span class="p">]</span> <span class="o">=</span> <span class="n">counts</span>
+
+        <span class="n">conc_updates</span> <span class="o">=</span> <span class="p">{</span><span class="n">aa</span><span class="p">:</span> <span class="n">counts</span> <span class="o">*</span> <span class="n">counts_to_molar</span> <span class="k">for</span> <span class="n">aa</span><span class="p">,</span>
+                        <span class="n">counts</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">aa_targets</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># Update linked metabolites that will follow an amino acid</span>
+        <span class="k">for</span> <span class="n">met</span><span class="p">,</span> <span class="n">link</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">linked_metabolites</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">conc_updates</span><span class="p">[</span><span class="n">met</span><span class="p">]</span> <span class="o">=</span> <span class="n">conc_updates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">link</span><span class="p">[</span><span class="s1">&#39;lead&#39;</span><span class="p">],</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">counts_to_molar</span><span class="p">)</span> <span class="o">*</span> <span class="n">link</span><span class="p">[</span><span class="s1">&#39;ratio&#39;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">conc_updates</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="FlowResult">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.FlowResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">FlowResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reaction velocities and dm/dt for an FBA solution, with metrics.&quot;&quot;&quot;</span>
+    <span class="n">velocities</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+    <span class="n">dm_dt</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+    <span class="n">exchanges</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+    <span class="n">maintenance_flux</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">objective</span><span class="p">:</span> <span class="nb">float</span></div>
+
+
+
+<div class="viewcode-block" id="NetworkFlowModel">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.NetworkFlowModel">[docs]</a>
+<span class="k">class</span> <span class="nc">NetworkFlowModel</span><span class="p">:</span>
+    <span class="c1"># TODO Documentation</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A network flow model for estimating fluxes in the metabolic network based on network structure. Flow is mainly</span>
+<span class="sd">    driven by precursor demand (homeostatic objective) and availability of nutrients.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+        <span class="n">stoich_arr</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span>
+        <span class="n">metabolites</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">list</span><span class="p">],</span>
+        <span class="n">reactions</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">list</span><span class="p">],</span>
+        <span class="n">homeostatic_metabolites</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">kinetic_reactions</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">get_mass</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Unum</span><span class="p">],</span>
+        <span class="n">gam</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">active_constraints_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">S_orig</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">(</span><span class="n">stoich_arr</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_mets</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_orig_rxns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_orig</span><span class="o">.</span><span class="n">shape</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mets</span> <span class="o">=</span> <span class="n">metabolites</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">met_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">metabolite</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">metabolite</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">metabolites</span><span class="p">)}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rxns</span> <span class="o">=</span> <span class="n">reactions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rxn_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">reaction</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">reaction</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reactions</span><span class="p">)}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_rxn_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">rxn_map</span><span class="p">[</span><span class="n">rxn</span><span class="p">]</span> <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">kinetic_reactions</span><span class="p">])</span> <span class="k">if</span> <span class="n">kinetic_reactions</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_mass</span> <span class="o">=</span> <span class="n">get_mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gam</span> <span class="o">=</span> <span class="n">gam</span>
+
+        <span class="c1"># steady state indices, secretion indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intermediates</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mets</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">homeostatic_metabolites</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intermediates_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">met_map</span><span class="p">[</span><span class="n">met</span><span class="p">]</span> <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">intermediates</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">met_map</span><span class="p">[</span><span class="n">met</span><span class="p">]</span> <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">homeostatic_metabolites</span><span class="p">])</span>
+        <span class="c1"># TODO (Cyrus) - use name provided</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maintenance_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rxn_map</span><span class="p">[</span><span class="s1">&#39;maintenance_reaction&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;maintenance_reaction&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rxn_map</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_constraints_mask</span> <span class="o">=</span> <span class="n">active_constraints_mask</span>
+
+
+<div class="viewcode-block" id="NetworkFlowModel.set_up_exchanges">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.NetworkFlowModel.set_up_exchanges">[docs]</a>
+    <span class="k">def</span> <span class="nf">set_up_exchanges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+        <span class="n">exchanges</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">uptakes</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set up exchange reactions for the network flow model. Exchanges allow certain metabolites to have flow out of</span>
+<span class="sd">        the system. Uptakes allow certain metabolites to also have flow into the system.&quot;&quot;&quot;</span>
+        <span class="n">all_exchanges</span> <span class="o">=</span> <span class="n">exchanges</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">all_exchanges</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">uptakes</span><span class="p">)</span>
+
+        <span class="c1"># All exchanges can secrete but only uptakes go in both directions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_mets</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">exchanges</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">uptakes</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchanges</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_masses</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">exch_idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">all_exchanges</span><span class="p">:</span>
+            <span class="n">exch_name</span> <span class="o">=</span> <span class="n">met</span> <span class="o">+</span> <span class="s2">&quot; exchange&quot;</span>
+            <span class="n">met_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">met_map</span><span class="p">[</span><span class="n">met</span><span class="p">]</span>
+            <span class="n">exch_mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mass</span><span class="p">(</span><span class="n">met</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">MASS_UNITS</span> <span class="o">/</span> <span class="n">COUNTS_UNITS</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">uptakes</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span><span class="p">[</span><span class="n">met_idx</span><span class="p">,</span> <span class="n">exch_idx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exchanges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exch_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exchange_masses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exch_mass</span><span class="p">)</span>
+                <span class="n">exch_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchanges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exch_idx</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchange_masses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="n">exch_mass</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span><span class="p">[</span><span class="n">met_idx</span><span class="p">,</span> <span class="n">exch_idx</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="n">exch_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span> <span class="o">=</span> <span class="n">csr_matrix</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span><span class="p">)</span>
+
+        <span class="n">_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_exch_rxns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_masses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_masses</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NetworkFlowModel.solve">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.metabolism_redux.html#ecoli.processes.metabolism_redux.NetworkFlowModel.solve">[docs]</a>
+    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+        <span class="n">homeostatic_concs</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">homeostatic_dm_targets</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ngam_target</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">kinetic_targets</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">binary_kinetic_idx</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">objective_weights</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">aa_uptake_package</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">upper_flux_bound</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="c1"># ortools &gt; 9.5 required for Python 3.11 but will only</span>
+        <span class="c1"># get support in the 9/2023 release of cvxpy</span>
+        <span class="n">solver</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">GLOP</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FlowResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Solve the network flow model for fluxes and dm/dt values.&quot;&quot;&quot;</span>
+        <span class="c1"># Convert to array</span>
+        <span class="n">homeostatic_concs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">homeostatic_concs</span><span class="p">)</span>
+        <span class="n">homeostatic_dm_targets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">homeostatic_dm_targets</span><span class="p">)</span>
+        <span class="n">target_fluxes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_orig_rxns</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kinetic_targets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_fluxes</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_rxn_idx</span><span class="p">]</span> <span class="o">+=</span> <span class="n">kinetic_targets</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># set up variables</span>
+        <span class="n">v_diff_in_range</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_orig_rxns</span><span class="p">)</span>
+        <span class="n">v_diff_outside_range</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_orig_rxns</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">target_fluxes</span> <span class="o">+</span> <span class="n">v_diff_in_range</span> <span class="o">+</span> <span class="n">v_diff_outside_range</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_exch_rxns</span><span class="p">)</span>
+        <span class="n">dm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_orig</span> <span class="o">@</span> <span class="n">v</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span> <span class="o">@</span> <span class="n">e</span>
+        <span class="n">exch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span> <span class="o">@</span> <span class="n">e</span>
+
+        <span class="n">total_maintenance</span> <span class="o">=</span> <span class="n">ngam_target</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">gam</span> <span class="o">*</span> <span class="n">e</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_masses</span>
+
+        <span class="n">constr</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">intermediates_idx</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">maintenance_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">maintenance_idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">total_maintenance</span><span class="p">)</span>
+            <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">maintenance_idx</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">ngam_target</span><span class="p">)</span>
+        <span class="c1"># If enzymes not present, constrain rxn flux to 0</span>
+        <span class="k">if</span> <span class="n">binary_kinetic_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">binary_kinetic_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">binary_kinetic_idx</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="n">upper_flux_bound</span><span class="p">,</span> <span class="n">e</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">e</span> <span class="o">&lt;=</span> <span class="n">upper_flux_bound</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">aa_uptake_package</span><span class="p">:</span>
+            <span class="n">levels</span><span class="p">,</span> <span class="n">molecules</span><span class="p">,</span> <span class="n">force</span> <span class="o">=</span> <span class="n">aa_uptake_package</span>
+            <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">mol</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">levels</span><span class="p">,</span> <span class="n">molecules</span><span class="p">):</span>
+                <span class="n">exch_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchanges</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">mol</span> <span class="o">+</span> <span class="s2">&quot; exchange&quot;</span><span class="p">)</span>
+                <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="n">exch_idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">level</span><span class="p">)</span>
+
+        <span class="c1"># Calculate target concs (current + delta) for denominator of objective</span>
+        <span class="c1"># (target conc - actual conc) / (target conc) is the same as</span>
+        <span class="c1"># (target delta - actual delta) / (target conc)</span>
+        <span class="n">homeostatic_target_concs</span> <span class="o">=</span> <span class="n">homeostatic_concs</span> <span class="o">+</span> <span class="n">homeostatic_dm_targets</span>
+        <span class="c1"># Fix divide by zero</span>
+        <span class="n">homeostatic_target_concs</span><span class="p">[</span><span class="n">homeostatic_target_concs</span><span class="o">==</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">loss</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">loss</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">((</span><span class="n">dm</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">homeostatic_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">homeostatic_dm_targets</span><span class="p">)</span>
+                         <span class="o">/</span> <span class="n">homeostatic_target_concs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;secretion&#39;</span> <span class="ow">in</span> <span class="n">objective_weights</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">+=</span> <span class="n">objective_weights</span><span class="p">[</span><span class="s1">&#39;secretion&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e</span><span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span><span class="p">]</span> <span class="o">@</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_masses</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s1">&#39;kinetics&#39;</span> <span class="ow">in</span> <span class="n">objective_weights</span><span class="p">:</span>
+            <span class="c1"># Fix divide by zero</span>
+            <span class="n">nonzero_kinetic_targets</span> <span class="o">=</span> <span class="n">kinetic_targets</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">nonzero_kinetic_targets</span><span class="p">[</span><span class="n">nonzero_kinetic_targets</span><span class="o">==</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="c1"># Calculate lower and upper limit for flux diff</span>
+            <span class="n">lower_flux_diff</span> <span class="o">=</span> <span class="n">kinetic_targets</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">kinetic_targets</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">upper_flux_diff</span> <span class="o">=</span> <span class="n">kinetic_targets</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">kinetic_targets</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">v_diff_in_range</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_rxn_idx</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">lower_flux_diff</span><span class="p">,</span>
+                <span class="n">v_diff_in_range</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_rxn_idx</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">upper_flux_diff</span><span class="p">])</span>
+            <span class="c1"># Heavily weight fluxes outside limits</span>
+            <span class="n">loss</span> <span class="o">+=</span> <span class="n">objective_weights</span><span class="p">[</span><span class="s1">&#39;kinetics&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">((</span>
+                <span class="n">v_diff_outside_range</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_rxn_idx</span><span class="p">]</span>
+                 <span class="o">/</span> <span class="n">nonzero_kinetic_targets</span><span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">active_constraints_mask</span><span class="p">])</span>
+            <span class="c1"># Lightly weight fluxes in expected range</span>
+            <span class="n">loss</span> <span class="o">+=</span> <span class="n">objective_weights</span><span class="p">[</span><span class="s1">&#39;kinetics&#39;</span><span class="p">]</span> <span class="o">*</span> \
+                <span class="n">objective_weights</span><span class="p">[</span><span class="s1">&#39;kinetics_in_range&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">((</span>
+                <span class="n">v_diff_in_range</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_rxn_idx</span><span class="p">]</span>
+                 <span class="o">/</span> <span class="n">nonzero_kinetic_targets</span><span class="p">)[</span><span class="bp">self</span><span class="o">.</span><span class="n">active_constraints_mask</span><span class="p">])</span>
+
+        <span class="n">p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span>
+            <span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">),</span>
+            <span class="n">constr</span>
+        <span class="p">)</span>
+
+        <span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">solver</span><span class="o">=</span><span class="n">solver</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="s2">&quot;optimal&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Network flow model of metabolism did not &quot;</span>
+                <span class="s2">&quot;converge to an optimal solution.&quot;</span><span class="p">)</span>
+
+        <span class="n">velocities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">dm_dt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dm</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">exchanges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">exch</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">maintenance_flux</span> <span class="o">=</span> <span class="n">total_maintenance</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">objective</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">value</span>
+
+        <span class="k">return</span> <span class="n">FlowResult</span><span class="p">(</span><span class="n">velocities</span><span class="o">=</span><span class="n">velocities</span><span class="p">,</span>
+                          <span class="n">dm_dt</span><span class="o">=</span><span class="n">dm_dt</span><span class="p">,</span>
+                          <span class="n">exchanges</span><span class="o">=</span><span class="n">exchanges</span><span class="p">,</span>
+                          <span class="n">maintenance_flux</span><span class="o">=</span><span class="n">maintenance_flux</span><span class="p">,</span>
+                          <span class="n">objective</span><span class="o">=</span><span class="n">objective</span><span class="p">)</span></div>
+</div>
+
+
+<span class="k">def</span> <span class="nf">test_network_flow_model</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test the network flow model on a simple example, using only the homeostatic objective along with secretion and</span>
+<span class="sd">    efficiency penalties.&quot;&quot;&quot;</span>
+
+    <span class="n">S_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]])</span><span class="o">.</span><span class="n">T</span>
+
+    <span class="n">metabolites</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">]</span>
+    <span class="n">reactions</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;r1&quot;</span><span class="p">,</span> <span class="s2">&quot;r2&quot;</span><span class="p">,</span> <span class="s2">&quot;r3&quot;</span><span class="p">]</span>
+    <span class="n">homeostatic_metabolites</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+
+    <span class="n">exchanges</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;A&quot;</span><span class="p">}</span>
+    <span class="n">uptakes</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;A&quot;</span><span class="p">}</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">NetworkFlowModel</span><span class="p">(</span><span class="n">stoich_arr</span><span class="o">=</span><span class="n">S_matrix</span><span class="p">,</span> <span class="n">reactions</span><span class="o">=</span><span class="n">reactions</span><span class="p">,</span>
+                             <span class="n">metabolites</span><span class="o">=</span><span class="n">metabolites</span><span class="p">,</span> <span class="n">homeostatic_metabolites</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">homeostatic_metabolites</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+                             <span class="n">kinetic_reactions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">get_mass</span><span class="o">=</span><span class="k">lambda</span> <span class="n">_</span><span class="p">:</span> <span class="mi">1</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span><span class="o">/</span><span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+    <span class="n">model</span><span class="o">.</span><span class="n">set_up_exchanges</span><span class="p">(</span><span class="n">exchanges</span><span class="o">=</span><span class="n">exchanges</span><span class="p">,</span> <span class="n">uptakes</span><span class="o">=</span><span class="n">uptakes</span><span class="p">)</span>
+
+    <span class="n">solution</span><span class="p">:</span> <span class="n">FlowResult</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
+        <span class="n">homeostatic_concs</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">homeostatic_metabolites</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span>
+        <span class="n">homeostatic_dm_targets</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">homeostatic_metabolites</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span>
+        <span class="n">objective_weights</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;secretion&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;efficiency&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">},</span>
+        <span class="n">upper_flux_bound</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">velocities</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="o">==</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;Network flow toy model did not converge to correct solution.&quot;</span>
+
+<span class="c1"># TODO (Cyrus) Add test for entire process</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">test_network_flow_model</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

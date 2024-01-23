@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.environment.reaction_diffusion_field &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.environment.reaction_diffusion_field</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.environment.reaction_diffusion_field</h1><div class="highlight"><pre>
+<span></span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">========================</span>
+<span class="sd">Reaction Diffusion Field</span>
+<span class="sd">========================</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pint</span> <span class="kn">import</span> <span class="n">Quantity</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">convolve</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span><span class="p">,</span> <span class="n">assoc_path</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="n">PROCESS_OUT_DIR</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.engine</span> <span class="kn">import</span> <span class="n">Engine</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.dict_utils</span> <span class="kn">import</span> <span class="n">deep_merge</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.lattice_utils</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_bin_site</span><span class="p">,</span>
+    <span class="n">get_bin_volume</span><span class="p">,</span>
+    <span class="n">apply_exchanges</span><span class="p">,</span>
+    <span class="n">ExchangeAgent</span><span class="p">,</span>
+    <span class="n">make_gradient</span><span class="p">,</span>
+    <span class="n">make_diffusion_schema</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.topology</span> <span class="kn">import</span> <span class="n">get_in</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.snapshots</span> <span class="kn">import</span> <span class="n">plot_snapshots</span>
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;reaction_diffusion&#39;</span>
+
+<span class="c1"># laplacian kernel for diffusion</span>
+<span class="n">LAPLACIAN_2D</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<span class="n">AVOGADRO</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">N_A</span>
+
+
+<div class="viewcode-block" id="ReactionDiffusion">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion">[docs]</a>
+<span class="k">class</span> <span class="nc">ReactionDiffusion</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Reaction and Diffusion in 2-dimensional fields of molecules, with agent</span>
+<span class="sd">    uptake and secretion at agent locations.</span>
+
+<span class="sd">    Parameters: TODO</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;n_bins&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">],</span>
+        <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="mf">3000.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>  <span class="c1"># um</span>
+        <span class="c1"># Diffusion coefficient: 10.1016/j.cej.2015.01.130</span>
+        <span class="s1">&#39;diffusion&#39;</span><span class="p">:</span> <span class="mi">600</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">sec</span><span class="p">,</span>
+
+        <span class="s1">&#39;exchanges_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;exchanges&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;external_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;external&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;location_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">),</span>
+
+        <span class="c1"># these parameters are not in diffusion_field</span>
+        <span class="s1">&#39;reactions&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;kinetic_parameters&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;internal_time_step&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+
+        <span class="c1"># these parameters are in diffusion_field</span>
+        <span class="c1"># &#39;initial_state&#39;: {},</span>
+        <span class="s1">&#39;gradient&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># initial state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;molecules&#39;</span><span class="p">]</span>
+
+        <span class="c1"># parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_bins&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">]</span>
+        <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_volume</span> <span class="o">=</span> <span class="n">get_bin_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+
+        <span class="c1"># diffusion</span>
+        <span class="n">diffusion</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;diffusion&#39;</span><span class="p">]</span>
+        <span class="n">bins_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">bins_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">length_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">length_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">length_x</span> <span class="o">/</span> <span class="n">bins_x</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">length_y</span> <span class="o">/</span> <span class="n">bins_y</span>
+        <span class="n">dx2</span> <span class="o">=</span> <span class="n">dx</span> <span class="o">*</span> <span class="n">dy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diffusion</span> <span class="o">=</span> <span class="n">diffusion</span> <span class="o">/</span> <span class="n">dx2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diffusion_dt</span> <span class="o">=</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">sec</span>
+        <span class="c1"># self.diffusion_dt = 0.5 * dx ** 2 * dy ** 2 / (2 * self.diffusion * (dx ** 2 + dy ** 2))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchanges_path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;exchanges_path&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">external_path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;external_path&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;location_path&#39;</span><span class="p">])</span>
+
+        <span class="c1"># check reactions</span>
+        <span class="n">molecule_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">rxn_id</span><span class="p">,</span> <span class="n">rxn_config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;reactions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># check that &#39;stoichiometry&#39; and &#39;catalyzed by&#39; parameters</span>
+            <span class="c1"># are the only parameters in &#39;reactions&#39;, and that all declared</span>
+            <span class="c1"># reaction molecules are also in the declared molecule_ids</span>
+            <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">rxn_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;stoichiometry&#39;</span><span class="p">)</span>
+            <span class="n">catalyst</span> <span class="o">=</span> <span class="n">rxn_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;catalyzed by&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">stoichiometry</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;reaction </span><span class="si">{</span><span class="n">rxn_id</span><span class="si">}</span><span class="s1"> is missing a stoichiometry&#39;</span>
+            <span class="k">assert</span> <span class="n">catalyst</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;reaction </span><span class="si">{</span><span class="n">rxn_id</span><span class="si">}</span><span class="s1"> is missing a catalyst&#39;</span>
+            <span class="n">factors</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">stoichiometry</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">assert</span> <span class="n">factors</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">molecule_ids</span><span class="p">),</span> \
+                <span class="sa">f</span><span class="s1">&#39;reaction </span><span class="si">{</span><span class="n">rxn_id</span><span class="si">}</span><span class="s1"> molecules </span><span class="si">{</span><span class="n">factors</span><span class="si">}</span><span class="s1"> &#39;</span> \
+                <span class="sa">f</span><span class="s1">&#39;are not in declared fields </span><span class="si">{</span><span class="n">molecule_ids</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="k">assert</span> <span class="n">catalyst</span> <span class="ow">in</span> <span class="n">molecule_ids</span><span class="p">,</span> \
+                <span class="sa">f</span><span class="s1">&#39;reaction </span><span class="si">{</span><span class="n">rxn_id</span><span class="si">}</span><span class="s1"> catalyst </span><span class="si">{</span><span class="n">catalyst</span><span class="si">}</span><span class="s1"> &#39;</span> \
+                <span class="sa">f</span><span class="s1">&#39;is not in declared fields </span><span class="si">{</span><span class="n">molecule_ids</span><span class="si">}</span><span class="s1">&#39;</span>
+
+            <span class="c1"># check corresponding kinetics. Each reaction must also have an entry</span>
+            <span class="c1"># under &#39;kinetic_parameters, with the catalyst id mapping to a kcat_f</span>
+            <span class="c1"># parameter and a km for one molecule in the environment</span>
+            <span class="n">rxn_kinetics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;kinetic_parameters&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">rxn_id</span><span class="p">)</span>
+            <span class="c1"># TODO: Need better way to handle units</span>
+            <span class="k">for</span> <span class="n">rxn_kinetic_params</span> <span class="ow">in</span> <span class="n">rxn_kinetics</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">rxn_kinetic_param</span> <span class="ow">in</span> <span class="n">rxn_kinetic_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rxn_kinetic_param</span><span class="p">,</span> <span class="n">Quantity</span><span class="p">):</span>
+                        <span class="n">rxn_kinetic_params</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">rxn_kinetic_param</span><span class="o">.</span><span class="n">magnitude</span>
+            <span class="k">assert</span> <span class="n">rxn_kinetics</span><span class="p">,</span> \
+                <span class="s1">&#39;each reaction must have corresponding kinetic_parameters&#39;</span>
+            <span class="n">kinetics_catalyst</span> <span class="o">=</span> <span class="n">rxn_kinetics</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">kinetics_catalyst</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> \
+                <span class="s1">&#39;each kinetic_parameters reaction must have only one enzyme&#39;</span>
+            <span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="n">kinetics_catalyst</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">molecule_ids</span><span class="p">),</span> \
+                <span class="sa">f</span><span class="s1">&#39;kinetic_parameters reaction </span><span class="si">{</span><span class="n">rxn_id</span><span class="si">}</span><span class="s1"> catalyst </span><span class="si">{</span><span class="n">catalyst</span><span class="si">}</span><span class="s1"> &#39;</span> \
+                <span class="sa">f</span><span class="s1">&#39;is not in declared fields </span><span class="si">{</span><span class="n">molecule_ids</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">kinetics_params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">rxn_kinetics</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">kinetics_catalyst</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">assert</span> <span class="s1">&#39;kcat_f&#39;</span> <span class="ow">in</span> <span class="n">kinetics_params</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;kinetic_parameters reaction </span><span class="si">{</span><span class="n">rxn_id</span><span class="si">}</span><span class="s1"> &#39;</span> \
+                                                <span class="sa">f</span><span class="s1">&#39;needs a kcat_f parameters&#39;</span>
+            <span class="n">kinetics_params</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;kcat_f&#39;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">kinetics_params</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;only one km allowed&#39;</span>
+            <span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="n">kinetics_params</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">molecule_ids</span><span class="p">),</span> \
+                <span class="sa">f</span><span class="s1">&#39;kinetic_parameters reaction </span><span class="si">{</span><span class="n">rxn_id</span><span class="si">}</span><span class="s1"> substrate </span><span class="si">{</span><span class="n">kinetics_params</span><span class="si">}</span><span class="s1"> &#39;</span> \
+                <span class="sa">f</span><span class="s1">&#39;is not in declared fields </span><span class="si">{</span><span class="n">molecule_ids</span><span class="si">}</span><span class="s1">&#39;</span>
+
+<div class="viewcode-block" id="ReactionDiffusion.initial_state">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.initial_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets uniform initial state at the concentration provided for each the molecule_id in `config`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">initial</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;fields&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;dimensions&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;n_bins&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_bins&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">]}}</span>
+
+        <span class="c1"># initialize gradient fields</span>
+        <span class="n">gradient_molecules</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">gradient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;gradient&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">gradient</span><span class="p">:</span>
+            <span class="n">gradient_molecules</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">gradient</span><span class="p">[</span><span class="s1">&#39;molecules&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">unitless_bounds</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">bound</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span> <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">]</span>
+            <span class="n">gradient_fields</span> <span class="o">=</span> <span class="n">make_gradient</span><span class="p">(</span>
+                <span class="n">gradient</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span> <span class="n">unitless_bounds</span><span class="p">)</span>
+            <span class="n">initial</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">gradient_fields</span><span class="p">)</span>
+
+        <span class="c1"># uniform field for all molecules not in gradient</span>
+        <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">gradient_molecules</span><span class="p">:</span>
+                <span class="n">initial</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">][</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">mol_id</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ones_field</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">initial</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">make_diffusion_schema</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchanges_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">external_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_bins&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ones_field</span><span class="p">(),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span>
+        <span class="n">agents</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;dimensions&#39;</span><span class="p">]</span>
+
+        <span class="c1"># volume, to convert between counts and concentration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span> <span class="o">=</span> <span class="n">dimensions</span><span class="p">[</span><span class="s1">&#39;n_bins&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="n">dimensions</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_volume</span> <span class="o">=</span> <span class="n">get_bin_volume</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span>
+            <span class="n">dimensions</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">])</span>
+
+        <span class="c1"># make new fields for the updated state</span>
+        <span class="n">new_fields</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
+
+        <span class="c1">###################</span>
+        <span class="c1"># apply exchanges #</span>
+        <span class="c1">###################</span>
+        <span class="n">new_fields</span><span class="p">,</span> <span class="n">agent_updates</span> <span class="o">=</span> <span class="n">apply_exchanges</span><span class="p">(</span>
+            <span class="n">agents</span><span class="p">,</span>
+            <span class="n">new_fields</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchanges_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_volume</span><span class="p">)</span>
+
+        <span class="c1">#####################</span>
+        <span class="c1"># react and diffuse #</span>
+        <span class="c1">#####################</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">timestep</span><span class="p">:</span>
+            <span class="n">new_fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">react</span><span class="p">(</span><span class="n">new_fields</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
+            <span class="n">new_fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffuse</span><span class="p">(</span><span class="n">new_fields</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
+            <span class="n">t</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;internal_time_step&#39;</span><span class="p">]</span>
+
+        <span class="c1"># get total delta from exchange, diffusion, reaction</span>
+        <span class="n">delta_fields</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">mol_id</span><span class="p">:</span> <span class="n">new_fields</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">-</span> <span class="n">field</span>
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># get each agent&#39;s new local environment</span>
+        <span class="n">local_environments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_local_environments</span><span class="p">(</span><span class="n">agents</span><span class="p">,</span> <span class="n">new_fields</span><span class="p">)</span>
+
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;fields&#39;</span><span class="p">:</span> <span class="n">delta_fields</span><span class="p">,</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">local_environments</span><span class="p">}</span>
+        
+        <span class="n">deep_merge</span><span class="p">(</span><span class="n">update</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">],</span> <span class="n">agent_updates</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">update</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.get_bin_site">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.get_bin_site">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_bin_site</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">location</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_bin_site</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.get_single_local_environments">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.get_single_local_environments">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_single_local_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">fields</span><span class="p">):</span>
+        <span class="n">bin_site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bin_site</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+        <span class="n">local_environment</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">local_environment</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;_value&#39;</span><span class="p">:</span> <span class="n">field</span><span class="p">[</span><span class="n">bin_site</span><span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mM</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">local_environment</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.get_local_environments">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.get_local_environments">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_local_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agents</span><span class="p">,</span> <span class="n">fields</span><span class="p">):</span>
+        <span class="n">local_environments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">agents</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">assoc_path</span><span class="p">(</span>
+                    <span class="n">local_environments</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">agent_id</span><span class="p">,)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_path</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">get_single_local_environments</span><span class="p">(</span>
+                        <span class="n">get_in</span><span class="p">(</span><span class="n">specs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span><span class="p">),</span>
+                        <span class="n">fields</span><span class="p">,</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">local_environments</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.zeros_field">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.zeros_field">[docs]</a>
+    <span class="k">def</span> <span class="nf">zeros_field</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.ones_field">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.ones_field">[docs]</a>
+    <span class="k">def</span> <span class="nf">ones_field</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.diffusion_delta">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.diffusion_delta">[docs]</a>
+    <span class="k">def</span> <span class="nf">diffusion_delta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;calculate new concentrations resulting from diffusion&#39;&#39;&#39;</span>
+        <span class="n">field_new</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusion_dt</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">sec</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span><span class="p">)</span>
+        <span class="n">diffusion</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusion</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">sec</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="k">while</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">timestep</span><span class="p">:</span>
+            <span class="n">field_new</span> <span class="o">+=</span> <span class="n">diffusion</span> <span class="o">*</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">convolve</span><span class="p">(</span><span class="n">field_new</span><span class="p">,</span> <span class="n">LAPLACIAN_2D</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;reflect&#39;</span><span class="p">)</span>
+            <span class="n">t</span> <span class="o">+=</span> <span class="n">dt</span>
+        <span class="k">return</span> <span class="n">field_new</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.diffuse">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.diffuse">[docs]</a>
+    <span class="k">def</span> <span class="nf">diffuse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+        <span class="n">new_fields</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+            <span class="c1"># run diffusion if molecule field is not uniform</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">new_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusion_delta</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_field</span> <span class="o">=</span> <span class="n">field</span>
+            <span class="n">new_fields</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_field</span>
+
+        <span class="k">return</span> <span class="n">new_fields</span></div>
+
+
+<div class="viewcode-block" id="ReactionDiffusion.react">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.ReactionDiffusion.react">[docs]</a>
+    <span class="k">def</span> <span class="nf">react</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+        <span class="n">new_fields</span> <span class="o">=</span> <span class="n">fields</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">reactions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;reactions&#39;</span><span class="p">]</span>
+        <span class="n">kinetic_parameters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;kinetic_parameters&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">rxn_id</span><span class="p">,</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">reactions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+            <span class="c1"># get the parameters</span>
+            <span class="n">kinetics</span> <span class="o">=</span> <span class="n">kinetic_parameters</span><span class="p">[</span><span class="n">rxn_id</span><span class="p">]</span>
+            <span class="n">stoich</span> <span class="o">=</span> <span class="n">rxn</span><span class="p">[</span><span class="s1">&#39;stoichiometry&#39;</span><span class="p">]</span>
+            <span class="n">substrate_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">stoich</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+            <span class="c1"># catalyst</span>
+            <span class="n">catalyst_id</span> <span class="o">=</span> <span class="n">rxn</span><span class="p">[</span><span class="s1">&#39;catalyzed by&#39;</span><span class="p">]</span>
+            <span class="n">kcat</span> <span class="o">=</span> <span class="n">kinetics</span><span class="p">[</span><span class="n">catalyst_id</span><span class="p">][</span><span class="s1">&#39;kcat_f&#39;</span><span class="p">]</span>
+            <span class="n">catalyst_field</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="n">catalyst_id</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">substrate_id</span> <span class="ow">in</span> <span class="n">substrate_ids</span><span class="p">:</span>
+                <span class="n">substrate_km</span> <span class="o">=</span> <span class="n">kinetics</span><span class="p">[</span><span class="n">catalyst_id</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">substrate_id</span><span class="p">)</span>
+                <span class="n">substrate_field</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="n">substrate_id</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">catalyst_field</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">substrate_field</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+
+                    <span class="c1"># calculate flux and delta</span>
+                    <span class="n">flux</span> <span class="o">=</span> <span class="n">kcat</span> <span class="o">*</span> <span class="n">catalyst_field</span> <span class="o">*</span> <span class="n">substrate_field</span>
+                    <span class="c1"># add km term if declared</span>
+                    <span class="k">if</span> <span class="n">substrate_km</span><span class="p">:</span>
+                        <span class="n">denominator</span> <span class="o">=</span> <span class="n">substrate_field</span> <span class="o">+</span> <span class="n">substrate_km</span>
+                        <span class="n">flux</span> <span class="o">/=</span> <span class="n">denominator</span>
+                    <span class="n">delta</span> <span class="o">=</span> <span class="n">stoich</span><span class="p">[</span><span class="n">substrate_id</span><span class="p">]</span> <span class="o">*</span> <span class="n">flux</span> <span class="o">*</span> <span class="n">timestep</span>
+
+                    <span class="c1"># updates</span>
+                    <span class="n">new_fields</span><span class="p">[</span><span class="n">substrate_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">delta</span>
+
+        <span class="k">return</span> <span class="n">new_fields</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.reaction_diffusion_field.html#ecoli.processes.environment.reaction_diffusion_field.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">total_time</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">depth</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+    <span class="n">n_bins</span> <span class="o">=</span> <span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">50</span><span class="p">]</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">50</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span> <span class="mi">50</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">]</span>
+
+    <span class="c1"># make the reaction diffusion process</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="c1"># &#39;boundary_path&#39;: (&#39;a&#39;, &#39;b&#39;, &#39;c&#39;), # needs to be &#39;boundary&#39; for snapshots plot</span>
+        <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="s1">&#39;beta-lactam&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;beta-lactamase&#39;</span><span class="p">,</span>
+        <span class="p">],</span>
+        <span class="s1">&#39;n_bins&#39;</span><span class="p">:</span> <span class="n">n_bins</span><span class="p">,</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="n">bounds</span><span class="p">,</span>
+        <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="n">depth</span><span class="p">,</span>
+        <span class="s1">&#39;reactions&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;antibiotic_hydrolysis&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;stoichiometry&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;beta-lactam&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;catalyzed by&#39;</span><span class="p">:</span> <span class="s1">&#39;beta-lactamase&#39;</span>
+            <span class="p">}</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;kinetic_parameters&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;antibiotic_hydrolysis&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;beta-lactamase&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;kcat_f&#39;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span>  <span class="c1"># kcat for forward reaction</span>
+                    <span class="s1">&#39;beta-lactam&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>  <span class="c1"># Km</span>
+                <span class="p">},</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="n">rxn_diff_process</span> <span class="o">=</span> <span class="n">ReactionDiffusion</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+    <span class="c1"># make the toy exchange agent</span>
+    <span class="n">agent_id</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+    <span class="n">agent_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;mol_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;beta-lactamase&#39;</span><span class="p">]}</span>
+    <span class="n">agent_process</span> <span class="o">=</span> <span class="n">ExchangeAgent</span><span class="p">(</span><span class="n">agent_params</span><span class="p">)</span>
+
+    <span class="c1"># get initial fields</span>
+    <span class="n">initial_fields</span> <span class="o">=</span> <span class="n">rxn_diff_process</span><span class="o">.</span><span class="n">initial_state</span><span class="p">({</span>
+        <span class="s1">&#39;beta-lactam&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">})</span>
+    <span class="c1"># initial_agents = {&#39;agents&#39;: {agent_id: {&#39;boundary&#39;: {&#39;angle&#39;: 0.0}}}}</span>
+
+    <span class="c1"># put them together in a simulation</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span>
+        <span class="n">processes</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;rxn_diff&#39;</span><span class="p">:</span> <span class="n">rxn_diff_process</span><span class="p">,</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">agent_id</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">agent_process</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">},</span>
+        <span class="n">topology</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;rxn_diff&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">port</span><span class="p">:</span> <span class="p">(</span><span class="n">port</span><span class="p">,)</span>
+                <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">rxn_diff_process</span><span class="o">.</span><span class="n">ports_schema</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">agent_id</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,)}</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">},</span>
+        <span class="n">initial_state</span><span class="o">=</span><span class="n">initial_fields</span>
+    <span class="p">)</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">total_time</span><span class="p">)</span>
+
+    <span class="c1"># plot</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data_unitless</span><span class="p">()</span>
+
+    <span class="c1"># add empty angle back in for the plot (this is undesirable)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;angle&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;width&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROCESS_OUT_DIR</span><span class="p">,</span> <span class="s1">&#39;environment&#39;</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+    <span class="n">snapshots_fig</span> <span class="o">=</span> <span class="n">plot_snapshots</span><span class="p">(</span>
+        <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">get_in</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="s1">&#39;dimensions&#39;</span><span class="p">,</span> <span class="s1">&#39;bounds&#39;</span><span class="p">)),</span>
+        <span class="n">agents</span><span class="o">=</span><span class="p">{</span>
+            <span class="n">time</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">},</span>
+        <span class="n">fields</span><span class="o">=</span><span class="p">{</span>
+            <span class="n">time</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">},</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;snapshots&#39;</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="c1"># python ecoli/processes/environment/reaction_diffusion_field.py</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

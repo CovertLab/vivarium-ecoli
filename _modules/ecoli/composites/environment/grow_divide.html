@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.composites.environment.grow_divide &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.composites.environment.grow_divide</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.composites.environment.grow_divide</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composer</span> <span class="kn">import</span> <span class="n">Composer</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">composer_in_experiment</span><span class="p">,</span>
+    <span class="n">COMPOSITE_OUT_DIR</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">vivarium.plots.agents_multigen</span> <span class="kn">import</span> <span class="n">plot_agents_multigen</span>
+
+<span class="c1"># processes</span>
+<span class="kn">from</span> <span class="nn">vivarium.processes.growth_rate</span> <span class="kn">import</span> <span class="n">GrowthRate</span>
+<span class="kn">from</span> <span class="nn">vivarium.processes.divide_condition</span> <span class="kn">import</span> <span class="n">DivideCondition</span>
+<span class="kn">from</span> <span class="nn">vivarium.processes.meta_division</span> <span class="kn">import</span> <span class="n">MetaDivision</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.environment.derive_globals</span> <span class="kn">import</span> <span class="n">DeriveGlobals</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.environment.exchange</span> <span class="kn">import</span> <span class="n">Exchange</span>
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;grow_divide&#39;</span>
+
+
+<span class="n">GROW_DIVIDE_DEFAULTS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;variables&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;mass&#39;</span><span class="p">],</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;divide_condition&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;threshold&#39;</span><span class="p">:</span> <span class="mf">2000.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">},</span>
+        <span class="s1">&#39;boundary_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,),</span>
+        <span class="s1">&#39;agents_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;agents&#39;</span><span class="p">,),</span>
+        <span class="s1">&#39;daughter_path&#39;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+        <span class="s1">&#39;_schema&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;variables&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">1000.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">,</span>
+                        <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;split&#39;</span><span class="p">,</span>
+                    <span class="p">}}}}}</span>
+
+
+<div class="viewcode-block" id="GrowDivide">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.composites.environment.grow_divide.html#ecoli.composites.environment.grow_divide.GrowDivide">[docs]</a>
+<span class="k">class</span> <span class="nc">GrowDivide</span><span class="p">(</span><span class="n">Composer</span><span class="p">):</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="n">GROW_DIVIDE_DEFAULTS</span>
+
+<div class="viewcode-block" id="GrowDivide.generate_processes">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.composites.environment.grow_divide.html#ecoli.composites.environment.grow_divide.GrowDivide.generate_processes">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="c1"># division config</span>
+        <span class="n">daughter_path</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;daughter_path&#39;</span><span class="p">]</span>
+        <span class="n">agent_id</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;agent_id&#39;</span><span class="p">]</span>
+        <span class="n">division_config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;division&#39;</span><span class="p">,</span> <span class="p">{}),</span>
+            <span class="n">daughter_path</span><span class="o">=</span><span class="n">daughter_path</span><span class="p">,</span>
+            <span class="n">agent_id</span><span class="o">=</span><span class="n">agent_id</span><span class="p">,</span>
+            <span class="n">composer</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="n">GrowthRate</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;growth&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;globals_deriver&#39;</span><span class="p">:</span> <span class="n">DeriveGlobals</span><span class="p">(),</span>
+            <span class="s1">&#39;divide_condition&#39;</span><span class="p">:</span> <span class="n">DivideCondition</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;divide_condition&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;division&#39;</span><span class="p">:</span> <span class="n">MetaDivision</span><span class="p">(</span><span class="n">division_config</span><span class="p">)}</span></div>
+
+
+<div class="viewcode-block" id="GrowDivide.generate_topology">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.composites.environment.grow_divide.html#ecoli.composites.environment.grow_divide.GrowDivide.generate_topology">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">boundary_path</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;boundary_path&#39;</span><span class="p">]</span>
+        <span class="n">agents_path</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;agents_path&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;variables&#39;</span><span class="p">:</span> <span class="n">boundary_path</span><span class="p">,</span>
+                <span class="s1">&#39;rates&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;rates&#39;</span><span class="p">,),</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;globals_deriver&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="n">boundary_path</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;divide_condition&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;variable&#39;</span><span class="p">:</span> <span class="n">boundary_path</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;mass&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;divide&#39;</span><span class="p">:</span> <span class="n">boundary_path</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;divide&#39;</span><span class="p">,)</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;division&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="n">boundary_path</span><span class="p">,</span>
+                <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">agents_path</span><span class="p">},</span>
+            <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="GrowDivideExchange">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.composites.environment.grow_divide.html#ecoli.composites.environment.grow_divide.GrowDivideExchange">[docs]</a>
+<span class="k">class</span> <span class="nc">GrowDivideExchange</span><span class="p">(</span><span class="n">GrowDivide</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;grow_divide_exchange&#39;</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="n">GROW_DIVIDE_DEFAULTS</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+        <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">],</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;fields_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;fields&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;dimensions_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;..&#39;</span><span class="p">,</span> <span class="s1">&#39;dimensions&#39;</span><span class="p">,),</span>
+    <span class="p">})</span>
+
+<div class="viewcode-block" id="GrowDivideExchange.generate_processes">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.composites.environment.grow_divide.html#ecoli.composites.environment.grow_divide.GrowDivideExchange.generate_processes">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">processes</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">generate_processes</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="n">added_processes</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">Exchange</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;exchange&#39;</span><span class="p">]),</span>
+        <span class="p">}</span>
+        <span class="n">processes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">added_processes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">processes</span></div>
+
+
+<div class="viewcode-block" id="GrowDivideExchange.generate_topology">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.composites.environment.grow_divide.html#ecoli.composites.environment.grow_divide.GrowDivideExchange.generate_topology">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">topology</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">generate_topology</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="n">boundary_path</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;boundary_path&#39;</span><span class="p">]</span>
+
+        <span class="n">added_topology</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;exchanges&#39;</span><span class="p">:</span> <span class="n">boundary_path</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;exchanges&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="n">boundary_path</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;external&#39;</span><span class="p">,),</span>
+                <span class="s1">&#39;internal&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;internal&#39;</span><span class="p">,),</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+        <span class="n">topology</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">added_topology</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">topology</span></div>
+</div>
+
+
+
+<span class="k">def</span> <span class="nf">test_grow_divide</span><span class="p">(</span><span class="n">total_time</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+    <span class="n">agent_id</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+    <span class="n">composite</span> <span class="o">=</span> <span class="n">GrowDivide</span><span class="p">({</span>
+        <span class="s1">&#39;agent_id&#39;</span><span class="p">:</span> <span class="n">agent_id</span><span class="p">,</span>
+        <span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;growth_rate&#39;</span><span class="p">:</span> <span class="mf">0.006</span><span class="p">,</span>  <span class="c1"># very fast growth</span>
+            <span class="s1">&#39;default_growth_noise&#39;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="p">})</span>
+
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="n">agent_id</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="mi">1000</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">}</span>
+            <span class="p">}}}</span>
+
+    <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;experiment_id&#39;</span><span class="p">:</span> <span class="s1">&#39;grow_divide&#39;</span><span class="p">}</span>
+    <span class="n">experiment</span> <span class="o">=</span> <span class="n">composer_in_experiment</span><span class="p">(</span>
+        <span class="n">composite</span><span class="p">,</span>
+        <span class="n">initial_state</span><span class="o">=</span><span class="n">initial_state</span><span class="p">,</span>
+        <span class="n">outer_path</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="n">agent_id</span><span class="p">),</span>
+        <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span>
+
+    <span class="n">experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">total_time</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data_unitless</span><span class="p">()</span>
+
+    <span class="c1"># assert division occurred</span>
+    <span class="k">assert</span> <span class="nb">list</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mf">0.0</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="p">[</span><span class="n">agent_id</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">agent_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="n">total_time</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mf">0.0</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="n">total_time</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+
+<span class="k">def</span> <span class="nf">test_grow_divide_exchange</span><span class="p">(</span><span class="n">total_time</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+    <span class="n">agent_id</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+    <span class="n">molecule_id</span> <span class="o">=</span> <span class="s1">&#39;A&#39;</span>
+    <span class="n">composite</span> <span class="o">=</span> <span class="n">GrowDivideExchange</span><span class="p">({</span>
+        <span class="s1">&#39;agent_id&#39;</span><span class="p">:</span> <span class="n">agent_id</span><span class="p">,</span>
+        <span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;growth_rate&#39;</span><span class="p">:</span> <span class="mf">0.006</span><span class="p">,</span>  <span class="c1"># very fast growth</span>
+            <span class="s1">&#39;default_growth_noise&#39;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">},</span>
+        <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">molecule_id</span><span class="p">],</span>
+        <span class="p">}})</span>
+
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="n">agent_id</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="mi">1000</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">},</span>
+                <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="n">molecule_id</span><span class="p">:</span> <span class="mf">10.0</span>  <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;internal&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="n">molecule_id</span><span class="p">:</span> <span class="mf">0.0</span>  <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;experiment_id&#39;</span><span class="p">:</span> <span class="s1">&#39;grow_divide_exchange&#39;</span><span class="p">}</span>
+    <span class="n">experiment</span> <span class="o">=</span> <span class="n">composer_in_experiment</span><span class="p">(</span>
+        <span class="n">composite</span><span class="p">,</span>
+        <span class="n">initial_state</span><span class="o">=</span><span class="n">initial_state</span><span class="p">,</span>
+        <span class="n">outer_path</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="n">agent_id</span><span class="p">),</span>
+        <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span>
+
+    <span class="n">experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">total_time</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data_unitless</span><span class="p">()</span>
+
+    <span class="c1"># assert</span>
+    <span class="c1"># external starts at 1, goes down until death, and then back up</span>
+    <span class="c1"># internal does the inverse</span>
+    <span class="k">assert</span> <span class="nb">list</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mf">0.0</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="p">[</span><span class="n">agent_id</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">agent_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="n">total_time</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mf">0.0</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="n">total_time</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.composites.environment.grow_divide.html#ecoli.composites.environment.grow_divide.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">COMPOSITE_OUT_DIR</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+
+    <span class="c1"># if grow_divide:</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">test_grow_divide</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">plot_settings</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">plot_agents_multigen</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">plot_settings</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;grow_divide&#39;</span><span class="p">)</span>
+
+    <span class="c1"># if grow_divide_exchange:</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">test_grow_divide_exchange</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">plot_settings</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">plot_agents_multigen</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">plot_settings</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;grow_divide_exchange&#39;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

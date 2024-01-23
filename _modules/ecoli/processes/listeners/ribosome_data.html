@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.listeners.ribosome_data &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.listeners.ribosome_data</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.listeners.ribosome_data</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">======================</span>
+<span class="sd">Ribosome Data Listener</span>
+<span class="sd">======================</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="n">numpy_schema</span><span class="p">,</span> <span class="n">listener_schema</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Step</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ribosome_data_listener&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;listeners&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;active_ribosomes&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;active_ribosome&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;RNAs&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;RNA&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;global_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;global_time&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;next_update_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;next_update_time&quot;</span><span class="p">,</span> <span class="n">NAME</span><span class="p">),</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span>
+    <span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span>
+<span class="p">)</span>
+
+<div class="viewcode-block" id="RibosomeData">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.ribosome_data.html#ecoli.processes.listeners.ribosome_data.RibosomeData">[docs]</a>
+<span class="k">class</span> <span class="nc">RibosomeData</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Listener for ribosome data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;n_monomers&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;rRNA_cistron_tu_mapping_matrix&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;rRNA_is_5S&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;rRNA_is_16S&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;rRNA_is_23S&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;monomer_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_monomers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rRNA_cistron_tu_mapping_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;rRNA_cistron_tu_mapping_matrix&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_5S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rRNA_is_5S&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_16S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rRNA_is_16S&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_23S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rRNA_is_23S&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="RibosomeData.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.ribosome_data.html#ecoli.processes.listeners.ribosome_data.RibosomeData.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">n_rRNA_TUs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rRNA_cistron_tu_mapping_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">ports</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;ribosome_data&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;n_ribosomes_per_transcript&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;n_ribosomes_on_partial_mRNA_per_transcript&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;total_rRNA_initiated&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;total_rRNA_init_prob&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA5S_initiated&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA16S_initiated&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA23S_initiated&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA5S_init_prob&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA16S_init_prob&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA23S_init_prob&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;mRNA_TU_index&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;n_ribosomes_on_each_mRNA&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;protein_mass_on_polysomes&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;rRNA_initiated_TU&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_rRNA_TUs</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA_init_prob_TU&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_rRNA_TUs</span>
+                <span class="p">})</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;RNAs&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;RNAs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;active_ribosomes&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_ribosome&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;global_time&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]},</span>
+            <span class="s1">&#39;next_update_time&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">},</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">ports</span></div>
+
+    
+<div class="viewcode-block" id="RibosomeData.update_condition">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.ribosome_data.html#ecoli.processes.listeners.ribosome_data.RibosomeData.update_condition">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        See :py:meth:`~ecoli.processes.partition.Requester.update_condition`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> updated at t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> instead of t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">. Decrease the &quot;</span>
+                    <span class="s2">&quot;timestep for the global clock process for more &quot;</span>
+                    <span class="s2">&quot;accurate timekeeping.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="RibosomeData.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.ribosome_data.html#ecoli.processes.listeners.ribosome_data.RibosomeData.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># Get attributes of RNAs and ribosomes</span>
+        <span class="p">(</span><span class="n">is_full_transcript_RNA</span><span class="p">,</span> <span class="n">unique_index_RNA</span><span class="p">,</span> <span class="n">can_translate</span><span class="p">,</span>
+         <span class="n">TU_index</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;is_full_transcript&#39;</span><span class="p">,</span> <span class="s1">&#39;unique_index&#39;</span><span class="p">,</span> <span class="s1">&#39;can_translate&#39;</span><span class="p">,</span> <span class="s1">&#39;TU_index&#39;</span><span class="p">])</span>
+        
+        <span class="p">(</span><span class="n">protein_index_ribosomes</span><span class="p">,</span> <span class="n">mRNA_index_ribosomes</span><span class="p">,</span>
+         <span class="n">massDiff_protein_ribosomes</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_ribosomes&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;protein_index&#39;</span><span class="p">,</span> <span class="s1">&#39;mRNA_index&#39;</span><span class="p">,</span> <span class="s1">&#39;massDiff_protein&#39;</span><span class="p">])</span>
+        
+        <span class="n">rRNA_initiated_TU</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;ribosome_data&#39;</span><span class="p">][</span>
+             <span class="s1">&#39;rRNA_initiated_TU&#39;</span><span class="p">]</span>
+        <span class="n">rRNA_init_prob_TU</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;ribosome_data&#39;</span><span class="p">][</span>
+                <span class="s1">&#39;rRNA_init_prob_TU&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Get mask for ribosomes that are translating proteins on partially</span>
+        <span class="c1"># transcribed mRNAs</span>
+        <span class="n">ribosomes_on_nascent_mRNA_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span>
+            <span class="n">mRNA_index_ribosomes</span><span class="p">,</span>
+            <span class="n">unique_index_RNA</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">is_full_transcript_RNA</span><span class="p">)])</span>
+
+        <span class="c1"># Get counts of ribosomes for each type</span>
+        <span class="n">n_ribosomes_per_transcript</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+            <span class="n">protein_index_ribosomes</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_monomers</span><span class="p">)</span>
+        <span class="n">n_ribosomes_on_partial_mRNA_per_transcript</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+            <span class="n">protein_index_ribosomes</span><span class="p">[</span><span class="n">ribosomes_on_nascent_mRNA_mask</span><span class="p">],</span>
+            <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_monomers</span><span class="p">)</span>
+
+        <span class="n">rRNA_cistrons_produced</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rRNA_cistron_tu_mapping_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="n">rRNA_initiated_TU</span><span class="p">)</span>
+        <span class="n">rRNA_cistrons_init_prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rRNA_cistron_tu_mapping_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="n">rRNA_init_prob_TU</span><span class="p">)</span>
+        <span class="n">total_rRNA_initiated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_initiated_TU</span><span class="p">)</span>
+        <span class="n">total_rRNA_init_prob</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_init_prob_TU</span><span class="p">)</span>
+        <span class="n">rRNA5S_initiated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_cistrons_produced</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_5S</span><span class="p">])</span>
+        <span class="n">rRNA16S_initiated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_cistrons_produced</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_16S</span><span class="p">])</span>
+        <span class="n">rRNA23S_initiated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_cistrons_produced</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_23S</span><span class="p">])</span>
+        <span class="n">rRNA5S_init_prob</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_cistrons_init_prob</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_5S</span><span class="p">])</span>
+        <span class="n">rRNA16S_init_prob</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_cistrons_init_prob</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_16S</span><span class="p">])</span>
+        <span class="n">rRNA23S_init_prob</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rRNA_cistrons_init_prob</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rRNA_is_23S</span><span class="p">])</span>
+
+        <span class="c1"># Get fully transcribed translatable mRNA index</span>
+        <span class="n">is_full_mRNA</span> <span class="o">=</span> <span class="n">can_translate</span> <span class="o">&amp;</span> <span class="n">is_full_transcript_RNA</span>
+        <span class="n">mRNA_unique_index</span> <span class="o">=</span> <span class="n">unique_index_RNA</span><span class="p">[</span><span class="n">is_full_mRNA</span><span class="p">]</span>
+        <span class="n">mRNA_TU_index</span> <span class="o">=</span> <span class="n">TU_index</span><span class="p">[</span><span class="n">is_full_mRNA</span><span class="p">]</span>
+
+        <span class="c1"># Inverse indices from np.unique are better for np.bincount</span>
+        <span class="c1"># because real indices can go up to 2**63</span>
+        <span class="n">unique_mRNA_index_ribosomes</span><span class="p">,</span> <span class="n">reduced_mRNA_index_ribosomes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span>
+            <span class="n">mRNA_index_ribosomes</span><span class="p">,</span> <span class="n">return_inverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># Calculate mapping from inverse indices back to mRNA_unique_indices</span>
+        <span class="n">reduced_to_normal_mRNA_indices</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+            <span class="n">mRNA_unique_index</span><span class="p">,</span> <span class="n">unique_mRNA_index_ribosomes</span><span class="p">)</span>
+        <span class="c1"># Many mRNAs in mRNA_unique_indices will have no bound ribosomes</span>
+        <span class="c1"># Have them point to last zero of lengthened np.bincount output</span>
+        <span class="n">no_ribosomes_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">unique_mRNA_index_ribosomes</span><span class="p">[</span>
+            <span class="n">reduced_to_normal_mRNA_indices</span><span class="p">]</span> <span class="o">!=</span> <span class="n">mRNA_unique_index</span><span class="p">)</span>
+        <span class="n">reduced_to_normal_mRNA_indices</span><span class="p">[</span><span class="n">no_ribosomes_mask</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">bincount_minlength</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">reduced_mRNA_index_ribosomes</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span>
+
+        <span class="c1"># Get counts of ribosomes attached to the same mRNA</span>
+        <span class="n">bincount_ribosome_on_mRNA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">reduced_mRNA_index_ribosomes</span><span class="p">,</span>
+            <span class="n">minlength</span><span class="o">=</span><span class="n">bincount_minlength</span><span class="p">)</span>
+        <span class="n">n_ribosomes_on_each_mRNA</span> <span class="o">=</span> <span class="n">bincount_ribosome_on_mRNA</span><span class="p">[</span>
+            <span class="n">reduced_to_normal_mRNA_indices</span><span class="p">]</span>
+
+        <span class="c1"># Get protein mass on each polysome</span>
+        <span class="n">protein_mass_on_polysomes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+            <span class="n">reduced_mRNA_index_ribosomes</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">massDiff_protein_ribosomes</span><span class="p">,</span>
+            <span class="n">minlength</span><span class="o">=</span><span class="n">bincount_minlength</span><span class="p">)[</span><span class="n">reduced_to_normal_mRNA_indices</span><span class="p">]</span>
+        
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;ribosome_data&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;n_ribosomes_per_transcript&#39;</span><span class="p">:</span> <span class="n">n_ribosomes_per_transcript</span><span class="p">,</span>
+                    <span class="s1">&#39;n_ribosomes_on_partial_mRNA_per_transcript&#39;</span><span class="p">:</span> \
+                        <span class="n">n_ribosomes_on_partial_mRNA_per_transcript</span><span class="p">,</span>
+                    <span class="s1">&#39;total_rRNA_initiated&#39;</span><span class="p">:</span> <span class="n">total_rRNA_initiated</span><span class="p">,</span>
+                    <span class="s1">&#39;total_rRNA_init_prob&#39;</span><span class="p">:</span> <span class="n">total_rRNA_init_prob</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA5S_initiated&#39;</span><span class="p">:</span> <span class="n">rRNA5S_initiated</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA16S_initiated&#39;</span><span class="p">:</span> <span class="n">rRNA16S_initiated</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA23S_initiated&#39;</span><span class="p">:</span> <span class="n">rRNA23S_initiated</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA5S_init_prob&#39;</span><span class="p">:</span> <span class="n">rRNA5S_init_prob</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA16S_init_prob&#39;</span><span class="p">:</span> <span class="n">rRNA16S_init_prob</span><span class="p">,</span>
+                    <span class="s1">&#39;rRNA23S_init_prob&#39;</span><span class="p">:</span> <span class="n">rRNA23S_init_prob</span><span class="p">,</span>
+                    <span class="s1">&#39;mRNA_TU_index&#39;</span><span class="p">:</span> <span class="n">mRNA_TU_index</span><span class="p">,</span>
+                    <span class="s1">&#39;n_ribosomes_on_each_mRNA&#39;</span><span class="p">:</span> <span class="n">n_ribosomes_on_each_mRNA</span><span class="p">,</span>
+                    <span class="s1">&#39;protein_mass_on_polysomes&#39;</span><span class="p">:</span> <span class="n">protein_mass_on_polysomes</span><span class="p">,</span>
+
+                <span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;next_update_time&#39;</span><span class="p">:</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">update</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

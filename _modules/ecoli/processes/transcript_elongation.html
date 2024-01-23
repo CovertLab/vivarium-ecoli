@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.transcript_elongation &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.transcript_elongation</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.transcript_elongation</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">=====================</span>
+<span class="sd">Transcript Elongation</span>
+<span class="sd">=====================</span>
+
+<span class="sd">This process models nucleotide polymerization into RNA molecules</span>
+<span class="sd">by RNA polymerases. Polymerization occurs across all polymerases</span>
+<span class="sd">simultaneously and resources are allocated to maximize the progress</span>
+<span class="sd">of all polymerases up to the limit of the expected polymerase elongation</span>
+<span class="sd">rate and available nucleotides. The termination of RNA elongation occurs</span>
+<span class="sd">once a RNA polymerase has reached the end of the annotated gene.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">makedirs</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.engine</span> <span class="kn">import</span> <span class="n">Engine</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils.random</span> <span class="kn">import</span> <span class="n">stochasticRound</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.polymerize</span> <span class="kn">import</span> <span class="n">buildSequences</span><span class="p">,</span> <span class="n">polymerize</span><span class="p">,</span> <span class="n">computeMassIncrease</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">counts</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">numpy_schema</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span><span class="p">,</span> <span class="n">listener_schema</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.data_predicates</span> <span class="kn">import</span> <span class="n">monotonically_increasing</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.partition</span> <span class="kn">import</span> <span class="n">PartitionedProcess</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.unique_update</span> <span class="kn">import</span> <span class="n">UniqueUpdate</span>
+
+
+<span class="c1"># Register default topology for this process, associating it with process name</span>
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-transcript-elongation&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;environment&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;environment&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;RNAs&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;RNA&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;active_RNAPs&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;active_RNAP&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;bulk&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;bulk_total&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;listeners&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,)</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="make_elongation_rates">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.make_elongation_rates">[docs]</a>
+<span class="k">def</span> <span class="nf">make_elongation_rates</span><span class="p">(</span><span class="n">random</span><span class="p">,</span> <span class="n">rates</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">rates</span></div>
+
+
+
+<div class="viewcode-block" id="get_attenuation_stop_probabilities">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.get_attenuation_stop_probabilities">[docs]</a>
+<span class="k">def</span> <span class="nf">get_attenuation_stop_probabilities</span><span class="p">(</span><span class="n">trna_conc</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span></div>
+
+
+
+<div class="viewcode-block" id="TranscriptElongation">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.TranscriptElongation">[docs]</a>
+<span class="k">class</span> <span class="nc">TranscriptElongation</span><span class="p">(</span><span class="n">PartitionedProcess</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Transcript Elongation PartitionedProcess</span>
+
+<span class="sd">    defaults:</span>
+<span class="sd">        - max_time_step (float) : ???</span>
+<span class="sd">        - rnaPolymeraseElongationRateDict (dict): Array with elongation rate</span>
+<span class="sd">            set points for different media environments.</span>
+<span class="sd">        - rnaIds (array[str]) : array of names for each TU</span>
+<span class="sd">        - rnaLengths (array[int]) : array of lengths for each TU</span>
+<span class="sd">            (in nucleotides?)</span>
+<span class="sd">        - rnaSequences (2D array[int]) : Array with the nucleotide sequences</span>
+<span class="sd">            of each TU. This is in the form of a 2D array where each row is a</span>
+<span class="sd">            TU, and each column is a position in the TU&#39;s sequence. Nucleotides</span>
+<span class="sd">            are stored as an index {0, 1, 2, 3}, and the row is padded with</span>
+<span class="sd">            -1&#39;s on the right to indicate where the sequence ends.</span>
+<span class="sd">        - ntWeights (array[float]): Array of nucleotide weights</span>
+<span class="sd">        - endWeight (array[float]): ???,</span>
+<span class="sd">        - replichore_lengths (array[int]): lengths of replichores</span>
+<span class="sd">            (in nucleotides?),</span>
+<span class="sd">        - is_mRNA (array[bool]): Mask for mRNAs</span>
+<span class="sd">        - ppi (str): ID of PPI</span>
+<span class="sd">        - inactive_RNAP (str): ID of inactive RNAP</span>
+<span class="sd">        - ntp_ids list[str]: IDs of ntp&#39;s (A, C, G, U)</span>
+<span class="sd">        - variable_elongation (bool): Whether to use variable elongation.</span>
+<span class="sd">                                      False by default.</span>
+<span class="sd">        - make_elongation_rates: Function to make elongation rates, of the</span>
+<span class="sd">            form: lambda random, rates, timestep, variable: rates</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;max_time_step&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="c1"># Parameters</span>
+        <span class="s1">&#39;rnaPolymeraseElongationRateDict&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;rnaIds&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;rnaLengths&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;rnaSequences&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[]]),</span>
+        <span class="s1">&#39;ntWeights&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;endWeight&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;replichore_lengths&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;n_fragment_bases&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;recycle_stalled_elongation&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;submass_indices&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="c1"># mask for mRNAs</span>
+        <span class="s1">&#39;is_mRNA&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="c1"># Bulk molecules</span>
+        <span class="s1">&#39;inactive_RNAP&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;ppi&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;ntp_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;variable_elongation&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">:</span> <span class="n">make_elongation_rates</span><span class="p">,</span>
+        <span class="s1">&#39;fragmentBases&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;polymerized_ntps&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;charged_trnas&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="c1"># Attenuation</span>
+        <span class="s1">&#39;trna_attenuation&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;cell_density&#39;</span><span class="p">:</span> <span class="mi">1100</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">,</span>
+        <span class="s1">&#39;n_avogadro&#39;</span><span class="p">:</span>  <span class="mf">6.02214076e+23</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">,</span>
+        <span class="s1">&#39;get_attenuation_stop_probabilities&#39;</span><span class="p">:</span> <span class="p">(</span>
+            <span class="n">get_attenuation_stop_probabilities</span><span class="p">),</span>
+        <span class="s1">&#39;attenuated_rna_indices&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">),</span>
+        <span class="s1">&#39;location_lookup&#39;</span><span class="p">:</span> <span class="p">{},</span>
+
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_time_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;max_time_step&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Load parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rnaPolymeraseElongationRateDict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;rnaPolymeraseElongationRateDict&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rnaIds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rnaIds&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rnaLengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rnaLengths&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rnaSequences</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rnaSequences&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ppi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ppi&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAP</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inactive_RNAP&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fragmentBases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;fragmentBases&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">charged_trnas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;charged_trnas&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ntp_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ntWeights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ntWeights&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">endWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;endWeight&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replichore_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;replichore_lengths&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replichore_lengths</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_fragment_bases&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recycle_stalled_elongation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;recycle_stalled_elongation&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Mask for mRNAs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_mRNA</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;is_mRNA&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;variable_elongation&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">make_elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">polymerized_ntps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;polymerized_ntps&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">charged_trna_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;charged_trnas&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Attenuation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trna_attenuation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;trna_attenuation&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_density</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;cell_density&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_avogadro</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_avogadro&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stop_probabilities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;get_attenuation_stop_probabilities&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;attenuated_rna_indices&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices_lookup</span> <span class="o">=</span> <span class="p">{</span><span class="n">idx</span><span class="p">:</span> <span class="n">i</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices</span><span class="p">)}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rnas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnaIds</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location_lookup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;location_lookup&#39;</span><span class="p">]</span>
+
+        <span class="c1"># random seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="c1"># Helper indices for Numpy indexing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulk_RNA_idx</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="TranscriptElongation.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.TranscriptElongation.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;environment&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">}</span>
+            <span class="p">},</span>
+
+            <span class="s1">&#39;RNAs&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;RNAs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;active_RNAPs&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;bulk_total&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span><span class="s1">&#39;cell_mass&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}),</span>
+                <span class="s1">&#39;transcript_elongation_listener&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;count_NTPs_used&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;count_rna_synthesized&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rnaIds</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnaIds</span><span class="p">),</span>
+                    <span class="s1">&#39;attenuation_probability&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rnas</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rnas</span><span class="p">),</span>
+                    <span class="s1">&#39;counts_attenuated&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rnas</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rnas</span><span class="p">)}),</span>
+                <span class="s1">&#39;growth_limits&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;ntp_used&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;ntp_pool_size&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;ntp_request_size&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;ntp_allocated&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">)}),</span>
+                <span class="s1">&#39;rnap_data&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;actual_elongations&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;did_terminate&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;termination_loss&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;did_stall&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]}</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="TranscriptElongation.calculate_request">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.TranscriptElongation.calculate_request">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># At first update, convert all strings to indices</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bulk_RNA_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bulk_RNA_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rnaIds</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ntps_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ppi</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAP_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAP</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fragmentBases_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fragmentBases</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">charged_trnas_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">charged_trnas</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+
+        <span class="c1"># Calculate elongation rate based on the current media</span>
+        <span class="n">current_media_id</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="s1">&#39;media_id&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">rnapElongationRate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnaPolymeraseElongationRateDict</span><span class="p">[</span>
+            <span class="n">current_media_id</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">nt</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_elongation_rates</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rnapElongationRate</span><span class="p">,</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span><span class="p">)</span>
+
+        <span class="c1"># If there are no active RNA polymerases, return immediately</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">][</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+        <span class="c1"># Determine total possible sequences of nucleotides that can be</span>
+        <span class="c1"># transcribed in this time step for each partial transcript</span>
+        <span class="n">TU_indexes</span><span class="p">,</span> <span class="n">transcript_lengths</span><span class="p">,</span> <span class="n">is_full_transcript</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span> <span class="s1">&#39;transcript_length&#39;</span><span class="p">,</span> <span class="s1">&#39;is_full_transcript&#39;</span><span class="p">])</span>
+        <span class="n">is_partial_transcript</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">is_full_transcript</span><span class="p">)</span>
+        <span class="n">TU_indexes_partial</span> <span class="o">=</span> <span class="n">TU_indexes</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span>
+        <span class="n">transcript_lengths_partial</span> <span class="o">=</span> <span class="n">transcript_lengths</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span>
+
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rnaSequences</span><span class="p">,</span>
+            <span class="n">TU_indexes_partial</span><span class="p">,</span>
+            <span class="n">transcript_lengths_partial</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">)</span>
+
+        <span class="n">sequenceComposition</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">[</span><span class="n">sequences</span> <span class="o">!=</span> <span class="n">polymerize</span><span class="o">.</span><span class="n">PAD_VALUE</span><span class="p">],</span> <span class="n">minlength</span> <span class="o">=</span> <span class="mi">4</span><span class="p">)</span>
+
+        <span class="c1"># Calculate if any nucleotides are limited and request up to the number</span>
+        <span class="c1"># in the sequences or number available</span>
+        <span class="n">ntpsTotal</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntps_idx</span><span class="p">)</span>
+        <span class="n">maxFractionalReactionLimit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fmin</span><span class="p">(</span>
+            <span class="mi">1</span><span class="p">,</span> <span class="n">ntpsTotal</span> <span class="o">/</span> <span class="n">sequenceComposition</span><span class="p">)</span>
+
+        <span class="n">requests</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">ntps_idx</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">maxFractionalReactionLimit</span> <span class="o">*</span> <span class="n">sequenceComposition</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))]}</span>
+
+        <span class="n">requests</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;growth_limits&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;ntp_pool_size&#39;</span><span class="p">:</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntps_idx</span><span class="p">),</span>
+                <span class="s1">&#39;ntp_request_size&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">maxFractionalReactionLimit</span> 
+                    <span class="o">*</span> <span class="n">sequenceComposition</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">requests</span></div>
+
+
+<div class="viewcode-block" id="TranscriptElongation.evolve_state">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.TranscriptElongation.evolve_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">evolve_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">ntpCounts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">ntps_idx</span><span class="p">)</span>
+
+        <span class="c1"># If there are no active RNA polymerases, return immediately</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">][</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;transcript_elongation_listener&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;count_NTPs_used&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="s1">&#39;count_rna_synthesized&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rnaIds</span><span class="p">))</span>
+                    <span class="p">},</span>
+                    <span class="s1">&#39;growth_limits&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;ntp_used&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ntp_ids</span><span class="p">)),</span>
+                        <span class="s1">&#39;ntp_allocated&#39;</span><span class="p">:</span> <span class="n">ntpCounts</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="s1">&#39;rnap_data&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;actual_elongations&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="s1">&#39;did_terminate&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="s1">&#39;termination_loss&#39;</span><span class="p">:</span> <span class="mi">0</span>
+                    <span class="p">}</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;active_RNAPs&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s1">&#39;RNAs&#39;</span><span class="p">:</span> <span class="p">{}</span>
+            <span class="p">}</span>
+
+        <span class="c1"># Get attributes from existing RNAs</span>
+        <span class="n">TU_index_all_RNAs</span><span class="p">,</span> <span class="n">length_all_RNAs</span><span class="p">,</span> <span class="n">is_full_transcript</span><span class="p">,</span> \
+            <span class="n">is_mRNA_all_RNAs</span><span class="p">,</span> <span class="n">RNAP_index_all_RNAs</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span> <span class="s1">&#39;transcript_length&#39;</span><span class="p">,</span> <span class="s1">&#39;is_full_transcript&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;is_mRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;RNAP_index&#39;</span><span class="p">])</span>
+
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;growth_limits&#39;</span><span class="p">:</span> <span class="p">{}}}</span>
+
+        <span class="c1"># Determine sequences of RNAs that should be elongated</span>
+        <span class="n">is_partial_transcript</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">is_full_transcript</span><span class="p">)</span>
+        <span class="n">partial_transcript_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">is_partial_transcript</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">TU_index_partial_RNAs</span> <span class="o">=</span> <span class="n">TU_index_all_RNAs</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span>
+        <span class="n">length_partial_RNAs</span> <span class="o">=</span> <span class="n">length_all_RNAs</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span>
+        <span class="n">is_mRNA_partial_RNAs</span> <span class="o">=</span> <span class="n">is_mRNA_all_RNAs</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span>
+        <span class="n">RNAP_index_partial_RNAs</span> <span class="o">=</span> <span class="n">RNAP_index_all_RNAs</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">trna_attenuation</span><span class="p">:</span>
+            <span class="n">cell_mass</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">][</span><span class="s1">&#39;cell_mass&#39;</span><span class="p">]</span>
+            <span class="n">cellVolume</span> <span class="o">=</span> <span class="n">cell_mass</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_density</span>
+            <span class="n">counts_to_molar</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_avogadro</span> <span class="o">*</span> <span class="n">cellVolume</span><span class="p">)</span>
+            <span class="n">attenuation_probability</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_probabilities</span><span class="p">(</span><span class="n">counts_to_molar</span>
+                <span class="o">*</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk_total&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">charged_trnas_idx</span><span class="p">))</span>
+            <span class="n">prob_lookup</span> <span class="o">=</span> <span class="p">{</span><span class="n">tu</span><span class="p">:</span> <span class="n">prob</span> <span class="k">for</span> <span class="n">tu</span><span class="p">,</span> <span class="n">prob</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices</span><span class="p">,</span> <span class="n">attenuation_probability</span><span class="p">)}</span>
+            <span class="n">tu_stop_probability</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">prob_lookup</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span>
+                <span class="p">(</span><span class="n">length</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">location_lookup</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">length</span>
+                <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">TU_index_partial_RNAs</span><span class="p">,</span> <span class="n">length_partial_RNAs</span><span class="p">)</span>
+            <span class="p">])</span>
+            <span class="n">rna_to_attenuate</span> <span class="o">=</span> <span class="n">stochasticRound</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span> <span class="n">tu_stop_probability</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">attenuation_probability</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices</span><span class="p">))</span>
+            <span class="n">rna_to_attenuate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">TU_index_partial_RNAs</span><span class="p">),</span> <span class="nb">bool</span><span class="p">)</span>
+        <span class="n">rna_to_elongate</span> <span class="o">=</span> <span class="o">~</span><span class="n">rna_to_attenuate</span>
+
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rnaSequences</span><span class="p">,</span>
+            <span class="n">TU_index_partial_RNAs</span><span class="p">,</span>
+            <span class="n">length_partial_RNAs</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">)</span>
+
+        <span class="c1"># Polymerize transcripts based on sequences and available nucleotides</span>
+        <span class="n">reactionLimit</span> <span class="o">=</span> <span class="n">ntpCounts</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">polymerize</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">[</span><span class="n">rna_to_elongate</span><span class="p">],</span>
+            <span class="n">ntpCounts</span><span class="p">,</span>
+            <span class="n">reactionLimit</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">[</span><span class="n">TU_index_partial_RNAs</span><span class="p">][</span><span class="n">rna_to_elongate</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span>
+        <span class="p">)</span>
+
+        <span class="n">sequence_elongations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">length_partial_RNAs</span><span class="p">)</span>
+        <span class="n">sequence_elongations</span><span class="p">[</span><span class="n">rna_to_elongate</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">sequenceElongation</span>
+        <span class="n">ntps_used</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">monomerUsages</span>
+        <span class="n">did_stall_mask</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">sequences_limited_elongation</span>
+
+        <span class="c1"># Calculate changes in mass associated with polymerization</span>
+        <span class="n">added_mass</span> <span class="o">=</span> <span class="n">computeMassIncrease</span><span class="p">(</span><span class="n">sequences</span><span class="p">,</span> <span class="n">sequence_elongations</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ntWeights</span><span class="p">)</span>
+        <span class="n">did_initialize</span> <span class="o">=</span> <span class="p">(</span><span class="n">length_partial_RNAs</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">sequence_elongations</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">added_mass</span><span class="p">[</span><span class="n">did_initialize</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">endWeight</span>
+
+        <span class="c1"># Calculate updated transcript lengths</span>
+        <span class="n">updated_transcript_lengths</span> <span class="o">=</span> <span class="n">length_partial_RNAs</span> <span class="o">+</span> <span class="n">sequence_elongations</span>
+
+        <span class="c1"># Get attributes of active RNAPs</span>
+        <span class="n">coordinates</span><span class="p">,</span> <span class="n">is_forward</span><span class="p">,</span> <span class="n">RNAP_unique_index</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;coordinates&#39;</span><span class="p">,</span> <span class="s1">&#39;is_forward&#39;</span><span class="p">,</span> <span class="s1">&#39;unique_index&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Active RNAP count should equal partial transcript count</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">RNAP_unique_index</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">RNAP_index_partial_RNAs</span><span class="p">)</span>
+
+        <span class="c1"># All partial RNAs must be linked to an RNAP</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">RNAP_index_partial_RNAs</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Get mapping indexes between partial RNAs to RNAPs</span>
+        <span class="n">partial_RNA_to_RNAP_mapping</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">get_mapping_arrays</span><span class="p">(</span>
+            <span class="n">RNAP_index_partial_RNAs</span><span class="p">,</span> <span class="n">RNAP_unique_index</span><span class="p">)</span>
+
+        <span class="c1"># Rescale boolean array of directions to an array of 1&#39;s and -1&#39;s.</span>
+        <span class="c1"># True is converted to 1, False is converted to -1.</span>
+        <span class="n">direction_rescaled</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">is_forward</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+        <span class="c1"># Compute the updated coordinates of RNAPs. Coordinates of RNAPs</span>
+        <span class="c1"># moving in the positive direction are increased, whereas coordinates</span>
+        <span class="c1"># of RNAPs moving in the negative direction are decreased.</span>
+        <span class="n">updated_coordinates</span> <span class="o">=</span> <span class="n">coordinates</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">direction_rescaled</span><span class="p">,</span>
+            <span class="n">sequence_elongations</span><span class="p">[</span><span class="n">partial_RNA_to_RNAP_mapping</span><span class="p">])</span>
+
+        <span class="c1"># Reset coordinates of RNAPs that cross the boundaries between right</span>
+        <span class="c1"># and left replichores</span>
+        <span class="n">updated_coordinates</span><span class="p">[</span>
+            <span class="n">updated_coordinates</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">replichore_lengths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">]</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_length</span>
+        <span class="n">updated_coordinates</span><span class="p">[</span>
+            <span class="n">updated_coordinates</span> <span class="o">&lt;</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">replichore_lengths</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_length</span>
+
+        <span class="c1"># Update transcript lengths of RNAs and coordinates of RNAPs</span>
+        <span class="n">length_all_RNAs</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span> <span class="o">=</span> <span class="n">updated_transcript_lengths</span>
+
+        <span class="c1"># Update added submasses of RNAs. Masses of partial mRNAs are counted</span>
+        <span class="c1"># as mRNA mass as they are already functional, but the masses of other</span>
+        <span class="c1"># types of partial RNAs are counted as nonspecific RNA mass.</span>
+        <span class="n">added_nsRNA_mass_all_RNAs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span>
+            <span class="n">TU_index_all_RNAs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">added_mRNA_mass_all_RNAs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span>
+            <span class="n">TU_index_all_RNAs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="n">added_nsRNA_mass_all_RNAs</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span>
+            <span class="n">added_mass</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">is_mRNA_partial_RNAs</span><span class="p">))</span>
+        <span class="n">added_mRNA_mass_all_RNAs</span><span class="p">[</span><span class="n">is_partial_transcript</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span>
+            <span class="n">added_mass</span><span class="p">,</span> <span class="n">is_mRNA_partial_RNAs</span><span class="p">)</span>
+
+        <span class="c1"># Determine if transcript has reached the end of the sequence</span>
+        <span class="n">terminal_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnaLengths</span><span class="p">[</span><span class="n">TU_index_partial_RNAs</span><span class="p">]</span>
+        <span class="n">did_terminate_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">updated_transcript_lengths</span> <span class="o">==</span> <span class="n">terminal_lengths</span><span class="p">)</span>
+        <span class="n">terminated_RNAs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+            <span class="n">TU_index_partial_RNAs</span><span class="p">[</span><span class="n">did_terminate_mask</span><span class="p">],</span>
+            <span class="n">minlength</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnaSequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Update is_full_transcript attribute of RNAs</span>
+        <span class="n">is_full_transcript_updated</span> <span class="o">=</span> <span class="n">is_full_transcript</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">is_full_transcript_updated</span><span class="p">[</span>
+            <span class="n">partial_transcript_indexes</span><span class="p">[</span><span class="n">did_terminate_mask</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">n_terminated</span> <span class="o">=</span> <span class="n">did_terminate_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">n_initialized</span> <span class="o">=</span> <span class="n">did_initialize</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">n_elongations</span> <span class="o">=</span> <span class="n">ntps_used</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># Get counts of new bulk RNAs</span>
+        <span class="n">n_new_bulk_RNAs</span> <span class="o">=</span> <span class="n">terminated_RNAs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">n_new_bulk_RNAs</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">is_mRNA</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;set&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;transcript_length&#39;</span><span class="p">:</span> <span class="n">length_all_RNAs</span><span class="p">,</span>
+                <span class="s1">&#39;is_full_transcript&#39;</span><span class="p">:</span> <span class="n">is_full_transcript_updated</span><span class="p">,</span>
+                <span class="s1">&#39;massDiff_nonspecific_RNA&#39;</span><span class="p">:</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">],</span>
+                    <span class="p">[</span><span class="s1">&#39;massDiff_nonspecific_RNA&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> \
+                        <span class="o">+</span> <span class="n">added_nsRNA_mass_all_RNAs</span><span class="p">,</span>
+                <span class="s1">&#39;massDiff_mRNA&#39;</span><span class="p">:</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">],</span>
+                    <span class="p">[</span><span class="s1">&#39;massDiff_mRNA&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">added_mRNA_mass_all_RNAs</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">partial_transcript_indexes</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+                <span class="n">did_terminate_mask</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">is_mRNA_partial_RNAs</span><span class="p">))],</span>
+            
+        <span class="p">}</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;set&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;coordinates&#39;</span><span class="p">:</span> <span class="n">updated_coordinates</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">did_terminate_mask</span><span class="p">[</span>
+                <span class="n">partial_RNA_to_RNAP_mapping</span><span class="p">])[</span><span class="mi">0</span><span class="p">],</span>
+            
+        <span class="p">}</span>
+
+        <span class="c1"># Attenuation removes RNAs and RNAPs</span>
+        <span class="n">counts_attenuated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">rna_to_attenuate</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">TU_index_partial_RNAs</span><span class="p">[</span><span class="n">rna_to_attenuate</span><span class="p">]:</span>
+                <span class="n">counts_attenuated</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">attenuated_rna_indices_lookup</span><span class="p">[</span><span class="n">idx</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">],</span>
+                <span class="n">partial_transcript_indexes</span><span class="p">[</span><span class="n">rna_to_attenuate</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">],</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">rna_to_attenuate</span><span class="p">[</span><span class="n">partial_RNA_to_RNAP_mapping</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="n">n_attenuated</span> <span class="o">=</span> <span class="n">rna_to_attenuate</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># Handle stalled elongation</span>
+        <span class="n">n_total_stalled</span> <span class="o">=</span> <span class="n">did_stall_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">recycle_stalled_elongation</span> <span class="ow">and</span> <span class="p">(</span><span class="n">n_total_stalled</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="c1"># Remove RNAPs that were bound to stalled elongation transcripts</span>
+            <span class="c1"># and increment counts of inactive RNAPs</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">],</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">did_stall_mask</span><span class="p">[</span><span class="n">partial_RNA_to_RNAP_mapping</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAP_idx</span><span class="p">,</span> <span class="n">n_total_stalled</span><span class="p">))</span>
+
+            <span class="c1"># Remove partial transcripts from stalled elongation</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">],</span>
+                <span class="n">partial_transcript_indexes</span><span class="p">[</span><span class="n">did_stall_mask</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">stalled_sequence_lengths</span> <span class="o">=</span> <span class="n">updated_transcript_lengths</span><span class="p">[</span>
+                <span class="n">did_stall_mask</span><span class="p">]</span>
+            <span class="n">n_initiated_sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">stalled_sequence_lengths</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">n_initiated_sequences</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Get the full sequence of stalled transcripts</span>
+                <span class="n">stalled_sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">rnaSequences</span><span class="p">,</span>
+                    <span class="n">TU_index_partial_RNAs</span><span class="p">[</span><span class="n">did_stall_mask</span><span class="p">],</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_total_stalled</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_total_stalled</span><span class="p">,</span> <span class="n">updated_transcript_lengths</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+                <span class="c1"># Count the number of fragment bases in these transcripts up</span>
+                <span class="c1"># until the stalled length</span>
+                <span class="n">base_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">sl</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">stalled_sequence_lengths</span><span class="p">,</span>
+                    <span class="n">stalled_sequences</span>
+                <span class="p">):</span>
+                    <span class="n">base_counts</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">seq</span><span class="p">[:</span><span class="n">sl</span><span class="p">],</span>
+                        <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span><span class="p">)</span>
+
+                <span class="c1"># Increment counts of fragment NTPs and phosphates</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">fragmentBases_idx</span><span class="p">,</span> <span class="n">base_counts</span><span class="p">))</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span><span class="p">,</span> <span class="n">n_initiated_sequences</span><span class="p">))</span>
+
+        <span class="n">update</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">ntps_idx</span><span class="p">,</span> <span class="o">-</span><span class="n">ntps_used</span><span class="p">))</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">bulk_RNA_idx</span><span class="p">,</span> <span class="n">n_new_bulk_RNAs</span><span class="p">))</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAP_idx</span><span class="p">,</span>
+            <span class="n">n_terminated</span> <span class="o">+</span> <span class="n">n_attenuated</span><span class="p">))</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span><span class="p">,</span> <span class="n">n_elongations</span> <span class="o">-</span> <span class="n">n_initialized</span><span class="p">))</span>
+
+        <span class="c1"># Write outputs to listeners</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;transcript_elongation_listener&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;count_rna_synthesized&quot;</span><span class="p">:</span> <span class="n">terminated_RNAs</span><span class="p">,</span>
+            <span class="s2">&quot;count_NTPs_used&quot;</span><span class="p">:</span> <span class="n">n_elongations</span><span class="p">,</span>
+            <span class="s2">&quot;attenuation_probability&quot;</span><span class="p">:</span> <span class="n">attenuation_probability</span><span class="p">,</span>
+            <span class="s2">&quot;counts_attenuated&quot;</span><span class="p">:</span> <span class="n">counts_attenuated</span><span class="p">}</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;growth_limits&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;ntp_used&quot;</span><span class="p">:</span> <span class="n">ntps_used</span><span class="p">}</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;rnap_data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;actual_elongations&quot;</span><span class="p">:</span> <span class="n">sequence_elongations</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+            <span class="s2">&quot;did_terminate&quot;</span><span class="p">:</span> <span class="n">did_terminate_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+            <span class="s2">&quot;termination_loss&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">terminal_lengths</span> <span class="o">-</span> <span class="n">length_partial_RNAs</span><span class="p">)[</span>
+                <span class="n">did_terminate_mask</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+            <span class="s2">&quot;did_stall&quot;</span><span class="p">:</span> <span class="n">n_total_stalled</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">update</span></div>
+
+
+<div class="viewcode-block" id="TranscriptElongation.isTimeStepShortEnough">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.TranscriptElongation.isTimeStepShortEnough">[docs]</a>
+    <span class="k">def</span> <span class="nf">isTimeStepShortEnough</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputTimeStep</span><span class="p">,</span> <span class="n">timeStepSafetyFraction</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">inputTimeStep</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_time_step</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_mapping_arrays">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.get_mapping_arrays">[docs]</a>
+<span class="k">def</span> <span class="nf">get_mapping_arrays</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the array of indexes of each element of array x in array y, and</span>
+<span class="sd">    vice versa. Assumes that the elements of x and y are unique, and</span>
+<span class="sd">    set(x) == set(y).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">argsort_unique</span><span class="p">(</span><span class="n">idx</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Quicker argsort for arrays that are permutations of np.arange(n).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">argsort_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">argsort_idx</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">argsort_idx</span>
+
+    <span class="n">x_argsort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">y_argsort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+    <span class="n">x_to_y</span> <span class="o">=</span> <span class="n">x_argsort</span><span class="p">[</span><span class="n">argsort_unique</span><span class="p">(</span><span class="n">y_argsort</span><span class="p">)]</span>
+    <span class="n">y_to_x</span> <span class="o">=</span> <span class="n">y_argsort</span><span class="p">[</span><span class="n">argsort_unique</span><span class="p">(</span><span class="n">x_argsort</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="n">x_to_y</span><span class="p">,</span> <span class="n">y_to_x</span></div>
+
+
+
+<div class="viewcode-block" id="format_data">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.format_data">[docs]</a>
+<span class="k">def</span> <span class="nf">format_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">,</span> <span class="n">rna_dtypes</span><span class="p">,</span> <span class="n">rnap_dtypes</span><span class="p">,</span> <span class="n">submass_dtypes</span><span class="p">):</span>
+    <span class="c1"># Format unique and bulk data for assertions</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">][</span><span class="s1">&#39;RNA&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">val</span><span class="p">))),</span>
+        <span class="n">dtype</span><span class="o">=</span><span class="n">rna_dtypes</span> <span class="o">+</span> <span class="n">submass_dtypes</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">][</span><span class="s1">&#39;RNA&#39;</span><span class="p">]]</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">][</span><span class="s1">&#39;active_RNAP&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">val</span><span class="p">))),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">rnap_dtypes</span> <span class="o">+</span> <span class="n">submass_dtypes</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">][</span><span class="s1">&#39;active_RNAP&#39;</span><span class="p">]]</span>
+    <span class="n">bulk_timeseries</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">])</span>
+    <span class="n">data</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">bulk_id</span><span class="p">:</span> <span class="n">bulk_timeseries</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">bulk_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_transcript_elongation</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">make_elongation_rates</span><span class="p">(</span><span class="n">random</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">time_step</span><span class="p">,</span> <span class="n">variable_elongation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="mi">9</span>  <span class="c1"># number of TUs</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="n">time_step</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="n">stochasticRound</span><span class="p">(</span><span class="n">random</span><span class="p">,</span> <span class="n">lengths</span><span class="p">)</span> <span class="k">if</span> <span class="n">random</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lengths</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+    <span class="n">test_config</span> <span class="o">=</span> <span class="n">TranscriptElongation</span><span class="o">.</span><span class="n">defaults</span>
+    <span class="n">test_config</span><span class="p">[</span><span class="s1">&#39;max_time_step&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;data/elongation_sequences.npy&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="n">rna_schema</span> <span class="o">=</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;RNAs&#39;</span><span class="p">,</span> <span class="n">emit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">rnap_schema</span> <span class="o">=</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">,</span> <span class="n">emit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">test_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;max_time_step&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span>
+        <span class="s1">&#39;rnaPolymeraseElongationRateDict&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;minimal&#39;</span> <span class="p">:</span> <span class="mf">49.24</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">nt</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">},</span>
+        <span class="s1">&#39;rnaIds&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="s1">&#39;16S rRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;23S rRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;5S rRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;mRNA&#39;</span><span class="p">]),</span>
+        <span class="s1">&#39;rnaLengths&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1542</span><span class="p">,</span> <span class="mi">2905</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="mi">1080</span><span class="p">]),</span>
+        <span class="s1">&#39;rnaSequences&#39;</span><span class="p">:</span> <span class="n">sequences</span><span class="p">,</span>
+        <span class="s1">&#39;ntWeights&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">5.44990582e-07</span><span class="p">,</span> <span class="mf">5.05094471e-07</span><span class="p">,</span> <span class="mf">5.71557547e-07</span><span class="p">,</span> <span class="mf">5.06728441e-07</span><span class="p">]),</span>
+        <span class="s1">&#39;endWeight&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">2.90509649e-07</span><span class="p">]),</span>
+        <span class="s1">&#39;replichore_lengths&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2322985</span><span class="p">,</span> <span class="mi">2316690</span><span class="p">]),</span>
+        <span class="s1">&#39;idx_16S_rRNA&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="s1">&#39;idx_23S_rRNA&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="s1">&#39;idx_5S_rRNA&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">]),</span>
+        <span class="s1">&#39;is_mRNA&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">]),</span>
+        <span class="s1">&#39;ppi&#39;</span><span class="p">:</span> <span class="s1">&#39;PPI[c]&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;inactive_RNAP&#39;</span><span class="p">:</span> <span class="s1">&#39;APORNAP-CPLX[c]&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;ntp_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;ATP[c]&#39;</span><span class="p">,</span> <span class="s1">&#39;CTP[c]&#39;</span><span class="p">,</span> <span class="s1">&#39;GTP[c]&#39;</span><span class="p">,</span> <span class="s1">&#39;UTP[c]&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;variable_elongation&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">:</span> <span class="n">make_elongation_rates</span><span class="p">,</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="c1"># Make sure to emit RNA and RNAP data</span>
+        <span class="s1">&#39;_schema&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;RNAs&#39;</span><span class="p">:</span> <span class="n">rna_schema</span><span class="p">,</span> <span class="s1">&#39;active_RNAPs&#39;</span><span class="p">:</span> <span class="n">rnap_schema</span><span class="p">}}</span>
+
+    <span class="n">transcript_elongation</span> <span class="o">=</span> <span class="n">TranscriptElongation</span><span class="p">(</span><span class="n">test_config</span><span class="p">)</span>
+    <span class="c1"># Need to add UniqueUpdate Step so unique molecule are updated each timestep</span>
+    <span class="n">unique_topo</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;RNAs&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;unique&#39;</span><span class="p">,</span> <span class="s1">&#39;RNA&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;active_RNAPs&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;unique&#39;</span><span class="p">,</span> <span class="s1">&#39;active_RNAP&#39;</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="n">unique_update</span> <span class="o">=</span> <span class="n">UniqueUpdate</span><span class="p">({</span><span class="s1">&#39;unique_topo&#39;</span><span class="p">:</span> <span class="n">unique_topo</span><span class="p">})</span>
+
+    <span class="n">submass_dtypes</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;massDiff_DNA&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;massDiff_mRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;massDiff_metabolite&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;massDiff_miscRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;massDiff_nonspecific_RNA&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;massDiff_protein&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;massDiff_rRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;massDiff_tRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;massDiff_water&#39;</span><span class="p">,</span> <span class="s1">&#39;&lt;f8&#39;</span><span class="p">)]</span>
+    <span class="n">rna_dtypes</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;_entryState&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;unique_index&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;transcript_length&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;is_mRNA&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;is_full_transcript&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;can_translate&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;RNAP_index&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)]</span>
+    <span class="n">rnap_dtypes</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;_entryState&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;unique_index&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;coordinates&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> 
+        <span class="p">(</span><span class="s1">&#39;is_forward&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)]</span>
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;environment&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal&#39;</span><span class="p">},</span>
+        <span class="s1">&#39;unique&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;RNA&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">test_config</span><span class="p">[</span><span class="s1">&#39;is_mRNA&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">],</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="o">+</span> \
+                <span class="p">(</span><span class="mi">0</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">9</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">test_config</span><span class="p">[</span><span class="s1">&#39;rnaIds&#39;</span><span class="p">]))</span>
+            <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">rna_dtypes</span> <span class="o">+</span> <span class="n">submass_dtypes</span><span class="p">),</span>
+
+            <span class="s1">&#39;active_RNAP&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">i</span><span class="o">*</span><span class="mi">1000</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">0</span><span class="p">,)</span> <span class="o">*</span> <span class="mi">9</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+            <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">rnap_dtypes</span> <span class="o">+</span> <span class="n">submass_dtypes</span><span class="p">),</span>
+        <span class="p">},</span>
+
+        <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">(</span><span class="s1">&#39;16S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;23S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;5S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;mRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;ATP[c]&#39;</span><span class="p">,</span> <span class="mi">6178058</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;CTP[c]&#39;</span><span class="p">,</span> <span class="mi">1152211</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;GTP[c]&#39;</span><span class="p">,</span> <span class="mi">1369694</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;UTP[c]&#39;</span><span class="p">,</span> <span class="mi">3024874</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;PPI[c]&#39;</span><span class="p">,</span> <span class="mi">320771</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;APORNAP-CPLX[c]&#39;</span><span class="p">,</span> <span class="mi">2768</span><span class="p">)</span>
+        <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;U40&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)]),</span>
+    <span class="p">}</span>
+
+    <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;processes&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;unique-update&#39;</span><span class="p">:</span> <span class="n">unique_update</span><span class="p">,</span>
+            <span class="s1">&#39;ecoli-transcript-elongation&#39;</span><span class="p">:</span> <span class="n">transcript_elongation</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;topology&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;unique-update&#39;</span><span class="p">:</span> <span class="n">unique_topo</span><span class="p">,</span>
+            <span class="s1">&#39;ecoli-transcript-elongation&#39;</span><span class="p">:</span> <span class="n">TOPOLOGY</span><span class="p">}}</span>
+
+    <span class="c1"># Since unique numpy updater is an class method, internal</span>
+    <span class="c1"># deepcopying in vivarium-core causes this warning to appear</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Incompatible schema assignment at &quot;</span><span class="p">)</span>
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span><span class="o">**</span><span class="n">settings</span><span class="p">,</span> <span class="n">initial_state</span><span class="o">=</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">initial_state</span><span class="p">))</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">run_for</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_timeseries</span><span class="p">()</span>
+    <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">format_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">,</span> <span class="n">rna_dtypes</span><span class="p">,</span>
+        <span class="n">rnap_dtypes</span><span class="p">,</span> <span class="n">submass_dtypes</span><span class="p">)</span>
+
+    <span class="n">plots</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">assertions</span><span class="p">(</span><span class="n">test_config</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Test running out of ntps</span>
+
+    <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">(</span><span class="s1">&#39;16S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;23S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;5S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;mRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;ATP[c]&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;CTP[c]&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;GTP[c]&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;UTP[c]&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;PPI[c]&#39;</span><span class="p">,</span> <span class="mi">320771</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;APORNAP-CPLX[c]&#39;</span><span class="p">,</span> <span class="mi">2768</span><span class="p">)</span>
+        <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;U40&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)])</span>
+
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span><span class="o">**</span><span class="n">settings</span><span class="p">,</span> <span class="n">initial_state</span><span class="o">=</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">initial_state</span><span class="p">))</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">run_for</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_timeseries</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">format_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">,</span> <span class="n">rna_dtypes</span><span class="p">,</span>
+        <span class="n">rnap_dtypes</span><span class="p">,</span> <span class="n">submass_dtypes</span><span class="p">)</span>
+
+    <span class="n">plots</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;transcript_elongation_toymodel_100_ntps.png&quot;</span><span class="p">)</span>
+    <span class="n">assertions</span><span class="p">(</span><span class="n">test_config</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Test no ntps</span>
+
+    <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">(</span><span class="s1">&#39;16S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;23S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;5S rRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;mRNA&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;ATP[c]&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;CTP[c]&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;GTP[c]&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;UTP[c]&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;PPI[c]&#39;</span><span class="p">,</span> <span class="mi">320771</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;APORNAP-CPLX[c]&#39;</span><span class="p">,</span> <span class="mi">2768</span><span class="p">)</span>
+        <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;U40&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)])</span>
+
+    <span class="c1"># Since unique numpy updater is an class method, internal</span>
+    <span class="c1"># deepcopying in vivarium-core causes this warning to appear</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Incompatible schema assignment at &quot;</span><span class="p">)</span>
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span><span class="o">**</span><span class="n">settings</span><span class="p">,</span> <span class="n">initial_state</span><span class="o">=</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">initial_state</span><span class="p">))</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">run_for</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_timeseries</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">format_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">,</span> <span class="n">rna_dtypes</span><span class="p">,</span>
+        <span class="n">rnap_dtypes</span><span class="p">,</span> <span class="n">submass_dtypes</span><span class="p">)</span>
+
+    <span class="n">plots</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;transcript_elongation_toymodel_no_ntps.png&quot;</span><span class="p">)</span>
+    <span class="n">assertions</span><span class="p">(</span><span class="n">test_config</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="plots">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.plots">[docs]</a>
+<span class="k">def</span> <span class="nf">plots</span><span class="p">(</span><span class="n">actual_update</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;transcript_elongation_toymodel.png&quot;</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+    <span class="c1"># unpack update</span>
+    <span class="n">rnas_synthesized</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span>
+        <span class="s1">&#39;transcript_elongation_listener&#39;</span><span class="p">][</span><span class="s1">&#39;count_rna_synthesized&#39;</span><span class="p">]</span>
+    <span class="n">ntps_used</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;growth_limits&#39;</span><span class="p">][</span><span class="s1">&#39;ntp_used&#39;</span><span class="p">]</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rnas_synthesized</span><span class="p">)),</span> <span class="n">rnas_synthesized</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;TU&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Count&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Counts synthesized&quot;</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">])</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="mf">0.25</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ntp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ntps_used</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">t</span> <span class="o">+</span> <span class="p">(</span><span class="n">i</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">width</span><span class="p">,</span> <span class="n">ntp</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Count&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;NTP Counts Used&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">hspace</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">makedirs</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;out/migration&quot;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;out/migration/</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="assertions">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.transcript_elongation.html#ecoli.processes.transcript_elongation.assertions">[docs]</a>
+<span class="k">def</span> <span class="nf">assertions</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">actual_update</span><span class="p">):</span>
+    <span class="c1"># unpack update</span>
+    <span class="n">trans_lengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;transcript_length&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">][</span><span class="s1">&#39;RNA&#39;</span><span class="p">]])</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">rnas_synthesized</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;transcript_elongation_listener&#39;</span><span class="p">][</span><span class="s1">&#39;count_rna_synthesized&#39;</span><span class="p">]</span>
+    <span class="n">bulk_16SrRNA</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;16S rRNA&#39;</span><span class="p">]</span>
+    <span class="n">bulk_5SrRNA</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;5S rRNA&#39;</span><span class="p">]</span>
+    <span class="n">bulk_23SrRNA</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;23S rRNA&#39;</span><span class="p">]</span>
+    <span class="n">bulk_mRNA</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;mRNA&#39;</span><span class="p">]</span>
+
+    <span class="n">ntps_used</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;growth_limits&#39;</span><span class="p">][</span><span class="s1">&#39;ntp_used&#39;</span><span class="p">]</span>
+    <span class="n">total_ntps_used</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;transcript_elongation_listener&#39;</span><span class="p">][</span><span class="s1">&#39;count_NTPs_used&#39;</span><span class="p">]</span>
+
+    <span class="n">RNAP_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;coordinates&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">][</span><span class="s1">&#39;active_RNAP&#39;</span><span class="p">]])</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">RNAP_elongations</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;rnap_data&#39;</span><span class="p">][</span><span class="s1">&#39;actual_elongations&#39;</span><span class="p">]</span>
+    <span class="n">terminations</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;rnap_data&#39;</span><span class="p">][</span><span class="s1">&#39;did_terminate&#39;</span><span class="p">]</span>
+
+    <span class="n">ppi</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;PPI[c]&#39;</span><span class="p">]</span>
+    <span class="n">inactive_RNAP</span> <span class="o">=</span> <span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;APORNAP-CPLX[c]&#39;</span><span class="p">]</span>
+
+
+    <span class="c1"># transcript lengths are monotonically increasing</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">monotonically_increasing</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">x</span><span class="o">!=</span><span class="mi">0</span><span class="p">]),</span> <span class="n">trans_lengths</span><span class="p">)))</span>
+
+    <span class="c1"># RNAP positions are monotonically increasing</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">monotonically_increasing</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">x</span><span class="o">!=</span><span class="mi">0</span><span class="p">]),</span> <span class="n">RNAP_coordinates</span><span class="p">)))</span>
+
+    <span class="c1"># RNAP positions match transcript lengths?</span>
+    <span class="n">RNAP_coordinates_realigned</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">RNAP_coordinates</span><span class="p">:</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">-</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">RNAP_coordinates_realigned</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">diff</span><span class="p">[</span><span class="n">diff</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">t_length</span><span class="p">,</span> <span class="n">expect</span><span class="p">,</span> <span class="n">mRNA</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">trans_lengths</span><span class="p">,</span> <span class="n">RNAP_coordinates_realigned</span><span class="p">,</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;is_mRNA&#39;</span><span class="p">]):</span>
+        <span class="n">t_length</span> <span class="o">=</span> <span class="n">t_length</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">expect</span><span class="p">)]</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">t_length</span><span class="p">,</span> <span class="n">expect</span><span class="p">)</span>
+
+    <span class="c1"># bulk RNAs monotonically increasing?</span>
+    <span class="k">assert</span> <span class="n">monotonically_increasing</span><span class="p">(</span><span class="n">bulk_16SrRNA</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">monotonically_increasing</span><span class="p">(</span><span class="n">bulk_5SrRNA</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">monotonically_increasing</span><span class="p">(</span><span class="n">bulk_23SrRNA</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">monotonically_increasing</span><span class="p">(</span><span class="n">bulk_mRNA</span><span class="p">)</span>
+
+    <span class="c1"># Change in PPI matches #elongations - #initiations</span>
+    <span class="n">d_ppi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ppi</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">ppi</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">expected_d_ppi</span> <span class="o">=</span> <span class="n">RNAP_elongations</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="c1"># Hacky way to find number of initiations</span>
+    <span class="c1"># Assuming initiations only happen in the first time step (valid for toy model,</span>
+    <span class="c1"># where there is no initiation process)</span>
+    <span class="n">expected_d_ppi</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trans_lengths</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trans_lengths</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">))</span>
+
+    <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">d_ppi</span><span class="p">,</span> <span class="n">expected_d_ppi</span><span class="p">)</span>
+
+    <span class="c1"># Change in APORNAP-CPLX matches terminations</span>
+    <span class="n">d_inactive_RNAP</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">inactive_RNAP</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">-</span> <span class="n">inactive_RNAP</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">d_inactive_RNAP</span><span class="p">,</span> <span class="n">terminations</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+
+    <span class="c1"># RNAP elongations matches total ntps used at each timestep</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">RNAP_elongations</span><span class="p">,</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ntps_used</span><span class="p">])</span>
+
+    <span class="c1"># terminations match rnas_synthesized</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">sum</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">rnas_synthesized</span><span class="p">])</span> <span class="o">==</span> <span class="n">terminations</span><span class="p">)</span>
+    <span class="n">d_16SrRNA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bulk_16SrRNA</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">bulk_16SrRNA</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">d_5SrRNA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bulk_5SrRNA</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">bulk_5SrRNA</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">d_23SrRNA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bulk_23SrRNA</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">bulk_23SrRNA</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">d_16SrRNA</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rnas_synthesized</span><span class="p">)[:,</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;idx_16S_rRNA&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">transpose</span><span class="p">()[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">:])</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">d_5SrRNA</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rnas_synthesized</span><span class="p">)[:,</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;idx_5S_rRNA&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">transpose</span><span class="p">()[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">:])</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">d_23SrRNA</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rnas_synthesized</span><span class="p">)[:,</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;idx_23S_rRNA&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">transpose</span><span class="p">()[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">:])</span>
+
+    <span class="c1"># bulk NTP counts decrease by numbers used</span>
+    <span class="n">ntps_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">actual_update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="n">ntp</span><span class="p">]</span> <span class="k">for</span> <span class="n">ntp</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;ATP[c]&#39;</span><span class="p">,</span> <span class="s1">&#39;CTP[c]&#39;</span><span class="p">,</span> <span class="s1">&#39;GTP[c]&#39;</span><span class="p">,</span> <span class="s1">&#39;UTP[c]&#39;</span><span class="p">]])</span>
+    <span class="n">d_ntps</span> <span class="o">=</span> <span class="n">ntps_arr</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">ntps_arr</span><span class="p">[:,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">d_ntps</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ntps_used</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span>
+
+    <span class="c1"># total NTPS used matches sum of ntps_used,</span>
+    <span class="c1"># total of each type of NTP used matches rna sequences</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">ntps_used</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">total_ntps_used</span><span class="p">))</span>
+    <span class="n">actual</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">ntps_used</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">n_term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rnas_synthesized</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">sequence_ntps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="nb">sum</span><span class="p">(</span><span class="n">seq</span><span class="o">==</span><span class="mi">0</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">seq</span><span class="o">==</span><span class="mi">1</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">seq</span><span class="o">==</span><span class="mi">2</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">seq</span><span class="o">==</span><span class="mi">3</span><span class="p">)]</span>
+                              <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;rnaSequences&#39;</span><span class="p">]])</span>
+    <span class="n">expect</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span>
+                       <span class="k">for</span> <span class="n">seq</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">sequence_ntps</span><span class="p">,</span> <span class="n">n_term</span><span class="p">)</span>
+                       <span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">partial</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span> <span class="o">&lt;</span> <span class="n">t_length</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">final_length</span>   <span class="c1"># length &gt; 0 and not completed</span>
+                        <span class="k">for</span> <span class="n">t_length</span><span class="p">,</span> <span class="n">final_length</span>
+                        <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">trans_lengths</span><span class="p">,</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;rnaLengths&#39;</span><span class="p">])])</span>
+
+    <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">is_partial</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">expect</span><span class="p">,</span> <span class="n">partial</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">is_partial</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">a</span> <span class="o">&gt;=</span> <span class="n">e</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">a</span> <span class="o">==</span> <span class="n">e</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">test_transcript_elongation</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

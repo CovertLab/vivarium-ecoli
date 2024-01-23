@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.polypeptide_initiation &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.polypeptide_initiation</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.polypeptide_initiation</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">======================</span>
+<span class="sd">Polypeptide Initiation</span>
+<span class="sd">======================</span>
+
+<span class="sd">This process models the complementation of 30S and 50S ribosomal subunits</span>
+<span class="sd">into 70S ribosomes on mRNA transcripts. This process is in many ways</span>
+<span class="sd">analogous to the TranscriptInitiation process - the number of initiation</span>
+<span class="sd">events per transcript is determined in a probabilistic manner and dependent</span>
+<span class="sd">on the number of free ribosomal subunits, each mRNA transcript’s translation</span>
+<span class="sd">efficiency, and the counts of each type of transcript.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="n">simulate_process</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="p">(</span><span class="n">create_unique_indexes</span><span class="p">,</span> <span class="n">numpy_schema</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span>
+    <span class="n">counts</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span><span class="p">,</span> <span class="n">listener_schema</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.fitting</span> <span class="kn">import</span> <span class="n">normalize</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.partition</span> <span class="kn">import</span> <span class="n">PartitionedProcess</span>
+
+<span class="c1"># Register default topology for this process, associating it with process name</span>
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-polypeptide-initiation&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;environment&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;environment&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;listeners&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;active_ribosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;active_ribosome&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;RNA&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;RNA&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;bulk&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,)</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PolypeptideInitiation">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.polypeptide_initiation.html#ecoli.processes.polypeptide_initiation.PolypeptideInitiation">[docs]</a>
+<span class="k">class</span> <span class="nc">PolypeptideInitiation</span><span class="p">(</span><span class="n">PartitionedProcess</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Polypeptide Initiation PartitionedProcess &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;protein_lengths&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;translation_efficiencies&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;active_ribosome_fraction&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;elongation_rates&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;variable_elongation&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;rna_id_to_cistron_indexes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;cistron_start_end_pos_in_tu&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;tu_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;active_ribosome_footprint_size&#39;</span><span class="p">:</span> <span class="mi">24</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">nt</span><span class="p">,</span>
+        <span class="s1">&#39;cistron_to_monomer_mapping&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;cistron_tu_mapping_matrix&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;monomer_index_to_cistron_index&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;monomer_index_to_tu_indexes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;ribosome30S&#39;</span><span class="p">:</span> <span class="s1">&#39;ribosome30S&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;ribosome50S&#39;</span><span class="p">:</span> <span class="s1">&#39;ribosome50S&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;monomer_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># Load parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protein_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;protein_lengths&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">translation_efficiencies</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;translation_efficiencies&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_ribosome_fraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;active_ribosome_fraction&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_elongation_rates_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;elongation_rates&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;variable_elongation&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">make_elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">rna_id_to_cistron_indexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;rna_id_to_cistron_indexes&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cistron_start_end_pos_in_tu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;cistron_start_end_pos_in_tu&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tu_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;tu_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_TUs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tu_ids</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_ribosome_footprint_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;active_ribosome_footprint_size&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Get mapping from cistrons to protein monomers and TUs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cistron_to_monomer_mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;cistron_to_monomer_mapping&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cistron_tu_mapping_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;cistron_tu_mapping_matrix&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monomer_index_to_cistron_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;monomer_index_to_cistron_index&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monomer_index_to_tu_indexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;monomer_index_to_tu_indexes&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ribosome30S&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome50S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ribosome50S&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="c1"># Use separate random state instance to create unique indices</span>
+        <span class="c1"># so results are directly comparable with wcEcoli</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unique_idx_random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">empty_update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;ribosome_data&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;ribosomes_initialized&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;prob_translation_per_transcript&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}}}</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;monomer_ids&#39;</span><span class="p">]</span>
+        
+        <span class="c1"># Helper indices for Numpy indexing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S_idx</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="PolypeptideInitiation.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.polypeptide_initiation.html#ecoli.processes.polypeptide_initiation.PolypeptideInitiation.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;environment&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">}},</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;ribosome_data&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;did_initialize&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;target_prob_translation_per_transcript&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;actual_prob_translation_per_transcript&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;mRNA_is_overcrowded&#39;</span><span class="p">:</span> <span class="p">([</span><span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;ribosome_init_event_per_monomer&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">monomer_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;effective_elongation_rate&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}),</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;active_ribosome&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_ribosome&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;RNA&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;RNAs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]}</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="PolypeptideInitiation.calculate_request">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.polypeptide_initiation.html#ecoli.processes.polypeptide_initiation.PolypeptideInitiation.calculate_request">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ribosome50S_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome50S</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+
+        <span class="n">current_media_id</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="s1">&#39;media_id&#39;</span><span class="p">]</span>
+
+        <span class="c1"># requests = {&#39;subunits&#39;: states[&#39;subunits&#39;]}</span>
+        <span class="n">requests</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S_idx</span><span class="p">,</span> <span class="n">counts</span><span class="p">(</span>
+                <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S_idx</span><span class="p">)),</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome50S_idx</span><span class="p">,</span> <span class="n">counts</span><span class="p">(</span>
+                <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">ribosome50S_idx</span><span class="p">))</span>
+        <span class="p">]}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fracActiveRibosome</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_ribosome_fraction</span><span class="p">[</span>
+            <span class="n">current_media_id</span><span class="p">]</span>
+
+        <span class="c1"># Read ribosome elongation rate from last timestep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosomeElongationRate</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;ribosome_data&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;effective_elongation_rate&#39;</span><span class="p">]</span>
+        <span class="c1"># If the ribosome elongation rate is zero (which is always the case for</span>
+        <span class="c1"># the first timestep), set ribosome elongation rate to the one in</span>
+        <span class="c1"># dictionary</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ribosomeElongationRate</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ribosomeElongationRate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_elongation_rates_dict</span><span class="p">[</span>
+                <span class="n">current_media_id</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">aa</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_elongation_rates</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ribosomeElongationRate</span><span class="p">,</span>
+            <span class="mi">1</span><span class="p">,</span>  <span class="c1"># want elongation rate, not lengths adjusted for time step</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span><span class="p">)</span>
+
+        <span class="c1"># Ensure rates are never zero</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">requests</span></div>
+
+
+
+<div class="viewcode-block" id="PolypeptideInitiation.evolve_state">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.polypeptide_initiation.html#ecoli.processes.polypeptide_initiation.PolypeptideInitiation.evolve_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">evolve_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># Calculate number of ribosomes that could potentially be initialized</span>
+        <span class="c1"># based on counts of free 30S and 50S subunits</span>
+        <span class="n">inactive_ribosome_count</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">([</span>
+            <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S_idx</span><span class="p">),</span>
+            <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">ribosome50S_idx</span><span class="p">)</span>
+        <span class="p">])</span>
+
+        <span class="c1"># Calculate actual number of ribosomes that should be activated based</span>
+        <span class="c1"># on probabilities</span>
+        <span class="p">(</span><span class="n">TU_index_RNAs</span><span class="p">,</span> <span class="n">transcript_lengths</span><span class="p">,</span> <span class="n">can_translate</span><span class="p">,</span> <span class="n">is_full_transcript</span><span class="p">,</span>
+            <span class="n">unique_index_RNAs</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;RNA&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;transcript_length&#39;</span><span class="p">,</span> <span class="s1">&#39;can_translate&#39;</span><span class="p">,</span> <span class="s1">&#39;is_full_transcript&#39;</span><span class="p">,</span> 
+                <span class="s1">&#39;unique_index&#39;</span><span class="p">])</span>
+        <span class="n">TU_index_mRNAs</span> <span class="o">=</span> <span class="n">TU_index_RNAs</span><span class="p">[</span><span class="n">can_translate</span><span class="p">]</span>
+        <span class="n">length_mRNAs</span> <span class="o">=</span> <span class="n">transcript_lengths</span><span class="p">[</span><span class="n">can_translate</span><span class="p">]</span>
+        <span class="n">unique_index_mRNAs</span> <span class="o">=</span> <span class="n">unique_index_RNAs</span><span class="p">[</span><span class="n">can_translate</span><span class="p">]</span>
+        <span class="n">is_full_transcript_mRNAs</span> <span class="o">=</span> <span class="n">is_full_transcript</span><span class="p">[</span><span class="n">can_translate</span><span class="p">]</span>
+        <span class="n">is_incomplete_transcript_mRNAs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span>
+            <span class="n">is_full_transcript_mRNAs</span><span class="p">)</span>
+
+        <span class="c1"># Calculate counts of each mRNA cistron from fully transcribed</span>
+        <span class="c1"># transcription units</span>
+        <span class="n">TU_index_full_mRNAs</span> <span class="o">=</span> <span class="n">TU_index_mRNAs</span><span class="p">[</span><span class="n">is_full_transcript_mRNAs</span><span class="p">]</span>
+        <span class="n">TU_counts_full_mRNAs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+            <span class="n">TU_index_full_mRNAs</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_TUs</span><span class="p">)</span>
+        <span class="n">cistron_counts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cistron_tu_mapping_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="n">TU_counts_full_mRNAs</span><span class="p">)</span>
+
+        <span class="c1"># Calculate counts of each mRNA cistron from partially transcribed</span>
+        <span class="c1"># transcription units</span>
+        <span class="n">TU_index_incomplete_mRNAs</span> <span class="o">=</span> <span class="n">TU_index_mRNAs</span><span class="p">[</span>
+            <span class="n">is_incomplete_transcript_mRNAs</span><span class="p">]</span>
+        <span class="n">length_incomplete_mRNAs</span> <span class="o">=</span> <span class="n">length_mRNAs</span><span class="p">[</span><span class="n">is_incomplete_transcript_mRNAs</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">TU_index</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">TU_index_incomplete_mRNAs</span><span class="p">,</span>
+                                      <span class="n">length_incomplete_mRNAs</span><span class="p">):</span>
+            <span class="n">cistron_indexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rna_id_to_cistron_indexes</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tu_ids</span><span class="p">[</span><span class="n">TU_index</span><span class="p">])</span>
+            <span class="n">cistron_start_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cistron_start_end_pos_in_tu</span><span class="p">[(</span><span class="n">cistron_index</span><span class="p">,</span> <span class="n">TU_index</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">cistron_index</span> <span class="ow">in</span> <span class="n">cistron_indexes</span>
+                <span class="p">])</span>
+
+            <span class="n">cistron_counts</span><span class="p">[</span><span class="n">cistron_indexes</span><span class="p">]</span> <span class="o">+=</span> <span class="n">length</span> <span class="o">&gt;</span> <span class="n">cistron_start_positions</span>
+
+        <span class="c1"># Calculate initiation probabilities for ribosomes based on mRNA counts</span>
+        <span class="c1"># and associated mRNA translational efficiencies</span>
+        <span class="n">protein_init_prob</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">cistron_counts</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cistron_to_monomer_mapping</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">translation_efficiencies</span><span class="p">)</span>
+        <span class="n">target_protein_init_prob</span> <span class="o">=</span> <span class="n">protein_init_prob</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Calculate actual number of ribosomes that should be activated based</span>
+        <span class="c1"># on probabilities</span>
+        <span class="n">activation_prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_activation_prob</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fracActiveRibosome</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">protein_lengths</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">,</span>
+            <span class="n">target_protein_init_prob</span><span class="p">,</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">])</span>
+
+        <span class="n">n_ribosomes_to_activate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="n">activation_prob</span>
+            <span class="o">*</span> <span class="n">inactive_ribosome_count</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_ribosomes_to_activate</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">update</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">empty_update</span><span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_ribosome&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty_update</span>
+        
+        <span class="c1"># Cap the initiation probabilities at the maximum level physically</span>
+        <span class="c1"># allowed from the known ribosome footprint sizes based on the</span>
+        <span class="c1"># number of mRNAs</span>
+        <span class="n">max_p</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosomeElongationRate</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_ribosome_footprint_size</span>
+            <span class="o">*</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span> <span class="o">*</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span> <span class="o">/</span> 
+            <span class="n">n_ribosomes_to_activate</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span>
+        <span class="n">max_p_per_protein</span> <span class="o">=</span> <span class="n">max_p</span><span class="o">*</span><span class="n">cistron_counts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">cistron_to_monomer_mapping</span><span class="p">]</span>
+        <span class="n">is_overcrowded</span> <span class="o">=</span> <span class="p">(</span><span class="n">protein_init_prob</span> <span class="o">&gt;</span> <span class="n">max_p_per_protein</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">protein_init_prob</span> <span class="o">&gt;</span> <span class="n">max_p_per_protein</span><span class="p">):</span>
+            <span class="n">protein_init_prob</span><span class="p">[</span><span class="n">is_overcrowded</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_p_per_protein</span><span class="p">[</span>
+                <span class="n">is_overcrowded</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="n">protein_init_prob</span><span class="p">[</span><span class="o">~</span><span class="n">is_overcrowded</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">0</span>
+            <span class="n">scale_the_rest_by</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="mf">1.</span> <span class="o">-</span> <span class="n">protein_init_prob</span><span class="p">[</span><span class="n">is_overcrowded</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+                <span class="o">/</span> <span class="n">protein_init_prob</span><span class="p">[</span><span class="o">~</span><span class="n">is_overcrowded</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="p">)</span>
+            <span class="n">protein_init_prob</span><span class="p">[</span><span class="o">~</span><span class="n">is_overcrowded</span><span class="p">]</span> <span class="o">*=</span> <span class="n">scale_the_rest_by</span>
+            <span class="n">is_overcrowded</span> <span class="o">|=</span> <span class="p">(</span><span class="n">protein_init_prob</span> <span class="o">&gt;</span> <span class="n">max_p_per_protein</span><span class="p">)</span>
+
+        <span class="c1"># Compute actual transcription probabilities of each transcript</span>
+        <span class="n">actual_protein_init_prob</span> <span class="o">=</span> <span class="n">protein_init_prob</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Sample multinomial distribution to determine which mRNAs have full</span>
+        <span class="c1"># 70S ribosomes initialized on them</span>
+        <span class="n">n_new_proteins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="o">.</span><span class="n">multinomial</span><span class="p">(</span>
+            <span class="n">n_ribosomes_to_activate</span><span class="p">,</span>
+            <span class="n">protein_init_prob</span><span class="p">)</span>
+
+        <span class="c1"># Build attributes for active ribosomes.</span>
+        <span class="c1"># Each ribosome is assigned a protein index for the protein that</span>
+        <span class="c1"># corresponds to the polypeptide it will polymerize. This is done in</span>
+        <span class="c1"># blocks of protein ids for efficiency.</span>
+        <span class="n">protein_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_ribosomes_to_activate</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">mRNA_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_ribosomes_to_activate</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">positions_on_mRNA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_ribosomes_to_activate</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">nonzero_count</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_new_proteins</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">start_index</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">protein_index</span><span class="p">,</span> <span class="n">protein_counts</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_new_proteins</span><span class="o">.</span><span class="n">size</span><span class="p">)[</span><span class="n">nonzero_count</span><span class="p">],</span>
+                <span class="n">n_new_proteins</span><span class="p">[</span><span class="n">nonzero_count</span><span class="p">]):</span>
+
+            <span class="c1"># Set protein index</span>
+            <span class="n">protein_indexes</span><span class="p">[</span><span class="n">start_index</span><span class="p">:</span><span class="n">start_index</span> <span class="o">+</span> <span class="n">protein_counts</span><span class="p">]</span> <span class="o">=</span> <span class="n">protein_index</span>
+            
+            <span class="n">cistron_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">monomer_index_to_cistron_index</span><span class="p">[</span><span class="n">protein_index</span><span class="p">]</span>
+
+            <span class="n">attribute_indexes</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">cistron_start_positions</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">TU_index</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">monomer_index_to_tu_indexes</span><span class="p">[</span><span class="n">protein_index</span><span class="p">]:</span>
+                <span class="n">attribute_indexes_this_TU</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                    <span class="n">TU_index_mRNAs</span> <span class="o">==</span> <span class="n">TU_index</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">cistron_start_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cistron_start_end_pos_in_tu</span><span class="p">[</span>
+                    <span class="p">(</span><span class="n">cistron_index</span><span class="p">,</span> <span class="n">TU_index</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">is_transcript_long_enough</span> <span class="o">=</span> <span class="p">(</span><span class="n">length_mRNAs</span><span class="p">[</span>
+                    <span class="n">attribute_indexes_this_TU</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">cistron_start_position</span><span class="p">)</span>
+
+                <span class="n">attribute_indexes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">attribute_indexes_this_TU</span><span class="p">[</span>
+                    <span class="n">is_transcript_long_enough</span><span class="p">])</span>
+                <span class="n">cistron_start_positions</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">cistron_start_position</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span>
+                    <span class="n">attribute_indexes_this_TU</span><span class="p">[</span><span class="n">is_transcript_long_enough</span><span class="p">]))</span>
+
+            <span class="n">n_mRNAs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">attribute_indexes</span><span class="p">)</span>
+
+            <span class="c1"># Distribute ribosomes among these mRNAs</span>
+            <span class="n">n_ribosomes_per_RNA</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="o">.</span><span class="n">multinomial</span><span class="p">(</span>
+                <span class="n">protein_counts</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_mRNAs</span><span class="p">,</span> <span class="mf">1.</span> <span class="o">/</span> <span class="n">n_mRNAs</span><span class="p">))</span>
+
+            <span class="c1"># Get unique indexes of each mRNA</span>
+            <span class="n">mRNA_indexes</span><span class="p">[</span><span class="n">start_index</span><span class="p">:</span><span class="n">start_index</span> <span class="o">+</span> <span class="n">protein_counts</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span>
+                <span class="n">unique_index_mRNAs</span><span class="p">[</span><span class="n">attribute_indexes</span><span class="p">],</span> <span class="n">n_ribosomes_per_RNA</span><span class="p">)</span>
+            
+            <span class="n">positions_on_mRNA</span><span class="p">[</span><span class="n">start_index</span><span class="p">:</span><span class="n">start_index</span> <span class="o">+</span> <span class="n">protein_counts</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span>
+                <span class="n">cistron_start_positions</span><span class="p">,</span> <span class="n">n_ribosomes_per_RNA</span>
+                <span class="p">)</span>
+
+            <span class="n">start_index</span> <span class="o">+=</span> <span class="n">protein_counts</span>
+
+        <span class="c1"># Create active 70S ribosomes and assign their attributes</span>
+        <span class="n">ribosome_indices</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+            <span class="n">n_ribosomes_to_activate</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_idx_random_state</span><span class="p">)</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome30S_idx</span><span class="p">,</span> <span class="o">-</span><span class="n">n_new_proteins</span><span class="o">.</span><span class="n">sum</span><span class="p">()),</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome50S_idx</span><span class="p">,</span> <span class="o">-</span><span class="n">n_new_proteins</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+            <span class="p">],</span>
+            <span class="s1">&#39;active_ribosome&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">ribosome_indices</span><span class="p">,</span>
+                    <span class="s1">&#39;protein_index&#39;</span><span class="p">:</span> <span class="n">protein_indexes</span><span class="p">,</span>
+                    <span class="s1">&#39;peptide_length&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_ribosomes_to_activate</span><span class="p">,</span>
+                                               <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
+                    <span class="s1">&#39;mRNA_index&#39;</span><span class="p">:</span> <span class="n">mRNA_indexes</span><span class="p">,</span>
+                    <span class="s1">&#39;pos_on_mRNA&#39;</span><span class="p">:</span> <span class="n">positions_on_mRNA</span>
+                <span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;ribosome_data&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;did_initialize&#39;</span><span class="p">:</span> <span class="n">n_new_proteins</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+                    <span class="s1">&#39;ribosome_init_event_per_monomer&#39;</span><span class="p">:</span> <span class="n">n_new_proteins</span><span class="p">,</span>
+                    <span class="s1">&#39;target_prob_translation_per_transcript&#39;</span><span class="p">:</span> <span class="n">target_protein_init_prob</span><span class="p">,</span>
+                    <span class="s1">&#39;actual_prob_translation_per_transcript&#39;</span><span class="p">:</span> <span class="n">actual_protein_init_prob</span><span class="p">,</span>
+                    <span class="s1">&#39;mRNA_is_overcrowded&#39;</span><span class="p">:</span> <span class="n">is_overcrowded</span><span class="p">}}}</span>
+
+        <span class="k">return</span> <span class="n">update</span></div>
+
+
+<div class="viewcode-block" id="PolypeptideInitiation.calculate_activation_prob">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.polypeptide_initiation.html#ecoli.processes.polypeptide_initiation.PolypeptideInitiation.calculate_activation_prob">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_activation_prob</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">fracActiveRibosome</span><span class="p">,</span>
+            <span class="n">proteinLengths</span><span class="p">,</span>
+            <span class="n">ribosomeElongationRates</span><span class="p">,</span>
+            <span class="n">proteinInitProb</span><span class="p">,</span>
+            <span class="n">timeStepSec</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the expected ribosome termination rate based on the ribosome</span>
+<span class="sd">        elongation rate</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            allTranslationTimes: Vector of times required to translate each</span>
+<span class="sd">                protein</span>
+<span class="sd">            allTranslationTimestepCounts: Vector of numbers of timesteps</span>
+<span class="sd">                required to translate each protein</span>
+<span class="sd">            averageTranslationTimeStepCounts: Average number of timesteps</span>
+<span class="sd">                required to translate a protein, weighted by initiation</span>
+<span class="sd">                probabilities</span>
+<span class="sd">            expectedTerminationRate: Average number of terminations in one</span>
+<span class="sd">                timestep for one protein</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">allTranslationTimes</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">/</span> <span class="n">ribosomeElongationRates</span> <span class="o">*</span> <span class="n">proteinLengths</span>
+        <span class="n">allTranslationTimestepCounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">allTranslationTimes</span> <span class="o">/</span> <span class="n">timeStepSec</span><span class="p">)</span>
+        <span class="n">averageTranslationTimestepCounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">allTranslationTimestepCounts</span><span class="p">,</span> <span class="n">proteinInitProb</span><span class="p">)</span>
+        <span class="n">expectedTerminationRate</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">averageTranslationTimestepCounts</span>
+
+        <span class="c1"># Modify given fraction of active ribosomes to take into account early</span>
+        <span class="c1"># terminations in between timesteps</span>
+        <span class="c1"># allFractionTimeInactive: Vector of probabilities an &quot;active&quot; ribosome</span>
+        <span class="c1">#   will in effect be &quot;inactive&quot; because it has terminated during a</span>
+        <span class="c1">#   timestep</span>
+        <span class="c1"># averageFractionTimeInactive: Average probability of an &quot;active&quot;</span>
+        <span class="c1">#   ribosome being in effect &quot;inactive&quot;, weighted by initiation</span>
+        <span class="c1">#   probabilities</span>
+        <span class="c1"># effectiveFracActiveRnap: New higher &quot;goal&quot; for fraction of active</span>
+        <span class="c1">#   ribosomes, considering that the &quot;effective&quot; fraction is lower than</span>
+        <span class="c1">#   what the listener sees</span>
+        <span class="n">allFractionTimeInactive</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">allTranslationTimes</span> <span class="o">/</span> <span class="n">timeStepSec</span> <span class="o">/</span> <span class="n">allTranslationTimestepCounts</span>
+        <span class="n">averageFractionTimeInactive</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">allFractionTimeInactive</span><span class="p">,</span> <span class="n">proteinInitProb</span><span class="p">)</span>
+        <span class="n">effectiveFracActiveRibosome</span> <span class="o">=</span> <span class="n">fracActiveRibosome</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">averageFractionTimeInactive</span><span class="p">)</span>
+
+        <span class="c1"># Return activation probability that will balance out the expected</span>
+        <span class="c1"># termination rate</span>
+        <span class="n">activationProb</span> <span class="o">=</span> <span class="n">effectiveFracActiveRibosome</span> <span class="o">*</span> <span class="n">expectedTerminationRate</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">effectiveFracActiveRibosome</span><span class="p">)</span>
+
+        <span class="c1"># The upper bound for the activation probability is temporarily set to</span>
+        <span class="c1"># 1.0 to prevent negative molecule counts. This will lower the fraction</span>
+        <span class="c1"># of active ribosomes for timesteps longer than roughly 1.8s.</span>
+        <span class="k">if</span> <span class="n">activationProb</span> <span class="o">&gt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="n">activationProb</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">activationProb</span></div>
+</div>
+
+
+
+<span class="k">def</span> <span class="nf">test_polypeptide_initiation</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">make_elongation_rates</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">random</span><span class="p">,</span>
+            <span class="n">base</span><span class="p">,</span>
+            <span class="n">time_step</span><span class="p">,</span>
+            <span class="n">variable_elongation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">base</span>
+
+    <span class="n">all_mRNA_ids</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;wRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;xRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;yRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;zRNA&#39;</span><span class="p">]</span>
+    <span class="n">protein_lengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">25</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">29</span><span class="p">])</span>
+    <span class="n">test_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;protein_lengths&#39;</span><span class="p">:</span> <span class="n">protein_lengths</span><span class="p">,</span>
+        <span class="s1">&#39;translation_efficiencies&#39;</span><span class="p">:</span> <span class="n">normalize</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">])),</span>
+        <span class="s1">&#39;active_ribosome_fraction&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;minimal&#39;</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">},</span>
+        <span class="s1">&#39;variable_elongation&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">:</span> <span class="n">make_elongation_rates</span><span class="p">,</span>
+        <span class="s1">&#39;rna_id_to_cistron_indexes&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">rna_id</span><span class="p">:</span> <span class="n">all_mRNA_ids</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">rna_id</span><span class="p">),</span>
+        <span class="s1">&#39;cistron_start_end_pos_in_tu&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">protein_length</span><span class="o">*</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">protein_length</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">protein_lengths</span><span class="p">)},</span>
+        <span class="s1">&#39;tu_ids&#39;</span><span class="p">:</span> <span class="n">all_mRNA_ids</span><span class="p">,</span>
+        <span class="s1">&#39;cistron_to_monomer_mapping&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span>
+        <span class="s1">&#39;cistron_tu_mapping_matrix&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span>
+        <span class="s1">&#39;monomer_index_to_cistron_index&#39;</span><span class="p">:</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)},</span>
+        <span class="s1">&#39;monomer_index_to_tu_indexes&#39;</span><span class="p">:</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span><span class="p">,)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)},</span>
+        <span class="s1">&#39;protein_index_to_TU_index&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span>
+        <span class="s1">&#39;all_TU_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;wRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;xRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;yRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;zRNA&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;all_mRNA_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;wRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;xRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;yRNA&#39;</span><span class="p">,</span> <span class="s1">&#39;zRNA&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;ribosome30S&#39;</span><span class="p">:</span> <span class="s1">&#39;30S&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;ribosome50S&#39;</span><span class="p">:</span> <span class="s1">&#39;50S&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+
+    <span class="n">polypeptide_initiation</span> <span class="o">=</span> <span class="n">PolypeptideInitiation</span><span class="p">(</span><span class="n">test_config</span><span class="p">)</span>
+
+    <span class="n">state</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;environment&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal&#39;</span><span class="p">},</span>
+        <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;ribosome_data&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;effective_elongation_rate&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">}},</span>
+        <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">(</span><span class="s1">&#39;30S&#39;</span><span class="p">,</span> <span class="mi">2000</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;50S&#39;</span><span class="p">,</span> <span class="mi">3000</span><span class="p">),</span>
+        <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;U40&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">)]),</span>
+        <span class="s1">&#39;RNA&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">103</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">103</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">39</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">51</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">51</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">119</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+        <span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;_entryState&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;can_translate&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;unique_index&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+            <span class="p">(</span><span class="s1">&#39;transcript_length&#39;</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;is_full_transcript&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)])</span>
+    <span class="p">}</span>
+
+    <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;total_time&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="n">state</span><span class="p">}</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">simulate_process</span><span class="p">(</span><span class="n">polypeptide_initiation</span><span class="p">,</span> <span class="n">settings</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">test_polypeptide_initiation</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.plots.snapshots_video &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.plots.snapshots_video</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.plots.snapshots_video</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">concurrent.futures</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+<span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">&#39;agg&#39;</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="n">TEST_OUT_DIR</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">Quantity</span><span class="p">,</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">vivarium.plots.agents_multigen</span> <span class="kn">import</span> <span class="n">plot_agents_multigen</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.composites.environment.lattice</span> <span class="kn">import</span> <span class="n">test_lattice</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.snapshots</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">make_snapshots_figure</span><span class="p">,</span>
+    <span class="n">make_tags_figure</span><span class="p">,</span>
+    <span class="n">format_snapshot_data</span><span class="p">,</span>
+    <span class="n">get_field_range</span><span class="p">,</span>
+    <span class="n">get_agent_colors</span><span class="p">,</span>
+    <span class="n">get_tag_ranges</span>
+<span class="p">)</span>
+
+<span class="n">DEFAULT_HIGHLIGHT_COLOR</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+<span class="n">PLOT_WIDTH</span> <span class="o">=</span> <span class="mi">7</span>
+
+
+<div class="viewcode-block" id="make_snapshot_saver">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots_video.html#ecoli.plots.snapshots_video.make_snapshot_saver">[docs]</a>
+<span class="k">def</span> <span class="nf">make_snapshot_saver</span><span class="p">(</span>
+    <span class="n">multibody_agent_colors</span><span class="p">,</span>
+    <span class="n">multibody_field_range</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">images_dir</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">):</span>
+    <span class="c1"># Must be global for multiprocessing to work</span>
+    <span class="k">global</span> <span class="n">save_snapshot_figure</span>
+    <span class="k">def</span> <span class="nf">save_snapshot_figure</span><span class="p">(</span><span class="n">data_at_time</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">data_at_time</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">images_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;img</span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s2">.jpg&quot;</span><span class="p">)</span>
+        <span class="n">multibody_agents</span><span class="p">,</span> <span class="n">multibody_fields</span> <span class="o">=</span> <span class="n">format_snapshot_data</span><span class="p">(</span>
+            <span class="p">{</span><span class="n">time</span><span class="p">:</span> <span class="n">data_at_time</span><span class="p">[</span><span class="mi">1</span><span class="p">]})</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">make_snapshots_figure</span><span class="p">(</span>
+            <span class="n">agents</span><span class="o">=</span><span class="n">multibody_agents</span><span class="p">,</span>
+            <span class="n">fields</span><span class="o">=</span><span class="n">multibody_fields</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
+            <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">time_indices</span><span class="o">=</span><span class="p">[</span><span class="n">time</span><span class="p">],</span>
+            <span class="n">snapshot_times</span><span class="o">=</span><span class="p">[</span><span class="n">time</span><span class="p">],</span>
+            <span class="n">agent_colors</span><span class="o">=</span><span class="n">multibody_agent_colors</span><span class="p">,</span>
+            <span class="n">field_range</span><span class="o">=</span><span class="n">multibody_field_range</span><span class="p">,</span>
+            <span class="n">default_font_size</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+            <span class="n">plot_width</span><span class="o">=</span><span class="n">PLOT_WIDTH</span><span class="p">,</span>
+            <span class="n">scale_bar_length</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">fig_path</span>
+    <span class="k">return</span> <span class="n">save_snapshot_figure</span></div>
+
+
+
+<div class="viewcode-block" id="make_tags_saver">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots_video.html#ecoli.plots.snapshots_video.make_tags_saver">[docs]</a>
+<span class="k">def</span> <span class="nf">make_tags_saver</span><span class="p">(</span>
+    <span class="n">agent_colors</span><span class="p">,</span>
+    <span class="n">tag_ranges</span><span class="p">,</span>
+    <span class="n">tag_colors</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">images_dir</span><span class="p">,</span>
+    <span class="n">convert_to_concs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">):</span>
+    <span class="c1"># Must be global for multiprocessing to work</span>
+    <span class="k">global</span> <span class="n">save_tags_figure</span>
+    <span class="k">def</span> <span class="nf">save_tags_figure</span><span class="p">(</span><span class="n">data_at_time</span><span class="p">):</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">data_at_time</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">images_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;img</span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s2">.jpg&quot;</span><span class="p">)</span>
+        <span class="n">agents</span> <span class="o">=</span> <span class="p">{</span><span class="n">time</span><span class="p">:</span> <span class="n">data_at_time</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="p">{})}</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">make_tags_figure</span><span class="p">(</span>
+            <span class="n">time_indices</span><span class="o">=</span><span class="p">[</span><span class="n">time</span><span class="p">],</span>
+            <span class="n">snapshot_times</span><span class="o">=</span><span class="p">[</span><span class="n">time</span><span class="p">],</span>
+            <span class="n">agents</span><span class="o">=</span><span class="n">agents</span><span class="p">,</span>
+            <span class="n">agent_colors</span><span class="o">=</span><span class="n">agent_colors</span><span class="p">,</span>
+            <span class="n">tag_ranges</span><span class="o">=</span><span class="n">tag_ranges</span><span class="p">,</span>
+            <span class="n">tag_colors</span><span class="o">=</span><span class="n">tag_colors</span><span class="p">,</span>
+            <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
+            <span class="n">default_font_size</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+            <span class="n">plot_width</span><span class="o">=</span><span class="n">PLOT_WIDTH</span><span class="p">,</span>
+            <span class="n">scale_bar_length</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">convert_to_concs</span><span class="o">=</span><span class="n">convert_to_concs</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">fig_path</span>
+    <span class="k">return</span> <span class="n">save_tags_figure</span></div>
+
+
+
+<div class="viewcode-block" id="make_timeseries_saver">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots_video.html#ecoli.plots.snapshots_video.make_timeseries_saver">[docs]</a>
+<span class="k">def</span> <span class="nf">make_timeseries_saver</span><span class="p">(</span>
+    <span class="n">data</span><span class="p">,</span>
+    <span class="n">show_timeseries</span><span class="p">,</span>
+    <span class="n">highlight_agents</span><span class="p">,</span>
+    <span class="n">highlight_color</span><span class="p">,</span>
+    <span class="n">images_dir</span>
+<span class="p">):</span>
+    <span class="c1"># Must be global for multiprocessing to work</span>
+    <span class="k">global</span> <span class="n">save_timeseries_figure</span>
+    <span class="k">def</span> <span class="nf">save_timeseries_figure</span><span class="p">(</span><span class="n">t_index</span><span class="p">):</span>
+        <span class="n">time_vec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="n">plot_settings</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;column_width&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+            <span class="s1">&#39;row_height&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s1">&#39;stack_column&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;tick_label_size&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="s1">&#39;linewidth&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s1">&#39;title_size&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">show_timeseries</span><span class="p">:</span>
+            <span class="n">plot_settings</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;include_paths&#39;</span><span class="p">:</span> <span class="n">show_timeseries</span><span class="p">})</span>
+
+        <span class="c1"># remove agents not included in highlight_agents</span>
+        <span class="k">if</span> <span class="n">highlight_agents</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">agents</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">agent_state</span> <span class="ow">in</span> <span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">agent_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">highlight_agents</span><span class="p">:</span>
+                        <span class="k">del</span> <span class="n">data</span><span class="p">[</span><span class="n">time</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">]</span>
+            <span class="n">agent_colors</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent_id</span><span class="p">:</span> <span class="n">highlight_color</span> <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">highlight_agents</span><span class="p">}</span>
+            <span class="n">plot_settings</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;agent_colors&#39;</span><span class="p">:</span> <span class="n">agent_colors</span><span class="p">})</span>
+
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">images_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;timeseries</span><span class="si">{</span><span class="n">t_index</span><span class="si">}</span><span class="s2">.jpg&quot;</span><span class="p">)</span>
+        <span class="n">time_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t_index</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">current_data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">time_vec</span><span class="p">[</span><span class="n">index</span><span class="p">]:</span> <span class="n">data</span><span class="p">[</span><span class="n">time_vec</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">time_indices</span><span class="p">}</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plot_agents_multigen</span><span class="p">(</span><span class="n">current_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">plot_settings</span><span class="p">))</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">fig_path</span>
+    <span class="k">return</span> <span class="n">save_timeseries_figure</span></div>
+
+
+
+<div class="viewcode-block" id="video_from_images">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots_video.html#ecoli.plots.snapshots_video.video_from_images">[docs]</a>
+<span class="k">def</span> <span class="nf">video_from_images</span><span class="p">(</span><span class="n">img_paths</span><span class="p">,</span> <span class="n">out_file</span><span class="p">):</span>
+    <span class="c1"># make the video</span>
+    <span class="n">img_array</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">img_file</span> <span class="ow">in</span> <span class="n">img_paths</span><span class="p">:</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">img_file</span><span class="p">)</span>
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">layers</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="n">size</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">width</span> <span class="o">&lt;</span> <span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">width</span>
+            <span class="k">if</span> <span class="n">height</span> <span class="o">&lt;</span> <span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">height</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">size</span> <span class="o">=</span> <span class="p">[</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">]</span>
+        <span class="n">img_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoWriter</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">VideoWriter_fourcc</span><span class="p">(</span><span class="o">*</span><span class="s1">&#39;mp4v&#39;</span><span class="p">),</span> <span class="mi">15</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">img_array</span><span class="p">)):</span>
+        <span class="c1"># Crop all images to smallest size to avoid frame skips</span>
+        <span class="n">img_array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">img_array</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">:</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">:</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">img_array</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">release</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="make_video">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots_video.html#ecoli.plots.snapshots_video.make_video">[docs]</a>
+<span class="k">def</span> <span class="nf">make_video</span><span class="p">(</span>
+        <span class="n">data</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="p">,</span>
+        <span class="n">plot_type</span><span class="o">=</span><span class="s1">&#39;fields&#39;</span><span class="p">,</span>
+        <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">highlight_agents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">show_timeseries</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">highlight_color</span><span class="o">=</span><span class="n">DEFAULT_HIGHLIGHT_COLOR</span><span class="p">,</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;out&#39;</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;snapshot_vid&#39;</span><span class="p">,</span>
+        <span class="n">cpus</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Make a video with snapshots across time</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        plot_type: (str) select either &#39;fields&#39; or &#39;tags&#39;. &#39;fields&#39; is the default</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Remove last timestep since data may be empty</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">())[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">highlight_agents</span> <span class="o">=</span> <span class="n">highlight_agents</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="n">show_timeseries</span> <span class="o">=</span> <span class="n">show_timeseries</span> <span class="ow">or</span> <span class="p">[]</span>
+
+    <span class="c1"># Strip units from bounds if present.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Quantity</span><span class="p">):</span>
+        <span class="n">bounds</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">bound</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span> <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">)</span>
+
+    <span class="c1"># make images directory, remove if existing</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">.mp4&#39;</span><span class="p">)</span>
+    <span class="n">out_file2</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">_timeseries.mp4&#39;</span><span class="p">)</span>
+    <span class="n">images_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;_images_</span><span class="si">{</span><span class="n">plot_type</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">images_dir</span><span class="p">):</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">images_dir</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">images_dir</span><span class="p">)</span>
+
+    <span class="n">agent_colors</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">highlight_agents</span><span class="p">:</span>
+        <span class="n">agent_colors</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">agent_id</span><span class="p">:</span> <span class="n">highlight_color</span>
+            <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">highlight_agents</span><span class="p">}</span>
+
+    <span class="c1"># get the single snapshots function</span>
+    <span class="n">multibody_agents</span><span class="p">,</span> <span class="n">multibody_fields</span> <span class="o">=</span> <span class="n">format_snapshot_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">time_vec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">multibody_agents</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">plot_type</span> <span class="o">==</span> <span class="s1">&#39;fields&#39;</span><span class="p">:</span>
+        <span class="n">multibody_field_range</span> <span class="o">=</span> <span class="n">get_field_range</span><span class="p">(</span><span class="n">multibody_fields</span><span class="p">,</span> <span class="n">time_vec</span><span class="p">)</span>
+        <span class="n">multibody_agent_colors</span> <span class="o">=</span> <span class="n">get_agent_colors</span><span class="p">(</span><span class="n">multibody_agents</span><span class="p">)</span>
+        <span class="n">multibody_agent_colors</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">agent_colors</span><span class="p">)</span>
+
+        <span class="n">do_plot</span> <span class="o">=</span> <span class="n">make_snapshot_saver</span><span class="p">(</span>
+            <span class="n">multibody_agent_colors</span><span class="p">,</span> 
+            <span class="n">multibody_field_range</span><span class="p">,</span> 
+            <span class="n">bounds</span><span class="p">,</span>
+            <span class="n">images_dir</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">plot_type</span> <span class="o">==</span> <span class="s1">&#39;tags&#39;</span><span class="p">:</span>
+        <span class="n">time_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">time_vec</span><span class="p">)))</span>
+        <span class="n">tag_ranges</span><span class="p">,</span> <span class="n">tag_colors</span> <span class="o">=</span> <span class="n">get_tag_ranges</span><span class="p">(</span>
+            <span class="n">agents</span><span class="o">=</span><span class="n">multibody_agents</span><span class="p">,</span>
+            <span class="n">tagged_molecules</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tagged_molecules&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">time_indices</span><span class="o">=</span><span class="n">time_indices</span><span class="p">,</span>
+            <span class="n">convert_to_concs</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;convert_to_concs&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+            <span class="n">tag_colors</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tag_colors&#39;</span><span class="p">,</span> <span class="p">{}))</span>
+
+        <span class="n">do_plot</span> <span class="o">=</span> <span class="n">make_tags_saver</span><span class="p">(</span>
+            <span class="n">agent_colors</span><span class="p">,</span> 
+            <span class="n">tag_ranges</span><span class="p">,</span>
+            <span class="n">tag_colors</span><span class="p">,</span> 
+            <span class="n">bounds</span><span class="p">,</span>
+            <span class="n">images_dir</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Only plot data for every `step` timepoints</span>
+    <span class="k">if</span> <span class="n">step</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">filtered_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">time_counter</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">timepoint</span> <span class="ow">in</span> <span class="n">time_vec</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">time_counter</span> <span class="o">%</span> <span class="n">step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">filtered_data</span><span class="p">[</span><span class="n">timepoint</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">timepoint</span><span class="p">]</span>
+            <span class="n">time_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">filtered_data</span>
+
+    <span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">cpus</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+        <span class="n">img_paths</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">do_plot</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+
+    <span class="n">img_paths_2</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">show_timeseries</span><span class="p">:</span>
+        <span class="n">timeseries_fun</span> <span class="o">=</span> <span class="n">make_timeseries_saver</span><span class="p">(</span>
+            <span class="n">data</span><span class="p">,</span>
+            <span class="n">show_timeseries</span><span class="o">=</span><span class="n">show_timeseries</span><span class="p">,</span>
+            <span class="n">highlight_agents</span><span class="o">=</span><span class="n">highlight_agents</span><span class="p">,</span>
+            <span class="n">highlight_color</span><span class="o">=</span><span class="n">highlight_color</span><span class="p">,</span>
+            <span class="n">images_dir</span><span class="o">=</span><span class="n">images_dir</span><span class="p">)</span>
+        <span class="n">time_indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">time_vec</span><span class="p">)))</span>
+        <span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ProcessPoolExecutor</span><span class="p">()</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+            <span class="n">img_paths_2</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span><span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span>
+                <span class="n">timeseries_fun</span><span class="p">,</span> <span class="n">time_indices</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">time_indices</span><span class="p">)))</span>
+
+    <span class="c1"># make the video</span>
+    <span class="n">video_from_images</span><span class="p">(</span><span class="n">img_paths</span><span class="p">,</span> <span class="n">out_file</span><span class="p">)</span>
+    <span class="n">video_from_images</span><span class="p">(</span><span class="n">img_paths_2</span><span class="p">,</span> <span class="n">out_file2</span><span class="p">)</span>
+
+    <span class="c1"># delete image folder</span>
+    <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">images_dir</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots_video.html#ecoli.plots.snapshots_video.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">total_time</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">TEST_OUT_DIR</span><span class="p">,</span> <span class="s1">&#39;snapshots_video&#39;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># tagged molecules for timeseries</span>
+    <span class="n">tagged_molecules</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;width&#39;</span><span class="p">,),</span>
+        <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;length&#39;</span><span class="p">,),</span>
+        <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;mass&#39;</span><span class="p">,),</span>
+        <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;angle&#39;</span><span class="p">,),</span>
+    <span class="p">]</span>
+    <span class="n">highlight_agents</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;00&#39;</span><span class="p">,</span> <span class="s1">&#39;000&#39;</span><span class="p">]</span>
+
+    <span class="c1"># GrowDivide agents</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">30</span><span class="p">,</span> <span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+    <span class="n">n_bins</span> <span class="o">=</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">]</span>
+    <span class="n">initial_field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="n">initial_field</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">test_lattice</span><span class="p">(</span>
+        <span class="n">exchange</span><span class="o">=</span><span class="n">exchange</span><span class="p">,</span>
+        <span class="n">n_agents</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">total_time</span><span class="o">=</span><span class="n">total_time</span><span class="p">,</span>
+        <span class="n">growth_noise</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
+        <span class="n">n_bins</span><span class="o">=</span><span class="n">n_bins</span><span class="p">,</span>
+        <span class="n">initial_field</span><span class="o">=</span><span class="n">initial_field</span><span class="p">,</span>
+        <span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># make snapshot video</span>
+    <span class="n">make_video</span><span class="p">(</span>
+        <span class="n">data</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="p">,</span>
+        <span class="n">plot_type</span><span class="o">=</span><span class="s1">&#39;fields&#39;</span><span class="p">,</span>
+        <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">,</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;snapshots&quot;</span><span class="p">,</span>
+        <span class="n">highlight_agents</span><span class="o">=</span><span class="n">highlight_agents</span><span class="p">,</span>
+        <span class="n">show_timeseries</span><span class="o">=</span><span class="n">tagged_molecules</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># make tags video</span>
+    <span class="n">make_video</span><span class="p">(</span>
+        <span class="n">data</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="p">,</span>
+        <span class="n">plot_type</span><span class="o">=</span><span class="s1">&#39;tags&#39;</span><span class="p">,</span>
+        <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">,</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;tags&quot;</span><span class="p">,</span>
+        <span class="n">highlight_agents</span><span class="o">=</span><span class="n">highlight_agents</span><span class="p">,</span>
+        <span class="n">tagged_molecules</span><span class="o">=</span><span class="n">tagged_molecules</span><span class="p">,</span>
+        <span class="n">show_timeseries</span><span class="o">=</span><span class="n">tagged_molecules</span><span class="p">,</span>
+        <span class="n">background_color</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">(</span><span class="n">total_time</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span> <span class="n">exchange</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

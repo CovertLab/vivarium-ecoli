@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.experiments.ecoli_master_sim &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.experiments.ecoli_master_sim</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.experiments.ecoli_master_sim</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Interface for configuring and running **single-cell** E. coli simulations.</span>
+
+<span class="sd">.. note::</span>
+<span class="sd">    Simulations can be configured to divide through this interface, but </span>
+<span class="sd">    full colony-scale simulations are best run using the </span>
+<span class="sd">    :py:mod:`~ecoli.composites.ecoli_engine_process` module for efficient </span>
+<span class="sd">    multithreading.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pstats</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.engine</span> <span class="kn">import</span> <span class="n">Engine</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.serialize</span> <span class="kn">import</span> <span class="n">deserialize_value</span><span class="p">,</span> <span class="n">serialize_value</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.dict_utils</span> <span class="kn">import</span> <span class="n">deep_merge</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.topology</span> <span class="kn">import</span> <span class="n">assoc_path</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.logging_tools</span> <span class="kn">import</span> <span class="n">write_json</span>
+<span class="kn">import</span> <span class="nn">ecoli.composites.ecoli_master</span>
+<span class="c1"># Environment composer for spatial environment sim</span>
+<span class="kn">import</span> <span class="nn">ecoli.composites.environment.lattice</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes</span> <span class="kn">import</span> <span class="n">process_registry</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.composites.ecoli_configs</span> <span class="kn">import</span> <span class="n">CONFIG_DIR_PATH</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="n">not_a_process</span>
+
+
+<div class="viewcode-block" id="tuplify_topology">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.tuplify_topology">[docs]</a>
+<span class="k">def</span> <span class="nf">tuplify_topology</span><span class="p">(</span><span class="n">topology</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;JSON files allow lists but do not allow tuples. This function </span>
+<span class="sd">    transforms the list paths in topologies loaded from JSON into </span>
+<span class="sd">    standard tuple paths.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        topology: Topology to recursively iterate over, converting </span>
+<span class="sd">            all paths to tuples</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Topology with tuple paths (e.g. ``[&#39;bulk&#39;]`` turns into ``(&#39;bulk&#39;,)``)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tuplified_topology</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">topology</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">tuplified_topology</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">tuplify_topology</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">tuplified_topology</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span><span class="p">,)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tuplified_topology</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tuplified_topology</span></div>
+
+
+
+<div class="viewcode-block" id="get_git_revision_hash">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.get_git_revision_hash">[docs]</a>
+<span class="k">def</span> <span class="nf">get_git_revision_hash</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns current Git hash for model repository to include in metadata </span>
+<span class="sd">    that is emitted when starting a simulation.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;git&#39;</span><span class="p">,</span> <span class="s1">&#39;rev-parse&#39;</span><span class="p">,</span> <span class="s1">&#39;HEAD&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="get_git_status">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.get_git_status">[docs]</a>
+<span class="k">def</span> <span class="nf">get_git_status</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns Git status of model repository to include in metadata that is </span>
+<span class="sd">    emitted when starting a simulation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">status_str</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span>
+        <span class="p">[</span><span class="s1">&#39;git&#39;</span><span class="p">,</span> <span class="s1">&#39;status&#39;</span><span class="p">,</span> <span class="s1">&#39;--porcelain&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">status_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">status</span></div>
+
+
+
+<div class="viewcode-block" id="report_profiling">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.report_profiling">[docs]</a>
+<span class="k">def</span> <span class="nf">report_profiling</span><span class="p">(</span><span class="n">stats</span><span class="p">:</span> <span class="n">pstats</span><span class="o">.</span><span class="n">Stats</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Prints out a summary of profiling statistics when ``profile`` option </span>
+<span class="sd">    is ``True`` in the config given to </span>
+<span class="sd">    :py:class:`~ecoli.experiments.ecoli_master_sim.EcoliSim`</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        stats: Profiling statistics.&quot;&quot;&quot;</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">stats_keys</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">get_print_list</span><span class="p">(</span>
+        <span class="p">(</span><span class="s1">&#39;(next_update)|(calculate_request)|(evolve_state)&#39;</span><span class="p">,))</span>
+    <span class="n">summed_stats</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">stats_keys</span><span class="p">:</span>
+        <span class="n">key_stats</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">stats</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">cumtime</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">key_stats</span>
+        <span class="n">path</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="n">key</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">summed_stats</span><span class="p">[(</span><span class="n">path</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">func</span><span class="p">)]</span> <span class="o">=</span> <span class="n">summed_stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">func</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">cumtime</span>
+    <span class="n">summed_stats_inverse_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">time</span><span class="p">:</span> <span class="n">key</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">time</span> <span class="ow">in</span> <span class="n">summed_stats</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Per-process profiling:</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">time</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">summed_stats_inverse_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="n">path</span><span class="p">,</span> <span class="n">line</span><span class="p">,</span> <span class="n">func</span> <span class="o">=</span> <span class="n">summed_stats_inverse_map</span><span class="p">[</span><span class="n">time</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">func</span><span class="si">}</span><span class="s1">(): </span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Overall Profile:</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">stats</span><span class="o">.</span><span class="n">sort_stats</span><span class="p">(</span><span class="s1">&#39;cumtime&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">print_stats</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="key_value_pair">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.key_value_pair">[docs]</a>
+<span class="k">def</span> <span class="nf">key_value_pair</span><span class="p">(</span><span class="n">argument_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parses key-value pairs specified as strings of the form ``key=value`` </span>
+<span class="sd">    via CLI. See ``emitter_arg`` option in </span>
+<span class="sd">    :py:class:`~ecoli.experiments.ecoli_master_sim.SimConfig`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        argument_string: Key-value pair as a string of the form ``key=value``</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``[key, value]``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">split</span> <span class="o">=</span> <span class="n">argument_string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">&#39;Key-value pair arguments must have exactly one `=`.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">split</span></div>
+
+
+
+<div class="viewcode-block" id="SimConfig">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig">[docs]</a>
+<span class="k">class</span> <span class="nc">SimConfig</span><span class="p">:</span>
+
+    <span class="n">default_config_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">CONFIG_DIR_PATH</span><span class="p">,</span> <span class="s1">&#39;default.json&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;Stores configuration options for a simulation. Has dictionary-like </span>
+<span class="sd">        interface (e.g. bracket indexing, get, keys).</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            config: Current configuration.</span>
+<span class="sd">            parser: Argument parser for the command-line interface.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Configuration options. If not provided, the default</span>
+<span class="sd">                configuration is loaded from the file path </span>
+<span class="sd">                :py:data:`~ecoli.experiments.ecoli_master_sim.SimConfig.default_config_path`.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_from_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_config_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;ecoli_master&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--config&#39;</span><span class="p">,</span> <span class="s1">&#39;-c&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">default_config_path</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                <span class="s1">&#39;Path to configuration file for the simulation. &#39;</span>
+                <span class="s1">&#39;All key-value pairs in this file will be applied on top &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;of the options defined in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">default_config_path</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--experiment_id&#39;</span><span class="p">,</span> <span class="s1">&#39;-id&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                <span class="s1">&#39;ID for this experiment. A UUID will be generated if &#39;</span>
+                <span class="s1">&#39;this argument is not used and &quot;experiment_id&quot; is null &#39;</span>
+                <span class="s1">&#39;in the configuration file.&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--emitter&#39;</span><span class="p">,</span> <span class="s1">&#39;-e&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span>
+            <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;timeseries&quot;</span><span class="p">,</span> <span class="s2">&quot;database&quot;</span><span class="p">,</span> <span class="s2">&quot;print&quot;</span><span class="p">,</span> <span class="s2">&quot;null&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;shared_ram&quot;</span><span class="p">],</span>
+            <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                <span class="s2">&quot;Emitter to use. Timeseries uses RAMEmitter, database &quot;</span>
+                <span class="s2">&quot;emits to MongoDB, and print emits to stdout.&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--emitter_arg&#39;</span><span class="p">,</span> <span class="s1">&#39;-ea&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span>
+            <span class="nb">type</span><span class="o">=</span><span class="n">key_value_pair</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                <span class="s1">&#39;Key-value pairs, separated by `=`, to include in &#39;</span>
+                <span class="s1">&#39;emitter config.&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--seed&#39;</span><span class="p">,</span> <span class="s1">&#39;-s&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Random seed.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--initial_state&#39;</span><span class="p">,</span> <span class="s1">&#39;-t0&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                <span class="s2">&quot;Name of the initial state to load from (corresponding &quot;</span>
+                <span class="s2">&quot;initial state file must be present in data folder).&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--total_time&#39;</span><span class="p">,</span> <span class="s1">&#39;-t&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Time to run the simulation for.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--generations&#39;</span><span class="p">,</span> <span class="s1">&#39;-g&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of generations to run the simulation for.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--log_updates&#39;</span><span class="p">,</span> <span class="s1">&#39;-u&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                <span class="s2">&quot;Save updates from each process if this flag is set, &quot;</span>
+                <span class="s2">&quot;e.g. for use with blame plot.&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--raw_output&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                <span class="s2">&quot;Whether to return data in raw format (dictionary &quot;</span>
+                <span class="s2">&quot;where keys are times, values are states).&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s2">&quot;--agent_id&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Agent ID.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--sim_data_path&#39;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Path to the sim_data to use for this experiment.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--parallel&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Run processes in parallel.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--profile&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Print profiling information at the end.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--initial_state_file&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span>
+            <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Name of initial state file (no &quot;.json&quot;) under data/&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s1">&#39;--initial_state_overrides&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store&#39;</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span>
+            <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Name of initial state overrides (no &quot;.json&quot;) under &#39;</span>
+                <span class="s1">&#39;data/overrides&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SimConfig.merge_config_dicts">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig.merge_config_dicts">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">merge_config_dicts</span><span class="p">(</span><span class="n">d1</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">d2</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Helper function to safely merge two config dictionaries. Config </span>
+<span class="sd">        options whose values are lists (e.g. ``save_times``, ``add_processes``, </span>
+<span class="sd">        etc.) are handled separately so that the lists from each config are </span>
+<span class="sd">        concatenated in the merged output.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            d1: Config to mutate by merging in ``d2``.</span>
+<span class="sd">            d2: Config to merge into ``d1``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Handle config keys that need special handling.</span>
+        <span class="n">LIST_KEYS_TO_MERGE</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s1">&#39;save_times&#39;</span><span class="p">,</span> <span class="s1">&#39;add_processes&#39;</span><span class="p">,</span> <span class="s1">&#39;exclude_processes&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;processes&#39;</span><span class="p">,</span> <span class="s1">&#39;engine_process_reports&#39;</span><span class="p">,</span> <span class="s1">&#39;initial_state_overrides&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">LIST_KEYS_TO_MERGE</span><span class="p">:</span>
+            <span class="n">d2</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="n">d2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">d1</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">[]))</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;engine_process_reports&#39;</span><span class="p">:</span>
+                <span class="n">d2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">d2</span><span class="p">[</span><span class="n">key</span><span class="p">]]</span>
+            <span class="c1"># Ensures there are no duplicates in d2</span>
+            <span class="n">d2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">d2</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span> 
+            <span class="n">d2</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">deep_merge</span><span class="p">(</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="SimConfig.update_from_json">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig.update_from_json">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_from_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Loads config dictionary from file path ``path`` and merges it into </span>
+<span class="sd">        the currently loaded config.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path: The file path of the JSON config to merge in.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">new_config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">new_config</span> <span class="o">=</span> <span class="n">deserialize_value</span><span class="p">(</span><span class="n">new_config</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">config_name</span> <span class="ow">in</span> <span class="n">new_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;inherit_from&#39;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">CONFIG_DIR_PATH</span><span class="p">,</span> <span class="n">config_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_from_json</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge_config_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">new_config</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="SimConfig.update_from_cli">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig.update_from_cli">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_from_cli</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parses command-line options defined in ``__init__`` and </span>
+<span class="sd">        updates config.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+        <span class="c1"># First load in a configuration file, if one was specified.</span>
+        <span class="n">config_path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">config_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_from_json</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
+        <span class="c1"># Then override the configuration file with any command-line</span>
+        <span class="c1"># options.</span>
+        <span class="n">cli_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">key</span><span class="p">:</span> <span class="n">value</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">and</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="s1">&#39;parallel&#39;</span><span class="p">,</span> <span class="s1">&#39;no_parallel&#39;</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="n">cli_config</span><span class="p">[</span><span class="s1">&#39;parallel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">parallel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge_config_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">cli_config</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="SimConfig.update_from_dict">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig.update_from_dict">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dict_config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Updates loaded config with user-specified dictionary.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge_config_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">dict_config</span><span class="p">)</span></div>
+
+
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="SimConfig.get">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig.get">[docs]</a>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span></div>
+
+
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+
+
+<div class="viewcode-block" id="SimConfig.keys">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig.keys">[docs]</a>
+    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="SimConfig.to_dict">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.SimConfig.to_dict">[docs]</a>
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="EcoliSim">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim">[docs]</a>
+<span class="k">class</span> <span class="nc">EcoliSim</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Main interface for running single-cell E. coli simulations. Typically </span>
+<span class="sd">        instantiated using one of two methods:</span>
+
+<span class="sd">        1. :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.from_file`</span>
+<span class="sd">        2. :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.from_cli`</span>
+<span class="sd">        </span>
+<span class="sd">        Config options can be modified after the creation of an </span>
+<span class="sd">        :py:class:`~ecoli.experiments.ecoli_master_sim.EcoliSim` object </span>
+<span class="sd">        in one of two ways.</span>
+
+<span class="sd">        1. ``sim.total_time = 100``</span>
+<span class="sd">        2. ``sim.config[&#39;total_time&#39;] = 100``</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Automatically generated from </span>
+<span class="sd">                :py:class:`~ecoli.experiments.ecoli_master_sim.SimConfig` when </span>
+<span class="sd">                :py:class:`~ecoli.experiments.ecoli_master_sim.EcoliSim` is </span>
+<span class="sd">                instantiated using </span>
+<span class="sd">                :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.from_file` </span>
+<span class="sd">                or :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.from_cli`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Do some datatype pre-processesing</span>
+        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;agents_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;agents_path&#39;</span><span class="p">])</span>
+        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;processes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">process</span><span class="p">:</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">process</span> <span class="ow">in</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;processes&#39;</span><span class="p">]}</span>
+
+        <span class="c1"># Keep track of base experiment id</span>
+        <span class="c1"># in case multiple simulations are run with suffix_time = True.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id_base</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;experiment_id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;vivarium.core.composer.Composite: Contains the fully instantiated </span>
+<span class="sd">        processes, steps, topologies, and flow necessary to run simulation. </span>
+<span class="sd">        Generated by </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.build_ecoli` and </span>
+<span class="sd">        cleared when :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.run` </span>
+<span class="sd">        is called to potentially free up memory after division.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generated_initial_state</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;dict: Fully populated initial state for simulation. Generated by </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.build_ecoli` and </span>
+<span class="sd">        cleared when :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.run` </span>
+<span class="sd">        is called to potentially free up memory after division.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;vivarium.core.engine.Engine: Engine that runs the simulation. </span>
+<span class="sd">        Instantiated by </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.run`.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Unpack config using Descriptor protocol:</span>
+        <span class="c1"># All of the entries in config are translated to properties</span>
+        <span class="c1"># (of EcoliSim class) that get/set an entry in self.config.</span>
+        <span class="c1">#</span>
+        <span class="c1"># For example:</span>
+        <span class="c1">#</span>
+        <span class="c1"># &gt;&gt; sim = EcoliSim.from_file()</span>
+        <span class="c1"># &gt;&gt; sim.total_time</span>
+        <span class="c1">#    10</span>
+        <span class="c1"># &gt;&gt; sim.config[&#39;total_time&#39;]</span>
+        <span class="c1">#    10</span>
+        <span class="c1"># &gt;&gt; sim.total_time = 100</span>
+        <span class="c1"># &gt;&gt; sim.config[&#39;total_time&#39;]</span>
+        <span class="c1">#    100</span>
+
+        <span class="k">class</span> <span class="nc">ConfigEntry</span><span class="p">():</span>
+            <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+            <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">sim</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+
+            <span class="k">def</span> <span class="fm">__set__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+                <span class="n">sim</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">config_entry</span> <span class="o">=</span> <span class="n">ConfigEntry</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">EcoliSim</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">config_entry</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">generations</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;generations option is not yet implemented!&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="EcoliSim.from_file">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.from_file">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">filepath</span><span class="o">=</span><span class="n">CONFIG_DIR_PATH</span> <span class="o">+</span> <span class="s1">&#39;default.json&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;EcoliSim&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Used to instantiate </span>
+<span class="sd">        :py:class:`~ecoli.experiments.ecoli_master_sim.EcoliSim` with </span>
+<span class="sd">        a config loaded from the JSON at ``filepath`` by </span>
+<span class="sd">        :py:class:`~ecoli.experiments.ecoli_master_sim.SimConfig`.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            filepath: String filepath of JSON file with config options to </span>
+<span class="sd">                apply on top of the options laid out in the default JSON </span>
+<span class="sd">                located at the default value for ``filepath``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">SimConfig</span><span class="p">()</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update_from_json</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">EcoliSim</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.from_cli">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.from_cli">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_cli</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="s1">&#39;EcoliSim&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Used to instantiate </span>
+<span class="sd">        :py:class:`~ecoli.experiments.ecoli_master_sim.EcoliSim` with </span>
+<span class="sd">        a config loaded from the command-line arguments parsed by </span>
+<span class="sd">        :py:class:`~ecoli.experiments.ecoli_master_sim.SimConfig`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">SimConfig</span><span class="p">()</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update_from_cli</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">EcoliSim</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim._retrieve_processes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim._retrieve_processes">[docs]</a>
+    <span class="k">def</span> <span class="nf">_retrieve_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                            <span class="n">processes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                            <span class="n">add_processes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                            <span class="n">exclude_processes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                            <span class="n">swap_processes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+                            <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Process</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve process classes from </span>
+<span class="sd">        :py:data:`~vivarium.core.registry.process_registry` (processes are</span>
+<span class="sd">        registered in ``ecoli/processes/__init__.py``).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            processes: Base list of process names to retrieve classes for</span>
+<span class="sd">            add_processes: Additional process names to retrieve classes for</span>
+<span class="sd">            exclude_processes: Process names to not retrieve classes for</span>
+<span class="sd">            swap_processes: Mapping of process names to the names of the </span>
+<span class="sd">                processes they should be swapped for. It is assumed that </span>
+<span class="sd">                the swapped processes share the same topologies.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Mapping of process names to process classes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">process_name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">processes</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">add_processes</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">process_name</span> <span class="ow">in</span> <span class="n">exclude_processes</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">process_name</span> <span class="ow">in</span> <span class="n">swap_processes</span><span class="p">:</span>
+                <span class="n">process_name</span> <span class="o">=</span> <span class="n">swap_processes</span><span class="p">[</span><span class="n">process_name</span><span class="p">]</span>
+            <span class="n">process_class</span> <span class="o">=</span> <span class="n">process_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">process_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">process_class</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown process with name </span><span class="si">{</span><span class="n">process_name</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="s2">&quot;Did you call process_registry.register() in &quot;</span>
+                    <span class="s2">&quot;ecoli/processes/__init__.py?&quot;</span><span class="p">)</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">process_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">process_class</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim._retrieve_topology">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim._retrieve_topology">[docs]</a>
+    <span class="k">def</span> <span class="nf">_retrieve_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                           <span class="n">topology</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">]]],</span>
+                           <span class="n">processes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                           <span class="n">swap_processes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+                           <span class="n">log_updates</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieves topologies for processes from </span>
+<span class="sd">        :py:data:`~ecoli.processes.registries.topology_registry`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            topology: Mapping of process names to user-specified topologies. </span>
+<span class="sd">                Will be merged with topology from topology_registry, if exists.</span>
+<span class="sd">            processes: List of process names for which to retrive topologies.</span>
+<span class="sd">            swap_processes: Mapping of process names to the names of processes </span>
+<span class="sd">                to swap them for. By default, the new processes are assumed to </span>
+<span class="sd">                have the same topology as the processes they replaced. When </span>
+<span class="sd">                this is not the case, users can add/modify the original process </span>
+<span class="sd">                topology with custom values in ``topology`` under either the new </span>
+<span class="sd">                or the old process name.</span>
+<span class="sd">            log_updates: Whether to emit process updates. Adds topology for </span>
+<span class="sd">                ``log_update`` port.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Mapping of process names to process topologies.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">original_processes</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">swap_processes</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">for</span> <span class="n">process</span> <span class="ow">in</span> <span class="n">processes</span><span class="p">:</span>
+            <span class="c1"># Start from default topology if it exists</span>
+            <span class="n">original_process</span> <span class="o">=</span> <span class="p">(</span><span class="n">process</span>
+                                <span class="k">if</span> <span class="n">process</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">swap_processes</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                                <span class="k">else</span> <span class="n">original_processes</span><span class="p">[</span><span class="n">process</span><span class="p">])</span>
+            <span class="n">process_topology</span> <span class="o">=</span> <span class="n">topology_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">original_process</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">process_topology</span><span class="p">:</span>
+                <span class="n">process_topology</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">process_topology</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">process_topology</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="c1"># Allow the user to override default topology</span>
+            <span class="k">if</span> <span class="n">original_process</span> <span class="ow">in</span> <span class="n">topology</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">deep_merge</span><span class="p">(</span><span class="n">process_topology</span><span class="p">,</span> <span class="n">tuplify_topology</span><span class="p">(</span>
+                    <span class="n">topology</span><span class="p">[</span><span class="n">original_process</span><span class="p">]))</span>
+            <span class="c1"># For swapped processes, do additional overrides if provided</span>
+            <span class="k">if</span> <span class="n">process</span> <span class="o">!=</span> <span class="n">original_process</span> <span class="ow">and</span> <span class="n">process</span> <span class="ow">in</span> <span class="n">topology</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">deep_merge</span><span class="p">(</span><span class="n">process_topology</span><span class="p">,</span> <span class="n">tuplify_topology</span><span class="p">(</span>
+                    <span class="n">topology</span><span class="p">[</span><span class="n">process</span><span class="p">]))</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">=</span> <span class="n">process_topology</span>
+
+        <span class="c1"># Add log_update ports if log_updates is True</span>
+        <span class="k">if</span> <span class="n">log_updates</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">process</span><span class="p">,</span> <span class="n">ports</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">process</span><span class="p">][</span><span class="s1">&#39;log_update&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;log_update&#39;</span><span class="p">,</span> <span class="n">process</span><span class="p">,)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim._retrieve_process_configs">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim._retrieve_process_configs">[docs]</a>
+    <span class="k">def</span> <span class="nf">_retrieve_process_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                                  <span class="n">process_configs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> 
+                                  <span class="n">processes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets up process configs to be interpreted by </span>
+<span class="sd">        :py:meth:`~ecoli.composites.ecoli_master.Ecoli.generate_processes_and_steps`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            process_configs: Mapping of process names to user-specified process </span>
+<span class="sd">                configuration dictionaries.</span>
+<span class="sd">            processes: List of process names to set up process config for.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Mapping of process names to process configs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">process</span> <span class="ow">in</span> <span class="n">processes</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">=</span> <span class="n">process_configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">process</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">result</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">process</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;sim_data&quot;</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.build_ecoli">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.build_ecoli">[docs]</a>
+    <span class="k">def</span> <span class="nf">build_ecoli</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates the E. coli composite. **MUST** be called before calling </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.run`.</span>
+
+<span class="sd">        For all processes in ``config[&#39;processes&#39;]``:</span>
+
+<span class="sd">        1. Retrieves process class from </span>
+<span class="sd">        :py:data:`~vivarium.core.registry.process_registry`, which is </span>
+<span class="sd">        populated in ``ecoli/processes/__init__.py``.</span>
+
+<span class="sd">        2. Retrieves process topology from </span>
+<span class="sd">        :py:data:`~ecoli.processes.registries.topology_registry` and merge </span>
+<span class="sd">        with user-specified topology from ``config[&#39;topology&#39;]``, if applicable</span>
+
+<span class="sd">        3. Retrieves process configs from ``config[&#39;process_configs&#39;]`` </span>
+<span class="sd">        if present, else indicate that process config should be loaded from </span>
+<span class="sd">        pickled simulation data using </span>
+<span class="sd">        :py:meth:`~ecoli.library.sim_data.LoadSimData.get_config_by_name`</span>
+
+<span class="sd">        Adds spatial environment if ``config[&#39;spatial_environment&#39;]`` is </span>
+<span class="sd">        ``True``. Spatial environment config options are loaded from </span>
+<span class="sd">        ``config[&#39;spatial_environment_config]``. See </span>
+<span class="sd">        ``ecoli/composites/ecoli_configs/spatial.json`` for an example.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            When loading from a saved state with a file name of the format </span>
+<span class="sd">            ``vivecoli_t{save time}``, the simulation seed is automatically </span>
+<span class="sd">            set to ``config[&#39;seed&#39;] + {save_time}`` to prevent </span>
+<span class="sd">            :py:func:`~ecoli.library.schema.create_unique_indexes` from </span>
+<span class="sd">            generating clashing indices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># build processes, topology, configs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">processes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_retrieve_processes</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">processes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_processes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exclude_processes</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">swap_processes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">topology</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_retrieve_topology</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">topology</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">processes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">swap_processes</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_updates</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process_configs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_retrieve_process_configs</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">process_configs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">processes</span><span class="p">)</span>
+
+        <span class="c1"># Prevent clashing unique indices by reseeding when loading</span>
+        <span class="c1"># a saved state (assumed to have name &#39;vivecoli_t{save time}&#39;)</span>
+        <span class="n">initial_state_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;initial_state_file&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">initial_state_path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;vivecoli&#39;</span><span class="p">):</span>
+            <span class="n">time_str</span> <span class="o">=</span> <span class="n">initial_state_path</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s1">&#39;vivecoli_t&#39;</span><span class="p">):]</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">time_str</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">seed</span>
+
+        <span class="c1"># initialize the ecoli composer</span>
+        <span class="n">ecoli_composer</span> <span class="o">=</span> <span class="n">ecoli</span><span class="o">.</span><span class="n">composites</span><span class="o">.</span><span class="n">ecoli_master</span><span class="o">.</span><span class="n">Ecoli</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="c1"># set path at which agent is initialized</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">divide</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_environment</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;agents&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_id</span><span class="p">,)</span>
+
+        <span class="c1"># get initial state</span>
+        <span class="n">initial_cell_state</span> <span class="o">=</span> <span class="n">ecoli_composer</span><span class="o">.</span><span class="n">initial_state</span><span class="p">()</span>
+        <span class="n">initial_cell_state</span> <span class="o">=</span> <span class="n">assoc_path</span><span class="p">({},</span> <span class="n">path</span><span class="p">,</span> <span class="n">initial_cell_state</span><span class="p">)</span>
+
+        <span class="c1"># generate the composite at the path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span> <span class="o">=</span> <span class="n">ecoli_composer</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
+        <span class="c1"># Some processes define their own initial_state methods</span>
+        <span class="c1"># Incoporate them into the generated initial state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generated_initial_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span><span class="o">.</span><span class="n">initial_state</span><span class="p">({</span>
+            <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="n">initial_cell_state</span><span class="p">})</span>
+
+        <span class="c1"># merge a lattice composite for the spatial environment</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_environment</span><span class="p">:</span>
+            <span class="n">initial_state_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_environment_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s1">&#39;initial_state_config&#39;</span><span class="p">)</span>
+            <span class="n">environment_composite</span> <span class="o">=</span> \
+                <span class="n">ecoli</span><span class="o">.</span><span class="n">composites</span><span class="o">.</span><span class="n">environment</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">Lattice</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">spatial_environment_config</span><span class="p">)</span><span class="o">.</span><span class="n">generate</span><span class="p">()</span>
+            <span class="n">initial_environment</span> <span class="o">=</span> <span class="n">environment_composite</span><span class="o">.</span><span class="n">initial_state</span><span class="p">(</span>
+                <span class="n">initial_state_config</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">environment_composite</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">generated_initial_state</span> <span class="o">=</span> <span class="n">deep_merge</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">generated_initial_state</span><span class="p">,</span> <span class="n">initial_environment</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.save_states">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.save_states">[docs]</a>
+    <span class="k">def</span> <span class="nf">save_states</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the simulation while saving the states of specific</span>
+<span class="sd">        timesteps to jsons. Automatically invoked by </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.run` </span>
+<span class="sd">        if ``config[&#39;save&#39;] == True``. State is saved as a JSON that </span>
+<span class="sd">        can be reloaded into a simulation as described in </span>
+<span class="sd">        :py:meth:`~ecoli.composites.ecoli_master.Ecoli.initial_state`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">time</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_times</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">time</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_time</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;Config contains save_time (</span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s1">) &gt; total &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;time (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">total_time</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_times</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">time_to_next_save</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">time_to_next_save</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_times</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">time_to_next_save</span><span class="p">)</span>
+            <span class="n">time_elapsed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span>
+                <span class="n">condition</span><span class="o">=</span><span class="n">not_a_process</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">divide</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">agent_state</span> <span class="ow">in</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="c1"># Processes can&#39;t be serialized</span>
+                    <span class="k">del</span> <span class="n">agent_state</span><span class="p">[</span><span class="s1">&#39;process&#39;</span><span class="p">]</span>
+                    <span class="c1"># Bulk random state can&#39;t be serialized</span>
+                    <span class="k">del</span> <span class="n">agent_state</span><span class="p">[</span><span class="s1">&#39;allocator_rng&#39;</span><span class="p">]</span>
+                    <span class="c1"># Save bulk and unique dtypes</span>
+                    <span class="n">agent_state</span><span class="p">[</span><span class="s1">&#39;bulk_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">agent_state</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                    <span class="n">agent_state</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mols</span> <span class="ow">in</span> <span class="n">agent_state</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">agent_state</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">mols</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;process&#39;</span><span class="p">]</span>
+                <span class="k">del</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;allocator_rng&#39;</span><span class="p">]</span>
+                <span class="n">state</span><span class="p">[</span><span class="s1">&#39;bulk_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+                <span class="n">state</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mols</span> <span class="ow">in</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">state</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">mols</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">write_json</span><span class="p">(</span><span class="s1">&#39;data/vivecoli_t&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">time_elapsed</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.json&#39;</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Finished saving the state at t = &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">time_elapsed</span><span class="p">))</span>
+        <span class="n">time_remaining</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">time_remaining</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">time_remaining</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.run">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.run">[docs]</a>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create and run an EcoliSim experiment.</span>
+<span class="sd">        </span>
+<span class="sd">        .. WARNING::</span>
+<span class="sd">            Run :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.build_ecoli` </span>
+<span class="sd">            before calling :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.run`!</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Build the composite by calling build_ecoli() </span><span class="se">\</span>
+<span class="s2">                before calling run().&quot;</span><span class="p">)</span>
+
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()</span>
+        <span class="c1"># make the experiment</span>
+        <span class="n">emitter_config</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitter</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitter_arg</span><span class="p">:</span>
+            <span class="n">emitter_config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="n">experiment_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+            <span class="s1">&#39;metadata&#39;</span><span class="p">:</span> <span class="n">metadata</span><span class="p">,</span>
+            <span class="s1">&#39;processes&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span><span class="o">.</span><span class="n">processes</span><span class="p">,</span>
+            <span class="s1">&#39;steps&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span>
+            <span class="s1">&#39;flow&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span><span class="o">.</span><span class="n">flow</span><span class="p">,</span>
+            <span class="s1">&#39;topology&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span><span class="o">.</span><span class="n">topology</span><span class="p">,</span>
+            <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">generated_initial_state</span><span class="p">,</span>
+            <span class="s1">&#39;progress_bar&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">,</span>
+            <span class="s1">&#39;emit_topology&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">emit_topology</span><span class="p">,</span>
+            <span class="s1">&#39;emit_processes&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">emit_processes</span><span class="p">,</span>
+            <span class="s1">&#39;emit_config&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">emit_config</span><span class="p">,</span>
+            <span class="s1">&#39;emitter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">emitter</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">:</span>
+            <span class="c1"># Store backup of base experiment ID,</span>
+            <span class="c1"># in case multiple experiments are run in a row</span>
+            <span class="c1"># with suffix_time = True.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id_base</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id_base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">suffix_time</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">experiment_id_base</span><span class="si">}</span><span class="s2">_%d/%m/%Y %H:%M:%S&quot;</span><span class="p">)</span>
+            <span class="n">experiment_config</span><span class="p">[</span><span class="s1">&#39;experiment_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span>
+        <span class="n">experiment_config</span><span class="p">[</span><span class="s1">&#39;profile&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile</span>
+
+        <span class="c1"># Since unique numpy updater is an class method, internal</span>
+        <span class="c1"># deepcopying in vivarium-core causes this warning to appear</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Incompatible schema assignment at &quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span><span class="o">**</span><span class="n">experiment_config</span><span class="p">)</span>
+
+        <span class="c1"># Only emit designated stores if specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;emit_paths&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">set_emit_values</span><span class="p">([</span><span class="nb">tuple</span><span class="p">()],</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">set_emit_values</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;emit_paths&#39;</span><span class="p">],</span>
+                <span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        
+        <span class="c1"># Clean up unnecessary references</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generated_initial_state</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">initial_state</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">del</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">experiment_config</span><span class="p">,</span> <span class="n">emitter_config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecoli</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># run the experiment</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_states</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">total_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile</span><span class="p">:</span>
+            <span class="n">report_profiling</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">stats</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.query">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.query">[docs]</a>
+    <span class="k">def</span> <span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Query emitted data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            query: List of tuple-style paths in the simulation state to </span>
+<span class="sd">                retrieve emitted values for. Returns all emitted data </span>
+<span class="sd">                if ``None``.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of emitted data in one of two forms. </span>
+<span class="sd">            </span>
+<span class="sd">            * Raw data (if ``self.raw_output``): Data is keyed by time </span>
+<span class="sd">              (e.g. ``{0: {&#39;data&#39;: ...}, 1: {&#39;data&#39;: ...}, ...}``)</span>
+<span class="sd">            </span>
+<span class="sd">            * Timeseries: Data is reorganized to match the structure of the </span>
+<span class="sd">              simulation state. Leaf values in the returned dictionary are </span>
+<span class="sd">              lists of the simulation state value over time (e.g. </span>
+<span class="sd">              ``{&#39;data&#39;: [..., ..., ...]}``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Retrieve queried data (all if not specified)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_output</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_timeseries</span><span class="p">(</span><span class="n">query</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.merge">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.merge">[docs]</a>
+    <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;EcoliSim&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Combine settings from this EcoliSim with another, overriding</span>
+<span class="sd">        current settings with those from the other EcoliSim.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            other: Simulation with settings to override current simulation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">deep_merge</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">config</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.get_metadata">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.get_metadata">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compiles all simulation settings, git hash, and process list into a single </span>
+<span class="sd">        dictionary. Called by </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.to_json_string`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># create metadata of this experiment to be emitted,</span>
+        <span class="c1"># namely the config of this EcoliSim object</span>
+        <span class="c1"># with an additional key for the current git hash.</span>
+        <span class="c1"># Goal is to save enough information to reproduce the experiment.</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;git_hash&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_git_revision_hash</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Unable to retrieve current git revision hash. &quot;</span>
+                <span class="s2">&quot;Try making a note of this manually if your experiment may &quot;</span>
+                <span class="s2">&quot;need to be replicated.&quot;</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;processes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;processes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+        <span class="k">return</span> <span class="n">metadata</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.to_json_string">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.to_json_string">[docs]</a>
+    <span class="k">def</span> <span class="nf">to_json_string</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Serializes simulation setting dictionary along with git hash and </span>
+<span class="sd">        final list of process names. Called by </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.export_json`.</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">serialize_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_metadata</span><span class="p">()))</span></div>
+
+
+
+<div class="viewcode-block" id="EcoliSim.export_json">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.EcoliSim.export_json">[docs]</a>
+    <span class="k">def</span> <span class="nf">export_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="n">CONFIG_DIR_PATH</span> <span class="o">+</span> <span class="s2">&quot;export.json&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Saves current simulation settings along with git hash and final list </span>
+<span class="sd">        of process names as a JSON that can be reloaded using </span>
+<span class="sd">        :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.from_file`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename: Filepath and name for saved JSON (include ``.json``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_json_string</span><span class="p">())</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.ecoli_master_sim.html#ecoli.experiments.ecoli_master_sim.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Runs a simulation with CLI options.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        Parallelizing processes (e.g. ``--parallel``) is not recommended </span>
+<span class="sd">        because the overhead outweighs any performance advantage. This could </span>
+<span class="sd">        change in the future if a computationally intensive process is </span>
+<span class="sd">        introduced in the future that makes the model faster to run in parallel </span>
+<span class="sd">        instead of sequentially.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">multiprocessing</span><span class="p">;</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">set_start_method</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>
+    <span class="n">ecoli_sim</span> <span class="o">=</span> <span class="n">EcoliSim</span><span class="o">.</span><span class="n">from_cli</span><span class="p">()</span>
+    <span class="n">ecoli_sim</span><span class="o">.</span><span class="n">build_ecoli</span><span class="p">()</span>
+    <span class="n">ecoli_sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+
+<span class="c1"># python ecoli/experiments/ecoli_master_sim.py</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

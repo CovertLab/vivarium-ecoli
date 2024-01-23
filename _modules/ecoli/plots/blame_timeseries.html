@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.plots.blame_timeseries &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.plots.blame_timeseries</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.plots.blame_timeseries</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span> <span class="k">as</span> <span class="nn">mpl</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.experiments.ecoli_master_sim</span> <span class="kn">import</span> <span class="n">EcoliSim</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="n">bulk_name_to_idx</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.blame_utils</span> <span class="kn">import</span> <span class="n">get_bulk_processes</span>
+
+
+<div class="viewcode-block" id="validate_data">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame_timeseries.html#ecoli.plots.blame_timeseries.validate_data">[docs]</a>
+<span class="k">def</span> <span class="nf">validate_data</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s1">&#39;log_update&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="mf">0.0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Missing log_update store in data; did you run simulation without logged updates?&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="preprocess_data">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame_timeseries.html#ecoli.plots.blame_timeseries.preprocess_data">[docs]</a>
+<span class="k">def</span> <span class="nf">preprocess_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">,</span> <span class="n">bulk_processes</span><span class="p">,</span> <span class="n">molecules</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Prepares raw data for blame-timeseries plot.</span>
+<span class="sd">    Returns data in the form time, process, values_array</span>
+<span class="sd">    where time is a numpy array of times, process is a list of </span>
+<span class="sd">    process names, and values_array is a numpy array of the form</span>
+<span class="sd">    (molecule x time x process).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">molecule_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="n">molecules</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+    <span class="n">processes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">bulk_processes</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+    <span class="n">values_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">molecules</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">processes</span><span class="p">)])</span>
+    <span class="c1"># Create a fake bulk array to apply all updates to for each process</span>
+    <span class="c1"># at each timestep and get final count</span>
+    <span class="n">fake_bulk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">timepoint</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">processes</span><span class="p">):</span>
+            <span class="n">fake_bulk</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">bulk_processes</span><span class="p">[</span><span class="n">process</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">logged</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">timepoint</span><span class="p">][</span><span class="s1">&#39;log_update&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">process</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">logged</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">bulk_updates</span> <span class="o">=</span> <span class="n">logged</span><span class="p">[</span><span class="n">process</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="p">())</span>
+            <span class="k">for</span> <span class="n">bulk_update</span> <span class="ow">in</span> <span class="n">bulk_updates</span><span class="p">:</span>
+                <span class="n">fake_bulk</span><span class="p">[</span><span class="n">bulk_update</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">bulk_update</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">values_array</span><span class="p">[:,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">fake_bulk</span><span class="p">[</span><span class="n">molecule_idx</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">processes</span><span class="p">,</span> <span class="n">values_array</span></div>
+
+
+
+<div class="viewcode-block" id="signed_stacked_bar">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame_timeseries.html#ecoli.plots.blame_timeseries.signed_stacked_bar">[docs]</a>
+<span class="k">def</span> <span class="nf">signed_stacked_bar</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bar_labels</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ax: Axes object</span>
+<span class="sd">    x: x values (1d array)</span>
+<span class="sd">    y: y-values (len(x) columns by # stacked bars rows)</span>
+
+<span class="sd">    Creates a stacked bar chart in the specified Axes, where</span>
+<span class="sd">    y&#39;s with negative values represent bars below y=0, and</span>
+<span class="sd">    y&#39;s with positive values represent bars above y=0.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Need to keep track of separate totals for positive, negative</span>
+    <span class="c1"># entries at each time step, so that positive entries get stacked above 0,</span>
+    <span class="c1"># and negative entries get stacked below.</span>
+    <span class="n">total_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">total_neg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">total_pos</span><span class="p">)</span>
+    
+    <span class="k">for</span> <span class="n">series</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">y</span><span class="p">[:,</span> <span class="n">series</span><span class="p">]</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span>
+               <span class="n">bottom</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">data</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">total_pos</span><span class="p">,</span> <span class="n">total_neg</span><span class="p">),</span>
+               <span class="n">label</span><span class="o">=</span><span class="n">bar_labels</span><span class="p">[</span><span class="n">series</span><span class="p">])</span>
+        <span class="n">total_pos</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">total_neg</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Plot net change</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">total_pos</span> <span class="o">+</span> <span class="n">total_neg</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;net change&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="blame_timeseries">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame_timeseries.html#ecoli.plots.blame_timeseries.blame_timeseries">[docs]</a>
+<span class="k">def</span> <span class="nf">blame_timeseries</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                     <span class="n">topology</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                     <span class="n">bulk_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                     <span class="n">molecules</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                     <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">yscale</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">mpl</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">Axes</span><span class="p">,</span> <span class="n">mpl</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">Figure</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates timeseries blame plots for the selected bulk molecules assuming</span>
+<span class="sd">    that bulk data is an array of counts ordered by bulk_ids and saves to the</span>
+<span class="sd">    specified output file. Timeseries blame plots show the change in molecule</span>
+<span class="sd">    counts due to each process at each timestep. For convenience, exact count</span>
+<span class="sd">    plots are included to the side.</span>
+
+<span class="sd">    Example usage::</span>
+
+<span class="sd">        sim = EcoliSim.from_file()</span>
+<span class="sd">        sim.build_ecoli()</span>
+<span class="sd">        sim.run()</span>
+<span class="sd">        data = sim.query()</span>
+<span class="sd">        data = {key: val[&#39;agents&#39;][&#39;0&#39;] for key, val in data.items()}</span>
+<span class="sd">        store_configs = sim.ecoli_experiment.get_config()</span>
+<span class="sd">        bulk_ids = store_configs[&#39;agents&#39;][&#39;0&#39;][&#39;bulk&#39;][&#39;_properties&#39;][&#39;metadata&#39;]</span>
+<span class="sd">        blame_timeseries(data, sim.topology, bulk_ids</span>
+<span class="sd">                        [&#39;WATER[c]&#39;, &#39;APORNAP-CPLX[c]&#39;, &#39;TRP[c]&#39;],</span>
+<span class="sd">                        &#39;out/ecoli_master/test_blame_timeseries.png&#39;,</span>
+<span class="sd">                        yscale=&quot;linear&quot;)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data: Data from an experiment (for experiments with cell </span>
+<span class="sd">            division, ensure that ``bulk`` is a top-level field in the</span>
+<span class="sd">            sub-dictionaries for each time point)</span>
+<span class="sd">        topology: Experiment topology (used to determine which processes </span>
+<span class="sd">            are connected to ``bulk`` and how)</span>
+<span class="sd">        bulk_ids: List (or array) of bulk molecule names in the order </span>
+<span class="sd">            they appear in the structured bulk Numpy array (see :ref:`bulk`). </span>
+<span class="sd">            Typically retrieved from simulation config metadata.</span>
+<span class="sd">        molecules: List of bulk molecule names to plot data for</span>
+<span class="sd">        filename: Path to save plot to (optional)</span>
+<span class="sd">        yscale: See :py:func:`matplotlib.pyplot.yscale`</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Axes and figure</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">validate_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="c1"># Collect data into one dictionary</span>
+    <span class="c1"># of the form: {process : {molecule : timeseries}}</span>
+    <span class="n">bulk_processes</span> <span class="o">=</span> <span class="n">get_bulk_processes</span><span class="p">(</span><span class="n">topology</span><span class="p">)</span>
+    <span class="n">time</span><span class="p">,</span> <span class="n">processes</span><span class="p">,</span> <span class="n">values_array</span> <span class="o">=</span> <span class="n">preprocess_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">,</span>
+                                                    <span class="n">bulk_processes</span><span class="p">,</span> <span class="n">molecules</span><span class="p">)</span>
+
+    <span class="c1"># Twp subplots per molecule (count, change)</span>
+    <span class="n">max_t</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">molecules</span><span class="p">),</span> <span class="mi">2</span><span class="p">,</span>
+                            <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">max_t</span><span class="p">),</span> <span class="mi">3</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">molecules</span><span class="p">)),</span>
+                            <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;width_ratios&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">max_t</span><span class="p">)]})</span>
+    <span class="n">axs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">axs</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">molecule</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">molecules</span><span class="p">):</span>
+        <span class="c1"># Plot molecule count over time</span>
+        <span class="c1"># molecule_data = data[&#39;bulk&#39;][molecule]</span>
+        <span class="n">molecule_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">bulk_ids</span> <span class="o">==</span> <span class="n">molecule</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">molecule_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">timepoint</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="n">molecule_idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">timepoint</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Count of </span><span class="si">{</span><span class="n">molecule</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;# molecules&quot;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time (s)&quot;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">time</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">molecule_data</span><span class="p">)</span>
+
+        <span class="c1"># Plot change due to each process</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Change in </span><span class="si">{</span><span class="n">molecule</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;# molecules&quot;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Time (s)&quot;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+        <span class="n">y</span> <span class="o">=</span> <span class="n">values_array</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="nb">len</span><span class="p">(</span><span class="n">time</span><span class="p">),</span> <span class="p">:]</span>
+        <span class="n">signed_stacked_bar</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">time</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">y</span><span class="p">,</span> <span class="n">processes</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="n">yscale</span><span class="p">)</span>
+
+    <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mf">1.04</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>
+                     <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;center left&quot;</span><span class="p">,</span> <span class="n">borderaxespad</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Sizing and spacing</span>
+    <span class="c1"># fig.set_size_inches(4 + np.sqrt(max_t),  # include space for legend(s)</span>
+    <span class="c1">#                     3 * len(molecules))  # height prop. to number of plots</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">(</span><span class="n">pad</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>
+
+    <span class="c1"># Save plot to file</span>
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filename</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+    <span class="c1"># Return axis and figure</span>
+    <span class="k">return</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">(),</span> <span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_blame_timeseries</span><span class="p">():</span>
+    <span class="c1"># TODO:</span>
+    <span class="c1"># - add back processes</span>
+    <span class="c1"># - get working with unique molecules (separate argument for unique)</span>
+    <span class="c1"># - serializers</span>
+
+    <span class="kn">from</span> <span class="nn">vivarium.core.emitter</span> <span class="kn">import</span> <span class="p">(</span>
+        <span class="n">data_from_database</span><span class="p">,</span> <span class="n">get_local_client</span><span class="p">,</span> <span class="n">timeseries_from_data</span><span class="p">)</span>
+
+    <span class="n">EXPERIMENT_ID</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># &quot;d811d69e-0cf6-11ec-a1ab-00155df92294&quot;</span>
+
+    <span class="k">if</span> <span class="n">EXPERIMENT_ID</span><span class="p">:</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">conf</span> <span class="o">=</span> <span class="n">data_from_database</span><span class="p">(</span><span class="n">EXPERIMENT_ID</span><span class="p">,</span>
+                                        <span class="n">get_local_client</span><span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="s2">&quot;27017&quot;</span><span class="p">,</span> <span class="s2">&quot;simulations&quot;</span><span class="p">))</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">timeseries_from_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">topo</span> <span class="o">=</span> <span class="n">conf</span><span class="p">[</span><span class="s1">&#39;topology&#39;</span><span class="p">]</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sim</span> <span class="o">=</span> <span class="n">EcoliSim</span><span class="o">.</span><span class="n">from_file</span><span class="p">()</span>
+        <span class="c1"># CONFIG_DIR_PATH + &quot;/test_configs/test_blame.json&quot;)</span>
+        <span class="c1"># sim.emitter = &quot;database&quot;</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">raw_output</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">log_updates</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">emit_topology</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">emit_processes</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">total_time</span> <span class="o">=</span> <span class="mi">100</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">build_ecoli</span><span class="p">()</span>
+        <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">generated_initial_state</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">][</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">query</span><span class="p">()</span>
+        <span class="n">topo</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">topology</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>
+
+    <span class="n">molecules</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;EG10841-MONOMER&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;EG10321-MONOMER&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;EG11545-MONOMER&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;EG11967-MONOMER&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;FLAGELLAR-MOTOR-COMPLEX&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;G361-MONOMER&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;CPLX0-7451&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;CPLX0-7452&quot;</span>  <span class="c1"># Final flagella molecule</span>
+    <span class="p">]</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="n">time</span><span class="p">:</span> <span class="n">time_data</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">time_data</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="n">blame_timeseries</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">topo</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">,</span>
+                     <span class="p">[</span><span class="s1">&#39;CPD-12261[p]&#39;</span><span class="p">],</span><span class="c1"># + molecules,</span>
+                     <span class="s1">&#39;out/ecoli_master/murein_blame.png&#39;</span><span class="p">,</span>
+                     <span class="n">yscale</span><span class="o">=</span><span class="s2">&quot;linear&quot;</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">test_blame_timeseries</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

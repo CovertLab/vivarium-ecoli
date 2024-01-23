@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.environment.derive_globals &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.environment.derive_globals</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.environment.derive_globals</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Step</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span>
+
+
+<span class="n">PI</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+<span class="n">AVOGADRO</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">N_A</span> <span class="o">*</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span>
+
+
+<div class="viewcode-block" id="length_from_volume">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.derive_globals.html#ecoli.processes.environment.derive_globals.length_from_volume">[docs]</a>
+<span class="k">def</span> <span class="nf">length_from_volume</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    get cell length from volume, using the following equation for capsule volume, with V=volume, r=radius,</span>
+<span class="sd">    a=length of cylinder without rounded caps, l=total length:</span>
+
+<span class="sd">    V = (4/3)*PI*r^3 + PI*r^2*a</span>
+<span class="sd">    l = a + 2*r</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">cylinder_length</span> <span class="o">=</span> <span class="p">(</span><span class="n">volume</span> <span class="o">-</span> <span class="p">(</span><span class="mi">4</span><span class="o">/</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">PI</span> <span class="o">*</span> <span class="n">radius</span><span class="o">**</span><span class="mi">3</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">PI</span> <span class="o">*</span> <span class="n">radius</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">total_length</span> <span class="o">=</span> <span class="n">cylinder_length</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">radius</span>
+    <span class="k">return</span> <span class="n">total_length</span></div>
+
+
+
+<div class="viewcode-block" id="volume_from_length">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.derive_globals.html#ecoli.processes.environment.derive_globals.volume_from_length">[docs]</a>
+<span class="k">def</span> <span class="nf">volume_from_length</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    inverse of length_from_volume</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">cylinder_length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">-</span> <span class="n">width</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="n">cylinder_length</span> <span class="o">*</span> <span class="p">(</span><span class="n">PI</span> <span class="o">*</span> <span class="n">radius</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">4</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">PI</span> <span class="o">*</span> <span class="n">radius</span><span class="o">**</span><span class="mi">3</span>
+    <span class="k">return</span> <span class="n">volume</span></div>
+
+
+
+<div class="viewcode-block" id="surface_area_from_length">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.derive_globals.html#ecoli.processes.environment.derive_globals.surface_area_from_length">[docs]</a>
+<span class="k">def</span> <span class="nf">surface_area_from_length</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">width</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    SA = 3*PI*r^2 + 2*PI*r*a</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">cylinder_length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">-</span> <span class="n">width</span>
+    <span class="n">surface_area</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">PI</span> <span class="o">*</span> <span class="n">radius</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">PI</span> <span class="o">*</span> <span class="n">radius</span> <span class="o">*</span> <span class="n">cylinder_length</span>
+    <span class="k">return</span> <span class="n">surface_area</span></div>
+
+
+
+<div class="viewcode-block" id="DeriveGlobals">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.derive_globals.html#ecoli.processes.environment.derive_globals.DeriveGlobals">[docs]</a>
+<span class="k">class</span> <span class="nc">DeriveGlobals</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process for deriving volume, mmol_to_counts, and shape from the cell mass</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;globals_deriver&#39;</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="mi">1</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+        <span class="s1">&#39;initial_mass&#39;</span><span class="p">:</span> <span class="mi">1339</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">,</span>  <span class="c1"># wet mass in fg</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="DeriveGlobals.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.derive_globals.html#ecoli.processes.environment.derive_globals.DeriveGlobals.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">set_states</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;volume&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;mmol_to_counts&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;length&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;surface_area&#39;</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="n">split_divide</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;volume&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;length&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;surface_area&#39;</span>
+        <span class="p">]</span>
+        <span class="n">emit</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;width&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;surface_area&#39;</span><span class="p">,</span>
+            <span class="p">]}</span>
+
+        <span class="c1"># default state</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;initial_mass&#39;</span><span class="p">]</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]</span>
+        <span class="n">density</span> <span class="o">=</span> <span class="mi">1100</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+        <span class="n">volume</span> <span class="o">=</span> <span class="n">mass</span><span class="o">/</span><span class="n">density</span>
+        <span class="n">mmol_to_counts</span> <span class="o">=</span> <span class="p">(</span><span class="n">AVOGADRO</span> <span class="o">*</span> <span class="n">volume</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;L/mmol&#39;</span><span class="p">)</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">length_from_volume</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+        <span class="n">surface_area</span> <span class="o">=</span> <span class="n">surface_area_from_length</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+
+        <span class="n">default_state</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="n">mass</span><span class="p">,</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">volume</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">fL</span><span class="p">),</span>
+                <span class="s1">&#39;mmol_to_counts&#39;</span><span class="p">:</span> <span class="n">mmol_to_counts</span><span class="p">,</span>
+                <span class="s1">&#39;density&#39;</span><span class="p">:</span> <span class="n">density</span><span class="p">,</span>
+                <span class="s1">&#39;width&#39;</span><span class="p">:</span> <span class="n">width</span><span class="p">,</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="n">length</span><span class="p">,</span>
+                <span class="s1">&#39;surface_area&#39;</span><span class="p">:</span> <span class="n">surface_area</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="n">schema</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">port</span><span class="p">,</span> <span class="n">states</span> <span class="ow">in</span> <span class="n">default_state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">schema</span><span class="p">[</span><span class="n">port</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">state_id</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">states</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">schema</span><span class="p">[</span><span class="n">port</span><span class="p">][</span><span class="n">state_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">if</span> <span class="n">state_id</span> <span class="ow">in</span> <span class="n">set_states</span><span class="p">:</span>
+                    <span class="n">schema</span><span class="p">[</span><span class="n">port</span><span class="p">][</span><span class="n">state_id</span><span class="p">][</span><span class="s1">&#39;_updater&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;set&#39;</span>
+                <span class="k">if</span> <span class="n">state_id</span> <span class="ow">in</span> <span class="n">emit</span><span class="p">[</span><span class="n">port</span><span class="p">]:</span>
+                    <span class="n">schema</span><span class="p">[</span><span class="n">port</span><span class="p">][</span><span class="n">state_id</span><span class="p">][</span><span class="s1">&#39;_emit&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">state_id</span> <span class="ow">in</span> <span class="n">split_divide</span><span class="p">:</span>
+                    <span class="n">schema</span><span class="p">[</span><span class="n">port</span><span class="p">][</span><span class="n">state_id</span><span class="p">][</span><span class="s1">&#39;_divider&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;split&#39;</span>
+                <span class="k">if</span> <span class="n">state_id</span> <span class="ow">in</span> <span class="n">default_state</span><span class="p">[</span><span class="n">port</span><span class="p">]:</span>
+                    <span class="n">schema</span><span class="p">[</span><span class="n">port</span><span class="p">][</span><span class="n">state_id</span><span class="p">][</span><span class="s1">&#39;_default&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">default_state</span><span class="p">[</span><span class="n">port</span><span class="p">][</span><span class="n">state_id</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">schema</span></div>
+
+
+<div class="viewcode-block" id="DeriveGlobals.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.derive_globals.html#ecoli.processes.environment.derive_globals.DeriveGlobals.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">density</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">][</span><span class="s1">&#39;density&#39;</span><span class="p">]</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;fg&#39;</span><span class="p">)</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">][</span><span class="s1">&#39;width&#39;</span><span class="p">]</span>
+
+        <span class="c1"># get volume from mass, and more variables from volume</span>
+        <span class="n">volume</span> <span class="o">=</span> <span class="n">mass</span> <span class="o">/</span> <span class="n">density</span>
+        <span class="n">mmol_to_counts</span> <span class="o">=</span> <span class="p">(</span><span class="n">AVOGADRO</span> <span class="o">*</span> <span class="n">volume</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;L/mmol&#39;</span><span class="p">)</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">length_from_volume</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+        <span class="n">surface_area</span> <span class="o">=</span> <span class="n">surface_area_from_length</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">volume</span><span class="p">,</span>
+                <span class="s1">&#39;mmol_to_counts&#39;</span><span class="p">:</span> <span class="n">mmol_to_counts</span><span class="p">,</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="n">length</span><span class="p">,</span>
+                <span class="s1">&#39;surface_area&#39;</span><span class="p">:</span> <span class="n">surface_area</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_default_global_state">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.derive_globals.html#ecoli.processes.environment.derive_globals.get_default_global_state">[docs]</a>
+<span class="k">def</span> <span class="nf">get_default_global_state</span><span class="p">():</span>
+    <span class="n">mass</span> <span class="o">=</span> <span class="mi">1339</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span>  <span class="c1"># wet mass in fg</span>
+    <span class="n">density</span> <span class="o">=</span> <span class="mi">1100</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+    <span class="n">volume</span> <span class="o">=</span> <span class="n">mass</span> <span class="o">/</span> <span class="n">density</span>
+    <span class="n">mmol_to_counts</span> <span class="o">=</span> <span class="p">(</span><span class="n">AVOGADRO</span> <span class="o">*</span> <span class="n">volume</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">volume</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;fL&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;mmol_to_counts&#39;</span><span class="p">:</span> <span class="n">mmol_to_counts</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;L/mmol&#39;</span><span class="p">)}}</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_deriver</span><span class="p">(</span><span class="n">total_time</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+    <span class="n">growth_rate</span> <span class="o">=</span> <span class="mf">6e-3</span>
+
+    <span class="c1"># configure process</span>
+    <span class="n">deriver</span> <span class="o">=</span> <span class="n">DeriveGlobals</span><span class="p">({})</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">deriver</span><span class="o">.</span><span class="n">default_state</span><span class="p">()</span>
+
+    <span class="c1"># initialize saved data</span>
+    <span class="n">saved_state</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1">## simulation</span>
+    <span class="n">timeline</span> <span class="o">=</span> <span class="p">[(</span><span class="n">total_time</span><span class="p">,</span> <span class="p">{})]</span>
+    <span class="n">time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">timestep</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># sec</span>
+    <span class="n">saved_state</span><span class="p">[</span><span class="n">time</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+    <span class="k">while</span> <span class="n">time</span> <span class="o">&lt;</span> <span class="n">timeline</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="n">time</span> <span class="o">+=</span> <span class="n">timestep</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">change_dict</span><span class="p">)</span> <span class="ow">in</span> <span class="n">timeline</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">time</span> <span class="o">&gt;=</span> <span class="n">t</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">change</span> <span class="ow">in</span> <span class="n">change_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">state</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">change</span><span class="p">)</span>
+
+        <span class="c1"># set mass, counts</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span>
+        <span class="n">state</span><span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">growth_rate</span> <span class="o">*</span> <span class="n">timestep</span><span class="p">)</span>
+
+        <span class="c1"># get update</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="n">deriver</span><span class="o">.</span><span class="n">next_update</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+
+        <span class="c1"># set derived state</span>
+        <span class="n">state</span><span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">update</span><span class="p">[</span><span class="s1">&#39;global&#39;</span><span class="p">])</span>
+
+        <span class="c1"># save state</span>
+        <span class="n">saved_state</span><span class="p">[</span><span class="n">time</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">saved_state</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">saved_data</span> <span class="o">=</span> <span class="n">test_deriver</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">saved_data</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

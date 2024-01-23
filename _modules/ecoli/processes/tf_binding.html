@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.tf_binding &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.tf_binding</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.tf_binding</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">============================</span>
+<span class="sd">Transcription Factor Binding</span>
+<span class="sd">============================</span>
+
+<span class="sd">This process models how transcription factors bind to promoters on the DNA sequence.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Step</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">listener_schema</span><span class="p">,</span> <span class="n">numpy_schema</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span><span class="p">,</span> <span class="n">counts</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils.random</span> <span class="kn">import</span> <span class="n">stochasticRound</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+
+
+<span class="c1"># Register default topology for this process, associating it with process name</span>
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-tf-binding&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;promoters&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;promoter&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;bulk&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;bulk_total&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;listeners&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;next_update_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;next_update_time&quot;</span><span class="p">,</span> <span class="s2">&quot;tf_binding&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;global_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;global_time&quot;</span><span class="p">,)</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="TfBinding">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_binding.html#ecoli.processes.tf_binding.TfBinding">[docs]</a>
+<span class="k">class</span> <span class="nc">TfBinding</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Transcription Factor Binding Step &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;tf_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;rna_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;delta_prob&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;deltaI&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;deltaJ&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;deltaV&#39;</span><span class="p">:</span> <span class="p">[]},</span>
+        <span class="s1">&#39;n_avogadro&#39;</span><span class="p">:</span> <span class="mf">6.02214076e+23</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">,</span>
+        <span class="s1">&#39;cell_density&#39;</span><span class="p">:</span> <span class="mi">1100</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">,</span>
+        <span class="c1"># Calculate promoter binding probability when not 0CS TF</span>
+        <span class="s1">&#39;p_promoter_bound_tf&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">active</span><span class="p">,</span> <span class="n">inactive</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">active</span><span class="p">)</span> <span class="o">/</span> 
+                            <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">active</span><span class="p">)</span> <span class="o">+</span> <span class="nb">float</span><span class="p">(</span><span class="n">inactive</span><span class="p">)),</span>
+        <span class="s1">&#39;tf_to_tf_type&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;active_to_bound&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;get_unbound&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">tf</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;active_to_inactive_tf&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;bulk_molecule_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;bulk_mass_data&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[]])</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">,</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;submass_to_idx&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;rRNA&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;tRNA&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;mRNA&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;miscRNA&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="s1">&#39;nonspecific_RNA&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;protein&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;metabolite&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+            <span class="s1">&#39;water&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span> <span class="s1">&#39;DNA&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">},</span>
+        <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="c1"># Constructor</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># Get IDs of transcription factors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;tf_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">rna_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rna_ids&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Build dict that maps TFs to transcription units they regulate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delta_prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;delta_prob&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">TF_to_TU_idx</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tf</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">TF_to_TU_idx</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delta_prob</span><span class="p">[</span><span class="s1">&#39;deltaI&#39;</span><span class="p">][</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">delta_prob</span><span class="p">[</span><span class="s1">&#39;deltaJ&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+
+        <span class="c1"># Get total counts of transcription units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_TU</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delta_prob</span><span class="p">[</span><span class="s1">&#39;shape&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Get constants</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_avogadro</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_avogadro&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_density</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;cell_density&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Create dictionaries and method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p_promoter_bound_tf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;p_promoter_bound_tf&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;tf_to_tf_type&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_to_bound</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;active_to_bound&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_unbound</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;get_unbound&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_to_inactive_tf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;active_to_inactive_tf&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_tfs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inactive_tfs</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">tf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">active_tfs</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf</span> <span class="o">+</span> <span class="s1">&#39;[c]&#39;</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf_type</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;1CS&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">tf</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_to_bound</span><span class="p">[</span><span class="n">tf</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">inactive_tfs</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_unbound</span><span class="p">(</span><span class="n">tf</span> <span class="o">+</span> <span class="s1">&#39;[c]&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">inactive_tfs</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_to_bound</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;[c]&#39;</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf_type</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;2CS&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">inactive_tfs</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_to_inactive_tf</span><span class="p">[</span><span class="n">tf</span> <span class="o">+</span> <span class="s1">&#39;[c]&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulk_mass_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bulk_mass_data&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Build array of active TF masses</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulk_molecule_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bulk_molecule_ids&#39;</span><span class="p">]</span>
+        <span class="n">tf_indexes</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bulk_molecule_ids</span> <span class="o">==</span> <span class="n">tf_id</span> <span class="o">+</span> <span class="s1">&#39;[c]&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">tf_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_masses</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bulk_mass_data</span><span class="p">[</span><span class="n">tf_indexes</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_avogadro</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        
+        <span class="c1"># Helper indices for Numpy indexing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;PD00365&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">marR_name</span> <span class="o">=</span> <span class="s2">&quot;CPLX0-7710[c]&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">marR_tet</span> <span class="o">=</span> <span class="s2">&quot;marR-tet[c]&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submass_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_indices&#39;</span><span class="p">]</span>
+        
+<div class="viewcode-block" id="TfBinding.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_binding.html#ecoli.processes.tf_binding.TfBinding.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;promoters&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;promoters&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;bulk_total&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;rna_synth_prob&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;p_promoter_bound&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;n_promoter_bound&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;n_actual_bound&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;n_available_promoters&#39;</span><span class="p">:</span> <span class="p">([</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">),</span>
+                    <span class="s1">&#39;n_bound_TF_per_TU&#39;</span><span class="p">:</span> <span class="p">([[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TU</span><span class="p">,</span>
+                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rna_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">))})},</span>
+            
+            <span class="s1">&#39;next_update_time&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">},</span>
+            <span class="s1">&#39;global_time&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]},</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="TfBinding.update_condition">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_binding.html#ecoli.processes.tf_binding.TfBinding.update_condition">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        See :py:meth:`~.Requester.update_condition`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> updated at t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> instead of t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">. Decrease the &quot;</span>
+                    <span class="s2">&quot;timestep for the global clock process for more &quot;</span>
+                    <span class="s2">&quot;accurate timekeeping.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+        
+<div class="viewcode-block" id="TfBinding.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_binding.html#ecoli.processes.tf_binding.TfBinding.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># At t=0, convert all strings to indices</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">tf_id</span><span class="p">:</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="n">tf_name</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">tf_id</span><span class="p">,</span> <span class="n">tf_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_tfs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inactive_tf_idx</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">tf_id</span> <span class="p">:</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="n">tf_name</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">tf_id</span><span class="p">,</span> <span class="n">tf_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inactive_tfs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="s2">&quot;PD00365&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">marR_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">marR_name</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">marR_tet_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">marR_tet</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+
+        <span class="c1"># If there are no promoters, return immediately</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">][</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;promoters&#39;</span><span class="p">:</span> <span class="p">{}}</span>
+
+        <span class="c1"># Get attributes of all promoters</span>
+        <span class="n">TU_index</span><span class="p">,</span> <span class="n">bound_TF</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span> <span class="s1">&#39;bound_TF&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Calculate number of bound TFs for each TF prior to changes</span>
+        <span class="n">n_bound_TF</span> <span class="o">=</span> <span class="n">bound_TF</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Initialize new bound_TF array</span>
+        <span class="n">bound_TF_new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bound_TF</span><span class="p">)</span>
+
+        <span class="c1"># Create vectors for storing values</span>
+        <span class="n">pPromotersBound</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">nPromotersBound</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">nActualBound</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">n_promoters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">n_bound_TF_per_TU</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_TU</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TF</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">)</span>
+
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+
+        <span class="k">for</span> <span class="n">tf_idx</span><span class="p">,</span> <span class="n">tf_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">):</span>
+            <span class="c1"># Free all DNA-bound transcription factors into free active</span>
+            <span class="c1"># transcription factors</span>
+            <span class="n">curr_tf_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span><span class="p">[</span><span class="n">tf_id</span><span class="p">]</span>
+            <span class="n">tf_count</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="n">curr_tf_idx</span><span class="p">)</span>
+
+            <span class="n">bound_tf_counts</span> <span class="o">=</span> <span class="n">n_bound_TF</span><span class="p">[</span><span class="n">tf_idx</span><span class="p">]</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">curr_tf_idx</span><span class="p">,</span> <span class="n">bound_tf_counts</span><span class="p">))</span>
+
+            <span class="c1"># Get counts of transcription factors</span>
+            <span class="n">active_tf_counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk_total&#39;</span><span class="p">],</span> <span class="n">curr_tf_idx</span><span class="p">)</span> <span class="o">+</span> \
+                <span class="n">bound_tf_counts</span>
+            <span class="n">n_available_active_tfs</span> <span class="o">=</span> <span class="n">tf_count</span> <span class="o">+</span> <span class="n">bound_tf_counts</span>
+            
+            <span class="c1"># NEW to vivarium-ecoli</span>
+            <span class="c1"># Uncomplexed marR reduces active marA</span>
+            <span class="k">if</span> <span class="n">tf_id</span> <span class="o">==</span> <span class="s2">&quot;PD00365&quot;</span><span class="p">:</span>
+                <span class="n">marR_count</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk_total&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">marR_idx</span><span class="p">)</span>
+                <span class="n">marR_tet_count</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk_total&#39;</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">marR_tet_idx</span><span class="p">)</span>
+                <span class="c1"># marA activity ramps up as more marR is complexed off</span>
+                <span class="c1"># TODO: Figure out how to modify ParCa so MarA/R are included</span>
+                <span class="c1"># as active TFs so no need to compromise basal or tetracycline</span>
+                <span class="c1"># behavior when total MarR count is zero</span>
+                <span class="n">ratio</span> <span class="o">=</span> <span class="n">marR_tet_count</span><span class="o">/</span><span class="nb">max</span><span class="p">(</span><span class="n">marR_count</span><span class="o">+</span><span class="n">marR_tet_count</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="c1"># 34 = # of promoters for genes that marA regulates</span>
+                <span class="n">n_available_active_tfs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mi">34</span> <span class="o">*</span> <span class="n">ratio</span><span class="p">)</span>
+
+            <span class="c1"># Determine the number of available promoter sites</span>
+            <span class="n">available_promoters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">TU_index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">TF_to_TU_idx</span><span class="p">[</span><span class="n">tf_id</span><span class="p">])</span>
+            <span class="n">n_available_promoters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">available_promoters</span><span class="p">)</span>
+            <span class="n">n_promoters</span><span class="p">[</span><span class="n">tf_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">n_available_promoters</span>
+
+            <span class="c1"># If there are no active transcription factors to work with,</span>
+            <span class="c1"># continue to the next transcription factor</span>
+            <span class="k">if</span> <span class="n">n_available_active_tfs</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Compute probability of binding the promoter</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_to_tf_type</span><span class="p">[</span><span class="n">tf_id</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;0CS&#39;</span><span class="p">:</span>
+                <span class="n">pPromoterBound</span> <span class="o">=</span> <span class="mf">1.</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">inactive_tf_counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk_total&#39;</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">inactive_tf_idx</span><span class="p">[</span><span class="n">tf_id</span><span class="p">])</span>
+                <span class="n">pPromoterBound</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p_promoter_bound_tf</span><span class="p">(</span>
+                    <span class="n">active_tf_counts</span><span class="p">,</span> <span class="n">inactive_tf_counts</span><span class="p">)</span>
+
+            <span class="c1"># Calculate the number of promoters that should be bound</span>
+            <span class="n">n_to_bind</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">stochasticRound</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_available_promoters</span><span class="p">,</span> <span class="n">pPromoterBound</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span>
+                <span class="n">n_available_active_tfs</span><span class="p">))</span>
+
+            <span class="n">bound_locs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_available_promoters</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">n_to_bind</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Determine randomly which DNA targets to bind based on which of</span>
+                <span class="c1"># the following is more limiting:</span>
+                <span class="c1"># number of promoter sites to bind, or number of active</span>
+                <span class="c1"># transcription factors</span>
+                <span class="n">bound_locs</span><span class="p">[</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+                        <span class="n">n_available_promoters</span><span class="p">,</span>
+                        <span class="n">size</span><span class="o">=</span><span class="n">n_to_bind</span><span class="p">,</span>
+                        <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="c1"># Update count of free transcription factors</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">curr_tf_idx</span><span class="p">,</span> <span class="o">-</span><span class="n">bound_locs</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+
+                <span class="c1"># Update bound_TF array</span>
+                <span class="n">bound_TF_new</span><span class="p">[</span><span class="n">available_promoters</span><span class="p">,</span> <span class="n">tf_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">bound_locs</span>
+
+            <span class="n">n_bound_TF_per_TU</span><span class="p">[:,</span> <span class="n">tf_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+                <span class="n">TU_index</span><span class="p">[</span><span class="n">bound_TF_new</span><span class="p">[:,</span> <span class="n">tf_idx</span><span class="p">]],</span>
+                <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_TU</span><span class="p">)</span>
+
+            <span class="c1"># Record values</span>
+            <span class="n">pPromotersBound</span><span class="p">[</span><span class="n">tf_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">pPromoterBound</span>
+            <span class="n">nPromotersBound</span><span class="p">[</span><span class="n">tf_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">n_to_bind</span>
+            <span class="n">nActualBound</span><span class="p">[</span><span class="n">tf_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">bound_locs</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="n">delta_TF</span> <span class="o">=</span> <span class="n">bound_TF_new</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span> <span class="o">-</span> <span class="n">bound_TF</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+        <span class="n">mass_diffs</span> <span class="o">=</span> <span class="n">delta_TF</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_tf_masses</span><span class="p">)</span>
+
+        <span class="n">submass_update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">submass</span><span class="p">:</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">submass</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">mass_diffs</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">submass</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submass_indices</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;set&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;bound_TF&#39;</span><span class="p">:</span> <span class="n">bound_TF_new</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">submass_update</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;rna_synth_prob&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;p_promoter_bound&#39;</span><span class="p">:</span> <span class="n">pPromotersBound</span><span class="p">,</span>
+                <span class="s1">&#39;n_promoter_bound&#39;</span><span class="p">:</span> <span class="n">nPromotersBound</span><span class="p">,</span>
+                <span class="s1">&#39;n_actual_bound&#39;</span><span class="p">:</span> <span class="n">nActualBound</span><span class="p">,</span>
+                <span class="s1">&#39;n_available_promoters&#39;</span><span class="p">:</span> <span class="n">n_promoters</span><span class="p">,</span>
+                <span class="c1"># 900 KB, very large, comment out to halve emit size</span>
+                <span class="s1">&#39;n_bound_TF_per_TU&#39;</span><span class="p">:</span> <span class="n">n_bound_TF_per_TU</span><span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">update</span></div>
+</div>
+
+
+
+<span class="k">def</span> <span class="nf">test_tf_binding_listener</span><span class="p">():</span>
+    <span class="kn">from</span> <span class="nn">ecoli.experiments.ecoli_master_sim</span> <span class="kn">import</span> <span class="n">EcoliSim</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">EcoliSim</span><span class="o">.</span><span class="n">from_file</span><span class="p">()</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">total_time</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">raw_output</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">build_ecoli</span><span class="p">()</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">query</span><span class="p">()</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">test_tf_binding_listener</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

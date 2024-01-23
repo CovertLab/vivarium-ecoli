@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.experiments.metabolism_exchanger &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.experiments.metabolism_exchanger</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.experiments.metabolism_exchanger</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">==================================</span>
+<span class="sd">Metabolism using user-friendly FBA</span>
+<span class="sd">==================================</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+
+<span class="c1"># vivarium-core imports</span>
+<span class="kn">import</span> <span class="nn">pytest</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.engine</span> <span class="kn">import</span> <span class="n">Engine</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composer</span> <span class="kn">import</span> <span class="n">Composer</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.dict_utils</span> <span class="kn">import</span> <span class="n">deep_merge</span>
+
+<span class="c1"># vivarium-ecoli imports</span>
+<span class="kn">from</span> <span class="nn">ecoli.experiments.ecoli_master_sim</span> <span class="kn">import</span> <span class="n">EcoliSim</span><span class="p">,</span> <span class="n">CONFIG_DIR_PATH</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.sim_data</span> <span class="kn">import</span> <span class="n">LoadSimData</span>
+<span class="kn">from</span> <span class="nn">ecoli.states.wcecoli_state</span> <span class="kn">import</span> <span class="n">get_state_from_file</span>
+<span class="kn">from</span> <span class="nn">ecoli.composites.ecoli_master</span> <span class="kn">import</span> <span class="n">SIM_DATA_PATH</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.metabolism_redux</span> <span class="kn">import</span> <span class="n">MetabolismRedux</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.stubs.exchange_stub</span> <span class="kn">import</span> <span class="n">Exchange</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pathlib</span><span class="o">,</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+
+<span class="c1"># get topology from ecoli_master</span>
+<span class="n">metabolism_topology</span> <span class="o">=</span> <span class="n">topology_registry</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">)</span>
+
+
+<span class="c1"># make a composite with Exchange</span>
+<div class="viewcode-block" id="MetabolismExchange">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.metabolism_exchanger.html#ecoli.experiments.metabolism_exchanger.MetabolismExchange">[docs]</a>
+<span class="k">class</span> <span class="nc">MetabolismExchange</span><span class="p">(</span><span class="n">Composer</span><span class="p">):</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;metabolism&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;kinetic_rates&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;exchanger&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;sim_data_path&#39;</span><span class="p">:</span> <span class="n">SIM_DATA_PATH</span><span class="p">,</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_sim_data</span> <span class="o">=</span> <span class="n">LoadSimData</span><span class="p">(</span>
+            <span class="n">sim_data_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;sim_data_path&#39;</span><span class="p">],</span>
+            <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">])</span>
+
+<div class="viewcode-block" id="MetabolismExchange.generate_processes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.metabolism_exchanger.html#ecoli.experiments.metabolism_exchanger.MetabolismExchange.generate_processes">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_processes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="c1"># configure metabolism</span>
+        <span class="n">metabolism_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_sim_data</span><span class="o">.</span><span class="n">get_metabolism_redux_config</span><span class="p">()</span>
+        <span class="n">metabolism_config</span> <span class="o">=</span> <span class="n">deep_merge</span><span class="p">(</span><span class="n">metabolism_config</span><span class="p">,</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;metabolism&#39;</span><span class="p">])</span>
+        <span class="n">metabolism_process</span> <span class="o">=</span> <span class="n">MetabolismRedux</span><span class="p">(</span><span class="n">metabolism_config</span><span class="p">)</span>
+
+        <span class="n">example_update</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ATP[c]&#39;</span><span class="p">:</span> <span class="mi">9064</span><span class="p">,</span> <span class="s1">&#39;DATP[c]&#39;</span><span class="p">:</span> <span class="mi">2222</span><span class="p">,</span> <span class="s1">&#39;DCTP[c]&#39;</span><span class="p">:</span> <span class="mi">1649</span><span class="p">,</span> <span class="s1">&#39;DGTP[c]&#39;</span><span class="p">:</span> <span class="mi">1647</span><span class="p">,</span> <span class="s1">&#39;FAD[c]&#39;</span><span class="p">:</span> <span class="mi">171</span><span class="p">,</span>
+                          <span class="s1">&#39;GTP[c]&#39;</span><span class="p">:</span> <span class="mi">20122</span><span class="p">,</span> <span class="s1">&#39;LEU[c]&#39;</span><span class="p">:</span> <span class="mi">325</span><span class="p">,</span> <span class="s1">&#39;METHYLENE-THF[c]&#39;</span><span class="p">:</span> <span class="mi">223</span><span class="p">,</span> <span class="s1">&#39;NAD[c]&#39;</span><span class="p">:</span> <span class="mi">769</span><span class="p">,</span>
+                          <span class="s1">&#39;PHENYL-PYRUVATE[c]&#39;</span><span class="p">:</span> <span class="mi">996</span><span class="p">,</span> <span class="s1">&#39;REDUCED-MENAQUINONE[c]&#39;</span><span class="p">:</span> <span class="mi">240</span><span class="p">,</span> <span class="s1">&#39;UTP[c]&#39;</span><span class="p">:</span> <span class="mi">14648</span><span class="p">}</span>
+
+        <span class="c1"># configure exchanger stub process</span>
+        <span class="c1"># TODO -- this needs a dictionary with {mol_id: exchanged counts/sec}</span>
+        <span class="n">exchanger_config</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;exchanges&#39;</span><span class="p">:</span> <span class="n">example_update</span><span class="p">,</span> <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="n">metabolism_config</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]}</span>
+        <span class="n">exchanger_process</span> <span class="o">=</span> <span class="n">Exchange</span><span class="p">(</span><span class="n">exchanger_config</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;metabolism&#39;</span><span class="p">:</span> <span class="n">metabolism_process</span><span class="p">,</span>
+            <span class="s1">&#39;exchanger&#39;</span><span class="p">:</span> <span class="n">exchanger_process</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="MetabolismExchange.generate_topology">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.metabolism_exchanger.html#ecoli.experiments.metabolism_exchanger.MetabolismExchange.generate_topology">[docs]</a>
+    <span class="k">def</span> <span class="nf">generate_topology</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;metabolism&#39;</span><span class="p">:</span> <span class="n">metabolism_topology</span><span class="p">,</span>
+            <span class="s1">&#39;exchanger&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">,),</span>
+            <span class="p">}</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="run_metabolism">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.metabolism_exchanger.html#ecoli.experiments.metabolism_exchanger.run_metabolism">[docs]</a>
+<span class="k">def</span> <span class="nf">run_metabolism</span><span class="p">():</span>
+    <span class="c1"># load the sim data</span>
+    <span class="n">load_sim_data</span> <span class="o">=</span> <span class="n">LoadSimData</span><span class="p">(</span>
+        <span class="n">sim_data_path</span><span class="o">=</span><span class="n">SIM_DATA_PATH</span><span class="p">,</span>
+        <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Create process, experiment, loading in initial state from file.</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">load_sim_data</span><span class="o">.</span><span class="n">get_metabolism_redux_config</span><span class="p">()</span>
+    <span class="n">metabolism_process</span> <span class="o">=</span> <span class="n">MetabolismRedux</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="n">get_state_from_file</span><span class="p">(</span>
+        <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;data/wcecoli_t0.json&#39;</span><span class="p">)</span>
+
+    <span class="n">metabolism_composite</span> <span class="o">=</span> <span class="n">metabolism_process</span><span class="o">.</span><span class="n">generate</span><span class="p">()</span>
+    <span class="n">metabolism_composite</span><span class="p">[</span><span class="s1">&#39;topology&#39;</span><span class="p">][</span><span class="s1">&#39;ecoli-metabolism-redux&#39;</span><span class="p">][</span>
+        <span class="s1">&#39;bulk_total&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">,)</span>
+    <span class="n">experiment</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span>
+        <span class="n">steps</span><span class="o">=</span><span class="n">metabolism_composite</span><span class="p">[</span><span class="s1">&#39;steps&#39;</span><span class="p">],</span>
+        <span class="n">topology</span><span class="o">=</span><span class="n">metabolism_composite</span><span class="p">[</span><span class="s1">&#39;topology&#39;</span><span class="p">],</span>
+        <span class="n">initial_state</span><span class="o">=</span><span class="n">initial_state</span>
+    <span class="p">)</span>
+
+    <span class="n">experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_timeseries</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="run_metabolism_composite">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.metabolism_exchanger.html#ecoli.experiments.metabolism_exchanger.run_metabolism_composite">[docs]</a>
+<span class="k">def</span> <span class="nf">run_metabolism_composite</span><span class="p">():</span>
+    <span class="n">composer</span> <span class="o">=</span> <span class="n">MetabolismExchange</span><span class="p">()</span>
+    <span class="n">metabolism_composite</span> <span class="o">=</span> <span class="n">composer</span><span class="o">.</span><span class="n">generate</span><span class="p">()</span>
+    <span class="n">metabolism_composite</span><span class="p">[</span><span class="s1">&#39;topology&#39;</span><span class="p">][</span><span class="s1">&#39;metabolism&#39;</span><span class="p">][</span>
+        <span class="s1">&#39;bulk_total&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">,)</span>
+
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="n">get_state_from_file</span><span class="p">(</span>
+        <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;data/wcecoli_t0.json&#39;</span><span class="p">)</span>
+    <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;process_state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;polypeptide_elongation&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;aa_exchange_rates&#39;</span><span class="p">:</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span> <span class="o">/</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">L</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="o">-</span><span class="mf">4.520e-07</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.786e-07</span><span class="p">,</span> <span class="o">-</span><span class="mf">5.700e-09</span><span class="p">,</span> <span class="o">-</span><span class="mf">8.880e-08</span><span class="p">,</span>  <span class="mf">0.000e+00</span><span class="p">,</span>
+            <span class="o">-</span><span class="mf">6.600e-09</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.200e-09</span><span class="p">,</span> <span class="o">-</span><span class="mf">6.670e-08</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.200e-09</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.800e-09</span><span class="p">,</span>
+            <span class="o">-</span><span class="mf">1.251e-07</span><span class="p">,</span> <span class="o">-</span><span class="mf">7.870e-08</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.200e-09</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.860e-08</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.600e-09</span><span class="p">,</span>
+            <span class="o">-</span><span class="mf">1.486e-07</span><span class="p">,</span> <span class="o">-</span><span class="mf">8.400e-09</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.560e-08</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.800e-08</span><span class="p">,</span>  <span class="mf">0.000e+00</span><span class="p">,</span>
+            <span class="o">-</span><span class="mf">8.300e-09</span><span class="p">]),</span>
+            <span class="s1">&#39;gtp_to_hydrolyze&#39;</span><span class="p">:</span> <span class="mf">1009121.4</span>
+        <span class="p">}}</span>
+
+    <span class="n">experiment</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span>
+        <span class="n">processes</span><span class="o">=</span><span class="n">metabolism_composite</span><span class="p">[</span><span class="s1">&#39;processes&#39;</span><span class="p">],</span>
+        <span class="n">topology</span><span class="o">=</span><span class="n">metabolism_composite</span><span class="p">[</span><span class="s1">&#39;topology&#39;</span><span class="p">],</span>
+        <span class="n">initial_state</span><span class="o">=</span><span class="n">initial_state</span>
+    <span class="p">)</span>
+
+    <span class="n">experiment</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span></div>
+
+
+
+<span class="n">experiment_library</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;0&#39;</span><span class="p">:</span> <span class="n">run_metabolism</span><span class="p">,</span>
+    <span class="s1">&#39;1&#39;</span><span class="p">:</span> <span class="n">run_metabolism_composite</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="c1"># run experiments with command line arguments: python ecoli/experiments/metabolism_redux_sim.py -n exp_id</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;user-friendly metabolism&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--name&#39;</span><span class="p">,</span> <span class="s1">&#39;-n&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[],</span> <span class="n">nargs</span><span class="o">=</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s1">&#39;test ids to run&#39;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">run_all</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+        <span class="n">experiment_library</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
+    <span class="k">if</span> <span class="n">run_all</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">test</span> <span class="ow">in</span> <span class="n">experiment_library</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">test</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

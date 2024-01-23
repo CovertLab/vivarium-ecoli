@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.chemotaxis.coarse_motor &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.chemotaxis.coarse_motor</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.chemotaxis.coarse_motor</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">======================</span>
+<span class="sd">Coarse Motor Processes</span>
+<span class="sd">======================</span>
+<span class="sd">``MotorActivity`` models `E. coli` coarse motor activity, without explicit flagella.</span>
+
+<span class="sd">References:</span>
+<span class="sd"> Based on the model described in:</span>
+<span class="sd">    `Vladimirov, N., Lovdok, L., Lebiedz, D., &amp; Sourjik, V. (2008).</span>
+<span class="sd">    Dependence of bacterial chemotaxis on gradient shape and adaptation rate.`</span>
+<span class="sd"> CheY phosphorylation model from:</span>
+<span class="sd">    `Kollmann, M., Lovdok, L., Bartholome, K., Timmer, J., &amp; Sourjik, V. (2005).</span>
+<span class="sd">    Design principles of a bacterial signalling network. Nature.`</span>
+<span class="sd"> Motor switching model from:</span>
+<span class="sd">    `Scharf, B. E., Fahrner, K. A., Turner, L., and Berg, H. C. (1998).</span>
+<span class="sd">    Control of direction of flagellar rotation in bacterial chemotaxis. PNAS.`</span>
+
+<span class="sd">An increase of attractant inhibits CheA activity (chemoreceptor_activity),</span>
+<span class="sd">but subsequent methylation returns CheA activity to its original level.</span>
+
+<span class="sd">TODO -- add CheB phosphorylation</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">linspace</span>
+
+<span class="c1"># vivarium-core imports</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="n">PROCESS_OUT_DIR</span>
+
+<span class="c1"># plots</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.coarse_motor</span> <span class="kn">import</span> <span class="n">plot_variable_receptor</span>
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;coarse_motor&#39;</span>
+
+
+<div class="viewcode-block" id="MotorActivity">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.coarse_motor.html#ecoli.processes.chemotaxis.coarse_motor.MotorActivity">[docs]</a>
+<span class="k">class</span> <span class="nc">MotorActivity</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Models changes to coarse motor activity, based on chemoreceptor_activity</span>
+<span class="sd">    and current motor state.</span>
+
+<span class="sd">    :term:`Ports`:</span>
+<span class="sd">        * **internal**: includes variables ``ccw_motor_bias``, ``ccw_to_cw``, ``motile_state``, ``CheY_P``</span>
+<span class="sd">        * **external**: includes variables ``thrust`` and ``torque``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+
+        <span class="c1">#  CheY phosphorylation parameters</span>
+        <span class="c1"># &#39;k_A&#39;: 5.0,  #</span>
+        <span class="s1">&#39;k_y&#39;</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">,</span>  <span class="c1"># 1/uM/s</span>
+        <span class="s1">&#39;k_z&#39;</span><span class="p">:</span> <span class="mf">30.0</span><span class="p">,</span>  <span class="c1"># / CheZ,</span>
+        <span class="s1">&#39;gamma_Y&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>  <span class="c1"># rate constant</span>
+        <span class="s1">&#39;k_s&#39;</span><span class="p">:</span> <span class="mf">0.45</span><span class="p">,</span>  <span class="c1"># scaling coefficient</span>
+        <span class="s1">&#39;adapt_precision&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>  <span class="c1"># scales CheY_P to cluster activity</span>
+
+        <span class="c1"># motor</span>
+        <span class="s1">&#39;mb_0&#39;</span><span class="p">:</span> <span class="mf">0.65</span><span class="p">,</span>  <span class="c1"># steady state motor bias (Cluzel et al 2000)</span>
+        <span class="s1">&#39;n_motors&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="s1">&#39;cw_to_ccw&#39;</span><span class="p">:</span> <span class="mf">0.83</span><span class="p">,</span>  <span class="c1"># 1/s (Block1983) motor bias, assumed to be constant</span>
+        <span class="s1">&#39;ccw_to_cw_leak&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>  <span class="c1"># rate of spontaneous transition to tumble</span>
+
+        <span class="c1"># parameters for multibody physics</span>
+        <span class="s1">&#39;tumble_jitter&#39;</span><span class="p">:</span> <span class="mf">120.0</span><span class="p">,</span>
+
+        <span class="c1"># initial state</span>
+        <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;internal&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="c1"># response regulator proteins</span>
+                <span class="s1">&#39;CheY_tot&#39;</span><span class="p">:</span> <span class="mf">9.7</span><span class="p">,</span>  <span class="c1"># (uM) (mM) 9.7 uM = 0.0097 mM</span>
+                <span class="s1">&#39;CheY_P&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="s1">&#39;CheZ&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="o">*</span><span class="mi">100</span><span class="p">,</span>  <span class="c1"># (uM) phosphatase 100 uM = 0.1 mM</span>
+                <span class="s1">&#39;CheA&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="o">*</span><span class="mi">100</span><span class="p">,</span>  <span class="c1"># (uM) 100 uM = 0.1 mM</span>
+                <span class="c1"># sensor activity</span>
+                <span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span>
+                <span class="c1"># motor activity</span>
+                <span class="s1">&#39;ccw_motor_bias&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="s1">&#39;ccw_to_cw&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="s1">&#39;motile_state&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># motile_state 1 for tumble, -1 for run</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;thrust&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;torque&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="p">}}</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MotorActivity.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.coarse_motor.html#ecoli.processes.chemotaxis.coarse_motor.MotorActivity.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; create ``internal`` and ``external`` ports &quot;&quot;&quot;</span>
+        <span class="n">ports</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">,</span> <span class="s1">&#39;external&#39;</span><span class="p">]</span>
+        <span class="n">schema</span> <span class="o">=</span> <span class="p">{</span><span class="n">port</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">ports</span><span class="p">}</span>
+
+        <span class="c1"># external</span>
+        <span class="k">for</span> <span class="n">state</span><span class="p">,</span> <span class="n">default</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;initial_state&#39;</span><span class="p">][</span><span class="s1">&#39;external&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">schema</span><span class="p">[</span><span class="s1">&#39;external&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="n">default</span><span class="p">,</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">}</span>
+
+        <span class="c1"># internal</span>
+        <span class="n">set_and_emit</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="s1">&#39;ccw_motor_bias&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;ccw_to_cw&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;motile_state&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;CheA&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;CheY_P&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">state</span><span class="p">,</span> <span class="n">default</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;initial_state&#39;</span><span class="p">][</span><span class="s1">&#39;internal&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">schema</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="n">default</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">set_and_emit</span><span class="p">:</span>
+                <span class="n">schema</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                    <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">schema</span></div>
+
+
+<div class="viewcode-block" id="MotorActivity.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.coarse_motor.html#ecoli.processes.chemotaxis.coarse_motor.MotorActivity.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">internal</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">]</span>
+        <span class="n">P_on</span> <span class="o">=</span> <span class="n">internal</span><span class="p">[</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span>
+        <span class="n">motile_state_current</span> <span class="o">=</span> <span class="n">internal</span><span class="p">[</span><span class="s1">&#39;motile_state&#39;</span><span class="p">]</span>
+
+        <span class="c1"># parameters</span>
+        <span class="n">adapt_precision</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;adapt_precision&#39;</span><span class="p">]</span>
+        <span class="n">k_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;k_y&#39;</span><span class="p">]</span>
+        <span class="n">k_s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;k_s&#39;</span><span class="p">]</span>
+        <span class="n">k_z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;k_z&#39;</span><span class="p">]</span>
+        <span class="n">gamma_Y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;gamma_Y&#39;</span><span class="p">]</span>
+        <span class="n">mb_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mb_0&#39;</span><span class="p">]</span>
+        <span class="n">cw_to_ccw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;cw_to_ccw&#39;</span><span class="p">]</span>
+
+        <span class="c1">## Kinase activity</span>
+        <span class="c1"># relative steady-state concentration of phosphorylated CheY.</span>
+        <span class="n">CheY_P</span> <span class="o">=</span> <span class="n">adapt_precision</span> <span class="o">*</span> <span class="n">k_y</span> <span class="o">*</span> <span class="n">k_s</span> <span class="o">*</span> <span class="n">P_on</span> <span class="o">/</span> <span class="p">(</span><span class="n">k_y</span> <span class="o">*</span> <span class="n">k_s</span> <span class="o">*</span> <span class="n">P_on</span> <span class="o">+</span> <span class="n">k_z</span> <span class="o">+</span> <span class="n">gamma_Y</span><span class="p">)</span>  <span class="c1"># CheZ cancels out of k_z</span>
+
+        <span class="c1">## Motor switching</span>
+        <span class="c1"># CCW corresponds to run. CW corresponds to tumble</span>
+        <span class="n">ccw_motor_bias</span> <span class="o">=</span> <span class="n">mb_0</span> <span class="o">/</span> <span class="p">(</span><span class="n">CheY_P</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">mb_0</span><span class="p">)</span> <span class="o">+</span> <span class="n">mb_0</span><span class="p">)</span>  <span class="c1"># (1/s)</span>
+        <span class="n">ccw_to_cw</span> <span class="o">=</span> <span class="n">cw_to_ccw</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">ccw_motor_bias</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># (1/s)</span>
+        <span class="c1"># don&#39;t let ccw_to_cw get under leak value</span>
+        <span class="k">if</span> <span class="n">ccw_to_cw</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ccw_to_cw_leak&#39;</span><span class="p">]:</span>
+            <span class="n">ccw_to_cw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ccw_to_cw_leak&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">motile_state_current</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>  <span class="c1"># -1 for run</span>
+            <span class="c1"># switch to tumble (cw)?</span>
+            <span class="n">rate</span> <span class="o">=</span> <span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">ccw_to_cw</span><span class="p">)</span>  <span class="c1"># rate for probability function of time</span>
+            <span class="n">prob_switch</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">rate</span> <span class="o">*</span> <span class="n">timestep</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">prob_switch</span><span class="p">:</span>
+                <span class="n">motile_state</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">thrust</span><span class="p">,</span> <span class="n">torque</span> <span class="o">=</span> <span class="n">tumble</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;tumble_jitter&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">motile_state</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="n">thrust</span><span class="p">,</span> <span class="n">torque</span> <span class="o">=</span> <span class="n">run</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="n">motile_state_current</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># 1 for tumble</span>
+            <span class="c1"># switch to run (ccw)?</span>
+            <span class="n">rate</span> <span class="o">=</span> <span class="o">-</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">cw_to_ccw</span><span class="p">)</span>  <span class="c1"># rate for probability function of time</span>
+            <span class="n">prob_switch</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">rate</span> <span class="o">*</span> <span class="n">timestep</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">prob_switch</span><span class="p">:</span>
+                <span class="n">motile_state</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="p">[</span><span class="n">thrust</span><span class="p">,</span> <span class="n">torque</span><span class="p">]</span> <span class="o">=</span> <span class="n">run</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">motile_state</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="p">[</span><span class="n">thrust</span><span class="p">,</span> <span class="n">torque</span><span class="p">]</span> <span class="o">=</span> <span class="n">tumble</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;internal&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;ccw_motor_bias&#39;</span><span class="p">:</span> <span class="n">ccw_motor_bias</span><span class="p">,</span>
+                <span class="s1">&#39;ccw_to_cw&#39;</span><span class="p">:</span> <span class="n">ccw_to_cw</span><span class="p">,</span>
+                <span class="s1">&#39;motile_state&#39;</span><span class="p">:</span> <span class="n">motile_state</span><span class="p">,</span>
+                <span class="s1">&#39;CheY_P&#39;</span><span class="p">:</span> <span class="n">CheY_P</span><span class="p">},</span>
+            <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;thrust&#39;</span><span class="p">:</span> <span class="n">thrust</span><span class="p">,</span>
+                <span class="s1">&#39;torque&#39;</span><span class="p">:</span> <span class="n">torque</span>
+            <span class="p">}</span>
+        <span class="p">}</span></div>
+</div>
+
+
+<div class="viewcode-block" id="tumble">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.coarse_motor.html#ecoli.processes.chemotaxis.coarse_motor.tumble">[docs]</a>
+<span class="k">def</span> <span class="nf">tumble</span><span class="p">(</span><span class="n">tumble_jitter</span><span class="o">=</span><span class="mf">120.0</span><span class="p">):</span>
+    <span class="n">thrust</span> <span class="o">=</span> <span class="mf">0.2</span>  <span class="c1"># (pN)</span>
+    <span class="n">torque</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">normalvariate</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">tumble_jitter</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">thrust</span><span class="p">,</span> <span class="n">torque</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="run">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.coarse_motor.html#ecoli.processes.chemotaxis.coarse_motor.run">[docs]</a>
+<span class="k">def</span> <span class="nf">run</span><span class="p">():</span>
+    <span class="c1"># average thrust = 0.5 pN according to:</span>
+    <span class="c1"># Hughes MP &amp; Morgan H. (1999) Measurement of bacterial flagellar thrust by negative dielectrophoresis.</span>
+    <span class="n">thrust</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># (pN)</span>
+    <span class="n">torque</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">thrust</span><span class="p">,</span> <span class="n">torque</span><span class="p">]</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_variable_receptor</span><span class="p">(</span><span class="n">return_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">motor</span> <span class="o">=</span> <span class="n">MotorActivity</span><span class="p">()</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">default_state</span><span class="p">()</span>
+    <span class="n">timestep</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">chemoreceptor_activity</span> <span class="o">=</span> <span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">501</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">CheY_P_vec</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ccw_motor_bias_vec</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ccw_to_cw_vec</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">motile_state_vec</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">activity</span> <span class="ow">in</span> <span class="n">chemoreceptor_activity</span><span class="p">:</span>
+        <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">activity</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="n">motor</span><span class="o">.</span><span class="n">next_update</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">CheY_P</span> <span class="o">=</span> <span class="n">update</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;CheY_P&#39;</span><span class="p">]</span>
+        <span class="n">ccw_motor_bias</span> <span class="o">=</span> <span class="n">update</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;ccw_motor_bias&#39;</span><span class="p">]</span>
+        <span class="n">ccw_to_cw</span> <span class="o">=</span> <span class="n">update</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;ccw_to_cw&#39;</span><span class="p">]</span>
+        <span class="n">motile_state</span> <span class="o">=</span> <span class="n">update</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;motile_state&#39;</span><span class="p">]</span>
+
+        <span class="n">CheY_P_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">CheY_P</span><span class="p">)</span>
+        <span class="n">ccw_motor_bias_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ccw_motor_bias</span><span class="p">)</span>
+        <span class="n">ccw_to_cw_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ccw_to_cw</span><span class="p">)</span>
+        <span class="n">motile_state_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">motile_state</span><span class="p">)</span>
+
+    <span class="c1"># check ccw_to_cw bias is strictly increasing with increased receptor activity</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">i</span> <span class="o">&lt;=</span> <span class="n">j</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ccw_to_cw_vec</span><span class="p">,</span> <span class="n">ccw_to_cw_vec</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">:</span> <span class="n">chemoreceptor_activity</span><span class="p">,</span>
+            <span class="s1">&#39;CheY_P&#39;</span><span class="p">:</span> <span class="n">CheY_P_vec</span><span class="p">,</span>
+            <span class="s1">&#39;ccw_motor_bias&#39;</span><span class="p">:</span> <span class="n">ccw_motor_bias_vec</span><span class="p">,</span>
+            <span class="s1">&#39;ccw_to_cw&#39;</span><span class="p">:</span> <span class="n">ccw_to_cw_vec</span><span class="p">,</span>
+            <span class="s1">&#39;motile_state&#39;</span><span class="p">:</span> <span class="n">motile_state_vec</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.coarse_motor.html#ecoli.processes.chemotaxis.coarse_motor.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROCESS_OUT_DIR</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+
+    <span class="n">output2</span> <span class="o">=</span> <span class="n">test_variable_receptor</span><span class="p">(</span><span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">plot_variable_receptor</span><span class="p">(</span><span class="n">output2</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">)</span></div>
+
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

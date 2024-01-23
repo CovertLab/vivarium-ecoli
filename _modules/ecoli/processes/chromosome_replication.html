@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.chromosome_replication &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.chromosome_replication</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.chromosome_replication</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">======================</span>
+<span class="sd">Chromosome Replication</span>
+<span class="sd">======================</span>
+
+<span class="sd">Performs initiation, elongation, and termination of active partial chromosomes</span>
+<span class="sd">that replicate the chromosome.</span>
+
+<span class="sd">First, a round of replication is initiated at a ﬁxed cell mass per origin</span>
+<span class="sd">of replication and generally occurs once per cell cycle. Second, replication</span>
+<span class="sd">forks are elongated up to the maximal expected elongation rate, dNTP resource</span>
+<span class="sd">limitations, and template strand sequence but elongation does not take into</span>
+<span class="sd">account the action of topoisomerases or the enzymes in the replisome. Finally,</span>
+<span class="sd">replication forks terminate once they reach the end of their template strand</span>
+<span class="sd">and the chromosome immediately decatenates forming two separate chromosome</span>
+<span class="sd">molecules.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="p">(</span><span class="n">create_unique_indexes</span><span class="p">,</span>
+    <span class="n">numpy_schema</span><span class="p">,</span> <span class="n">counts</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span><span class="p">,</span> <span class="n">listener_schema</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.polymerize</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">buildSequences</span><span class="p">,</span> <span class="n">polymerize</span><span class="p">,</span> <span class="n">computeMassIncrease</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.partition</span> <span class="kn">import</span> <span class="n">PartitionedProcess</span>
+
+
+<span class="c1"># Register default topology for this process, associating it with process name</span>
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-chromosome-replication&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;bulk&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;active_replisomes&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;active_replisome&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;oriCs&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;oriC&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;chromosome_domains&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;full_chromosomes&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;listeners&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;environment&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;environment&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,),</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ChromosomeReplication">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_replication.html#ecoli.processes.chromosome_replication.ChromosomeReplication">[docs]</a>
+<span class="k">class</span> <span class="nc">ChromosomeReplication</span><span class="p">(</span><span class="n">PartitionedProcess</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Chromosome Replication PartitionedProcess &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;max_time_step&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span>
+        <span class="s1">&#39;get_dna_critical_mass&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">doubling_time</span><span class="p">:</span> <span class="n">units</span><span class="o">.</span><span class="n">Unum</span><span class="p">,</span>
+        <span class="s1">&#39;criticalInitiationMass&#39;</span><span class="p">:</span> <span class="mi">975</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">,</span>
+        <span class="s1">&#39;nutrientToDoublingTime&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;replichore_lengths&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;sequences&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;polymerized_dntp_weights&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;replication_coordinate&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;D_period&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span>
+        <span class="s1">&#39;replisome_protein_mass&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;no_child_place_holder&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;basal_elongation_rate&#39;</span><span class="p">:</span> <span class="mi">967</span><span class="p">,</span>
+        <span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">:</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">random</span><span class="p">,</span> <span class="n">replisomes</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">time_step</span><span class="p">:</span>
+            <span class="n">units</span><span class="o">.</span><span class="n">Unum</span><span class="p">),</span>
+        <span class="s1">&#39;mechanistic_replisome&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+
+        <span class="c1"># molecules</span>
+        <span class="s1">&#39;replisome_trimers_subunits&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;replisome_monomers_subunits&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;dntps&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;ppi&#39;</span><span class="p">:</span> <span class="p">[],</span>
+
+        <span class="c1"># random seed</span>
+        <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+
+        <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_time_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;max_time_step&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Load parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_dna_critical_mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;get_dna_critical_mass&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">criticalInitiationMass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;criticalInitiationMass&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nutrientToDoublingTime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;nutrientToDoublingTime&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replichore_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;replichore_lengths&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequences</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;sequences&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">polymerized_dntp_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;polymerized_dntp_weights&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replication_coordinate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;replication_coordinate&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D_period</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;D_period&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replisome_protein_mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;replisome_protein_mass&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_child_place_holder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;no_child_place_holder&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">basal_elongation_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;basal_elongation_rate&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">make_elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;make_elongation_rates&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Sim options</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mechanistic_replisome</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mechanistic_replisome&#39;</span><span class="p">]</span>
+
+        <span class="c1"># random state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="c1"># Use separate random state instance to create unique indices</span>
+        <span class="c1"># so results are directly comparable with wcEcoli</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unique_idx_random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">emit_unique</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Bulk molecule names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replisome_trimers_subunits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;replisome_trimers_subunits&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">replisome_monomers_subunits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;replisome_monomers_subunits&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dntps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;dntps&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ppi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ppi&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="ChromosomeReplication.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_replication.html#ecoli.processes.chromosome_replication.ChromosomeReplication.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="c1"># bulk molecules</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;cell_mass&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}),</span>
+                <span class="s1">&#39;replication_data&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;critical_initiation_mass&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                    <span class="s1">&#39;critical_mass_per_oriC&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}),</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;environment&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;media_id&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">},</span>
+                <span class="p">},</span>
+            <span class="s1">&#39;active_replisomes&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;oriCs&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;oriCs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;chromosome_domains&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;chromosome_domains&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;full_chromosomes&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;full_chromosomes&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]}</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ChromosomeReplication.calculate_request">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_replication.html#ecoli.processes.chromosome_replication.ChromosomeReplication.calculate_request">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ppi</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">replisome_trimers_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">replisome_trimers_subunits</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">replisome_monomers_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">replisome_monomers_subunits</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dntps_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dntps</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+        <span class="n">requests</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Get total count of existing oriC&#39;s</span>
+        <span class="n">n_oriC</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;oriCs&#39;</span><span class="p">][</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="c1"># If there are no origins, return immediately</span>
+        <span class="k">if</span> <span class="n">n_oriC</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">requests</span>
+
+        <span class="c1"># Get current cell mass</span>
+        <span class="n">cellMass</span> <span class="o">=</span> <span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">][</span><span class="s1">&#39;cell_mass&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">)</span>
+
+        <span class="c1"># Get critical initiation mass for current simulation environment</span>
+        <span class="n">current_media_id</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;environment&#39;</span><span class="p">][</span><span class="s1">&#39;media_id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">criticalInitiationMass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_dna_critical_mass</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nutrientToDoublingTime</span><span class="p">[</span><span class="n">current_media_id</span><span class="p">])</span>
+
+        <span class="c1"># Calculate mass per origin of replication, and compare to critical</span>
+        <span class="c1"># initiation mass. If the cell mass has reached this critical mass,</span>
+        <span class="c1"># the process will initiate a round of chromosome replication for each</span>
+        <span class="c1"># origin of replication.</span>
+        <span class="n">massPerOrigin</span> <span class="o">=</span> <span class="n">cellMass</span> <span class="o">/</span> <span class="n">n_oriC</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">criticalMassPerOriC</span> <span class="o">=</span> <span class="n">massPerOrigin</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">criticalInitiationMass</span>
+
+        <span class="c1"># If replication should be initiated, request subunits required for</span>
+        <span class="c1"># building two replisomes per one origin of replication, and edit</span>
+        <span class="c1"># access to oriC and chromosome domain attributes</span>
+        <span class="n">requests</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">criticalMassPerOriC</span> <span class="o">&gt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="n">requests</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">replisome_trimers_idx</span><span class="p">,</span> <span class="mi">6</span><span class="o">*</span><span class="n">n_oriC</span><span class="p">))</span>
+            <span class="n">requests</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">replisome_monomers_idx</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">n_oriC</span><span class="p">))</span>
+
+        <span class="c1"># If there are no active forks return</span>
+        <span class="n">n_active_replisomes</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">][</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">n_active_replisomes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">requests</span>
+
+        <span class="c1"># Get current locations of all replication forks</span>
+        <span class="n">fork_coordinates</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;coordinates&#39;</span><span class="p">])</span>
+        <span class="n">sequence_length</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">fork_coordinates</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_elongation_rates</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequences</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">basal_elongation_rate</span><span class="p">,</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">])</span>
+
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sequences</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">n_active_replisomes</span><span class="o">//</span><span class="mi">2</span><span class="p">),</span>
+            <span class="n">sequence_length</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">)</span>
+
+        <span class="c1"># Count number of each dNTP in sequences for the next timestep</span>
+        <span class="n">sequenceComposition</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">[</span><span class="n">sequences</span> <span class="o">!=</span> <span class="n">polymerize</span><span class="o">.</span><span class="n">PAD_VALUE</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+        <span class="c1"># If one dNTP is limiting then limit the request for the other three by</span>
+        <span class="c1"># the same ratio</span>
+        <span class="n">dNtpsTotal</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dntps_idx</span><span class="p">)</span>
+        <span class="n">maxFractionalReactionLimit</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fmin</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dNtpsTotal</span>
+            <span class="o">/</span> <span class="n">sequenceComposition</span><span class="p">))</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+
+        <span class="c1"># Request dNTPs</span>
+        <span class="n">requests</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">dntps_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">maxFractionalReactionLimit</span>
+            <span class="o">*</span> <span class="n">sequenceComposition</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)))</span>
+
+        <span class="k">return</span> <span class="n">requests</span></div>
+
+
+<div class="viewcode-block" id="ChromosomeReplication.evolve_state">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_replication.html#ecoli.processes.chromosome_replication.ChromosomeReplication.evolve_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">evolve_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># Initialize the update dictionary</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;active_replisomes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;oriCs&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;chromosome_domains&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;full_chromosomes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;replication_data&#39;</span><span class="p">:</span> <span class="p">{}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Module 1: Replication initiation</span>
+        <span class="c1"># Get number of existing replisomes and oriCs</span>
+        <span class="n">n_active_replisomes</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">][</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">n_oriC</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;oriCs&#39;</span><span class="p">][</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># If there are no origins, return immediately</span>
+        <span class="k">if</span> <span class="n">n_oriC</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">update</span>
+
+        <span class="c1"># Get attributes of existing chromosome domains</span>
+        <span class="n">domain_index_existing_domain</span><span class="p">,</span> <span class="n">child_domains</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;chromosome_domains&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;child_domains&#39;</span><span class="p">])</span>
+
+        <span class="n">initiate_replication</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">criticalMassPerOriC</span> <span class="o">&gt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="c1"># Get number of available replisome subunits</span>
+            <span class="n">n_replisome_trimers</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">replisome_trimers_idx</span><span class="p">)</span>
+            <span class="n">n_replisome_monomers</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">replisome_monomers_idx</span><span class="p">)</span>
+            <span class="c1"># Initiate replication only when</span>
+            <span class="c1"># 1) The cell has reached the critical mass per oriC</span>
+            <span class="c1"># 2) If mechanistic replisome option is on, there are enough</span>
+            <span class="c1"># replisome subunits to assemble two replisomes per existing OriC.</span>
+            <span class="c1"># Note that we assume asynchronous initiation does not happen.</span>
+            <span class="n">initiate_replication</span> <span class="o">=</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mechanistic_replisome</span> <span class="ow">or</span>
+                <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">n_replisome_trimers</span> <span class="o">==</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">n_oriC</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">n_replisome_monomers</span> <span class="o">==</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">n_oriC</span><span class="p">)))</span>
+
+        <span class="c1"># If all conditions are met, initiate a round of replication on every</span>
+        <span class="c1"># origin of replication</span>
+        <span class="k">if</span> <span class="n">initiate_replication</span><span class="p">:</span>
+            <span class="c1"># Get attributes of existing oriCs and domains</span>
+            <span class="n">domain_index_existing_oric</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;oriCs&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">])</span>
+
+            <span class="c1"># Get indexes of the domains that would be getting child domains</span>
+            <span class="c1"># (domains that contain an origin)</span>
+            <span class="n">new_parent_domains</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">in1d</span><span class="p">(</span>
+                <span class="n">domain_index_existing_domain</span><span class="p">,</span>
+                <span class="n">domain_index_existing_oric</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Calculate counts of new replisomes and domains to add</span>
+            <span class="n">n_new_replisome</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">n_oriC</span>
+            <span class="n">n_new_domain</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">n_oriC</span>
+
+            <span class="c1"># Calculate the domain indexes of new domains and oriC&#39;s</span>
+            <span class="n">max_domain_index</span> <span class="o">=</span> <span class="n">domain_index_existing_domain</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+            <span class="n">domain_index_new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
+                <span class="n">max_domain_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">max_domain_index</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">n_oriC</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+            <span class="c1"># Add new oriC&#39;s, and reset attributes of existing oriC&#39;s</span>
+            <span class="c1"># All oriC&#39;s must be assigned new domain indexes</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;oriCs&#39;</span><span class="p">][</span><span class="s1">&#39;set&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">domain_index_new</span><span class="p">[:</span><span class="n">n_oriC</span><span class="p">]}</span>
+            <span class="n">new_oric_indexes</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+                <span class="n">n_oriC</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_idx_random_state</span><span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;oriCs&#39;</span><span class="p">][</span><span class="s1">&#39;add&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">new_oric_indexes</span><span class="p">,</span>
+                <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">domain_index_new</span><span class="p">[</span><span class="n">n_oriC</span><span class="p">:]</span>
+            <span class="p">}</span>
+
+            <span class="c1"># Add and set attributes of newly created replisomes.</span>
+            <span class="c1"># New replisomes inherit the domain indexes of the oriC&#39;s they</span>
+            <span class="c1"># were initiated from. Two replisomes are formed per oriC, one on</span>
+            <span class="c1"># the right replichore, and one on the left.</span>
+            <span class="n">coordinates_replisome</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_new_replisome</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">right_replichore</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">),</span> <span class="n">n_oriC</span><span class="p">)</span>
+            <span class="n">right_replichore</span> <span class="o">=</span> <span class="n">right_replichore</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">domain_index_new_replisome</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span>
+                <span class="n">domain_index_existing_oric</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">massDiff_protein_new_replisome</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_new_replisome</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">replisome_protein_mass</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mechanistic_replisome</span>
+                <span class="k">else</span> <span class="mf">0.</span><span class="p">)</span>
+            <span class="n">new_replisome_indexes</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+                <span class="n">n_new_replisome</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_idx_random_state</span><span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">][</span><span class="s1">&#39;add&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">new_replisome_indexes</span><span class="p">,</span>
+                <span class="s1">&#39;coordinates&#39;</span><span class="p">:</span> <span class="n">coordinates_replisome</span><span class="p">,</span>
+                <span class="s1">&#39;right_replichore&#39;</span><span class="p">:</span> <span class="n">right_replichore</span><span class="p">,</span>
+                <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">domain_index_new_replisome</span><span class="p">,</span>
+                <span class="s1">&#39;massDiff_protein&#39;</span><span class="p">:</span> <span class="n">massDiff_protein_new_replisome</span>
+            <span class="p">}</span>
+
+            <span class="c1"># Add and set attributes of new chromosome domains. All new domains</span>
+            <span class="c1"># should have have no children domains.</span>
+            <span class="n">new_child_domains</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">n_new_domain</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">no_child_place_holder</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="n">new_domain_indexes</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+                <span class="n">n_new_domain</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_idx_random_state</span><span class="p">)</span>
+            <span class="n">new_domains_update</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">new_domain_indexes</span><span class="p">,</span>
+                    <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">domain_index_new</span><span class="p">,</span>
+                    <span class="s1">&#39;child_domains&#39;</span><span class="p">:</span> <span class="n">new_child_domains</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+
+            <span class="c1"># Add new domains as children of existing domains</span>
+            <span class="n">child_domains</span><span class="p">[</span><span class="n">new_parent_domains</span><span class="p">]</span> <span class="o">=</span> <span class="n">domain_index_new</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">existing_domains_update</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;set&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;child_domains&#39;</span><span class="p">:</span> <span class="n">child_domains</span><span class="p">}</span>
+            <span class="p">}</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;chromosome_domains&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                <span class="o">**</span><span class="n">new_domains_update</span><span class="p">,</span> <span class="o">**</span><span class="n">existing_domains_update</span><span class="p">})</span>
+
+            <span class="c1"># Decrement counts of replisome subunits</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mechanistic_replisome</span><span class="p">:</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">replisome_trimers_idx</span><span class="p">,</span> <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">n_oriC</span><span class="p">))</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">replisome_monomers_idx</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">n_oriC</span><span class="p">))</span>
+
+        <span class="c1"># Write data from this module to a listener</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;replication_data&#39;</span><span class="p">][</span><span class="s1">&#39;critical_mass_per_oriC&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">criticalMassPerOriC</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;replication_data&#39;</span><span class="p">][</span><span class="s1">&#39;critical_initiation_mass&#39;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">criticalInitiationMass</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">)</span>
+
+        <span class="c1"># Module 2: replication elongation</span>
+        <span class="c1"># If no active replisomes are present, return immediately</span>
+        <span class="c1"># Note: the new replication forks added in the previous module are not</span>
+        <span class="c1"># elongated until the next timestep.</span>
+        <span class="k">if</span> <span class="n">n_active_replisomes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">update</span>
+
+        <span class="c1"># Get allocated counts of dNTPs</span>
+        <span class="n">dNtpCounts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dntps_idx</span><span class="p">)</span>
+
+        <span class="c1"># Get attributes of existing replisomes</span>
+        <span class="n">domain_index_replisome</span><span class="p">,</span> <span class="n">right_replichore</span><span class="p">,</span> <span class="n">coordinates_replisome</span><span class="p">,</span> <span class="o">=</span> \
+            <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;right_replichore&#39;</span><span class="p">,</span> <span class="s1">&#39;coordinates&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Build sequences to polymerize</span>
+        <span class="n">sequence_length</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">coordinates_replisome</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">sequence_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="n">n_active_replisomes</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sequences</span><span class="p">,</span>
+            <span class="n">sequence_indexes</span><span class="p">,</span>
+            <span class="n">sequence_length</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">)</span>
+
+        <span class="c1"># Use polymerize algorithm to quickly calculate the number of</span>
+        <span class="c1"># elongations each fork catalyzes</span>
+        <span class="n">reactionLimit</span> <span class="o">=</span> <span class="n">dNtpCounts</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="n">active_elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">[</span><span class="n">sequence_indexes</span><span class="p">]</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">polymerize</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span>
+            <span class="n">dNtpCounts</span><span class="p">,</span>
+            <span class="n">reactionLimit</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">,</span>
+            <span class="n">active_elongation_rates</span><span class="p">)</span>
+
+        <span class="n">sequenceElongations</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">sequenceElongation</span>
+        <span class="n">dNtpsUsed</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">monomerUsages</span>
+
+        <span class="c1"># Compute mass increase for each elongated sequence</span>
+        <span class="n">mass_increase_dna</span> <span class="o">=</span> <span class="n">computeMassIncrease</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span>
+            <span class="n">sequenceElongations</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">polymerized_dntp_weights</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">))</span>
+
+        <span class="c1"># Compute masses that should be added to each replisome</span>
+        <span class="n">added_dna_mass</span> <span class="o">=</span> <span class="n">mass_increase_dna</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">mass_increase_dna</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># Update positions of each fork</span>
+        <span class="n">updated_length</span> <span class="o">=</span> <span class="n">sequence_length</span> <span class="o">+</span> <span class="n">sequenceElongations</span>
+        <span class="n">updated_coordinates</span> <span class="o">=</span> <span class="n">updated_length</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># Reverse signs of fork coordinates on left replichore</span>
+        <span class="n">updated_coordinates</span><span class="p">[</span><span class="o">~</span><span class="n">right_replichore</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">updated_coordinates</span><span class="p">[</span>
+            <span class="o">~</span><span class="n">right_replichore</span><span class="p">]</span>
+
+        <span class="c1"># Update attributes and submasses of replisomes</span>
+        <span class="n">current_dna_mass</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;massDiff_DNA&#39;</span><span class="p">])</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="s1">&#39;set&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;coordinates&#39;</span><span class="p">:</span> <span class="n">updated_coordinates</span><span class="p">,</span>
+                <span class="s1">&#39;massDiff_DNA&#39;</span><span class="p">:</span> <span class="n">current_dna_mass</span> <span class="o">+</span> <span class="n">added_dna_mass</span>
+            <span class="p">}</span>
+        <span class="p">})</span>
+
+        <span class="c1"># Update counts of polymerized metabolites</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">dntps_idx</span><span class="p">,</span> <span class="o">-</span><span class="n">dNtpsUsed</span><span class="p">))</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span><span class="p">,</span> <span class="n">dNtpsUsed</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+
+        <span class="c1"># Module 3: replication termination</span>
+        <span class="c1"># Determine if any forks have reached the end of their sequences. If</span>
+        <span class="c1"># so, delete the replisomes and domains that were terminated.</span>
+        <span class="n">terminal_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">replichore_lengths</span><span class="p">[</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">right_replichore</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)]</span>
+        <span class="n">terminated_replisomes</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">updated_coordinates</span><span class="p">)</span>
+            <span class="o">==</span> <span class="n">terminal_lengths</span><span class="p">)</span>
+
+        <span class="c1"># If any forks were terminated,</span>
+        <span class="k">if</span> <span class="n">terminated_replisomes</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Get domain indexes of terminated forks</span>
+            <span class="n">terminated_domains</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">domain_index_replisome</span><span class="p">[</span>
+                <span class="n">terminated_replisomes</span><span class="p">])</span>
+
+            <span class="c1"># Get attributes of existing domains and full chromosomes</span>
+            <span class="n">domain_index_domains</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+                <span class="n">states</span><span class="p">[</span><span class="s1">&#39;chromosome_domains&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;child_domains&#39;</span><span class="p">])</span>
+            <span class="n">domain_index_full_chroms</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+                <span class="n">states</span><span class="p">[</span><span class="s1">&#39;full_chromosomes&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">])</span>
+
+            <span class="c1"># Initialize array of replisomes that should be deleted</span>
+            <span class="n">replisomes_to_delete</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">domain_index_replisome</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+
+            <span class="c1"># Count number of new full chromosomes that should be created</span>
+            <span class="n">n_new_chromosomes</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="c1"># Initialize array for domain indexes of new full chromosomes</span>
+            <span class="n">domain_index_new_full_chroms</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">terminated_domain_index</span> <span class="ow">in</span> <span class="n">terminated_domains</span><span class="p">:</span>
+                <span class="c1"># Get all terminated replisomes in the terminated domain</span>
+                <span class="n">terminated_domain_matching_replisomes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+                    <span class="n">domain_index_replisome</span> <span class="o">==</span> <span class="n">terminated_domain_index</span><span class="p">,</span>
+                    <span class="n">terminated_replisomes</span><span class="p">)</span>
+
+                <span class="c1"># If both replisomes in the domain have terminated, we are</span>
+                <span class="c1"># ready to split the chromosome and update the attributes.</span>
+                <span class="k">if</span> <span class="n">terminated_domain_matching_replisomes</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="c1"># Tag replisomes and domains with the given domain index</span>
+                    <span class="c1"># for deletion</span>
+                    <span class="n">replisomes_to_delete</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span>
+                        <span class="n">replisomes_to_delete</span><span class="p">,</span>
+                        <span class="n">terminated_domain_matching_replisomes</span><span class="p">)</span>
+
+                    <span class="n">domain_mask</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">domain_index_domains</span> <span class="o">==</span> <span class="n">terminated_domain_index</span><span class="p">)</span>
+
+                    <span class="c1"># Get child domains of deleted domain</span>
+                    <span class="n">child_domains_this_domain</span> <span class="o">=</span> <span class="n">child_domains</span><span class="p">[</span>
+                                                <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">domain_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="p">:]</span>
+
+                    <span class="c1"># Modify domain index of one existing full chromosome to</span>
+                    <span class="c1"># index of first child domain</span>
+                    <span class="n">domain_index_full_chroms</span><span class="p">[</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">domain_index_full_chroms</span>
+                            <span class="o">==</span> <span class="n">terminated_domain_index</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">]</span> <span class="o">=</span> <span class="n">child_domains_this_domain</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+                    <span class="c1"># Increment count of new full chromosome</span>
+                    <span class="n">n_new_chromosomes</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                    <span class="c1"># Append chromosome index of new full chromosome</span>
+                    <span class="n">domain_index_new_full_chroms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">child_domains_this_domain</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+            <span class="c1"># Delete terminated replisomes</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">][</span><span class="s1">&#39;delete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">replisomes_to_delete</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Generate new full chromosome molecules</span>
+            <span class="k">if</span> <span class="n">n_new_chromosomes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">new_chromosome_indexes</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+                    <span class="n">n_new_chromosomes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_idx_random_state</span><span class="p">)</span>
+                <span class="n">chromosome_add_update</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">new_chromosome_indexes</span><span class="p">,</span>
+                        <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">domain_index_new_full_chroms</span><span class="p">,</span>
+                        <span class="s1">&#39;division_time&#39;</span><span class="p">:</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">D_period</span><span class="p">,</span>
+                        <span class="s1">&#39;has_triggered_division&#39;</span><span class="p">:</span> <span class="kc">False</span>
+                    <span class="p">}</span>
+                <span class="p">}</span>
+
+                <span class="c1"># Reset domain index of existing chromosomes that have finished</span>
+                <span class="c1"># replication</span>
+                <span class="n">chromosome_existing_update</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;set&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">domain_index_full_chroms</span><span class="p">}</span>
+                <span class="p">}</span>
+
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;full_chromosomes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="o">**</span><span class="n">chromosome_add_update</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">chromosome_existing_update</span><span class="p">})</span>
+
+            <span class="c1"># Increment counts of replisome subunits</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mechanistic_replisome</span><span class="p">:</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">replisome_trimers_idx</span><span class="p">,</span>
+                    <span class="mi">3</span><span class="o">*</span><span class="n">replisomes_to_delete</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">replisome_monomers_idx</span><span class="p">,</span>
+                    <span class="n">replisomes_to_delete</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>
+
+        <span class="k">return</span> <span class="n">update</span></div>
+</div>
+
+
+
+
+<span class="k">def</span> <span class="nf">test_chromosome_replication</span><span class="p">():</span>
+    <span class="n">test_config</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">process</span> <span class="o">=</span> <span class="n">ChromosomeReplication</span><span class="p">(</span><span class="n">test_config</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">test_chromosome_replication</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

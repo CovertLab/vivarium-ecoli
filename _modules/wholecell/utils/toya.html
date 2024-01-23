@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.toya &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.toya</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.toya</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Utilities for working with TOYA data&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">from</span> <span class="nn">unum</span> <span class="kn">import</span> <span class="n">Unum</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.metabolism</span> <span class="kn">import</span> <span class="p">(</span>
+	<span class="n">COUNTS_UNITS</span><span class="p">,</span>
+	<span class="n">VOLUME_UNITS</span><span class="p">,</span>
+	<span class="n">TIME_UNITS</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">FLUX_UNITS</span> <span class="o">=</span> <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span> <span class="o">/</span> <span class="n">TIME_UNITS</span>
+
+
+<div class="viewcode-block" id="adjust_toya_data">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.toya.html#wholecell.utils.toya.adjust_toya_data">[docs]</a>
+<span class="k">def</span> <span class="nf">adjust_toya_data</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cell_masses</span><span class="p">,</span> <span class="n">dry_masses</span><span class="p">,</span> <span class="n">cell_density</span><span class="p">):</span>
+	<span class="c1"># type: (np.ndarray, np.ndarray, np.ndarray, float) -&gt; Unum</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;Adjust fluxes or stdevs for dry mass fraction, density, units.</span>
+
+<span class="sd">	The provided data are multiplied by the average dry mass</span>
+<span class="sd">	fraction and by the cell density.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		data: Flux or standard deviation data vector to process.</span>
+<span class="sd">		cell_masses: Vector of cell mass over time. Units should be</span>
+<span class="sd">			stored elementwise.</span>
+<span class="sd">		dry_masses: Vector of cell dry mass over time. Units should</span>
+<span class="sd">			be stored elementwise.</span>
+<span class="sd">		cell_density: Constant density of cell.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Vector of adjusted data. Units are applied to the whole</span>
+<span class="sd">		vector.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">dry_mass_frac_average</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dry_masses</span> <span class="o">/</span> <span class="n">cell_masses</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">FLUX_UNITS</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+		<span class="p">(</span><span class="n">dry_mass_frac_average</span> <span class="o">*</span> <span class="n">cell_density</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">FLUX_UNITS</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span>
+	<span class="p">])</span></div>
+
+
+
+
+<div class="viewcode-block" id="get_common_ids">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.toya.html#wholecell.utils.toya.get_common_ids">[docs]</a>
+<span class="k">def</span> <span class="nf">get_common_ids</span><span class="p">(</span><span class="n">toya_reaction_ids</span><span class="p">,</span> <span class="n">root_to_id_indices_map</span><span class="p">):</span>
+	<span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">((</span>
+		<span class="nb">set</span><span class="p">(</span><span class="n">toya_reaction_ids</span><span class="p">)</span>
+		<span class="o">&amp;</span> <span class="nb">set</span><span class="p">(</span><span class="n">root_to_id_indices_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+	<span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="get_root_to_id_indices_map">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.toya.html#wholecell.utils.toya.get_root_to_id_indices_map">[docs]</a>
+<span class="k">def</span> <span class="nf">get_root_to_id_indices_map</span><span class="p">(</span><span class="n">sim_reaction_ids</span><span class="p">):</span>
+	<span class="c1"># type: (np.ndarray) -&gt; Dict[str, List[int]]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;Get a map from ID root to indices in sim_reaction_ids</span>
+
+<span class="sd">	The reaction root is the portion of the ID that precedes the</span>
+<span class="sd">	first underscore or space.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		sim_reaction_ids: Simulation reaction IDs</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Map from ID root to a list of the indices in</span>
+<span class="sd">		sim_reaction_ids of reactions having that root.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;This function does not provide all matches for certain reactions.&#39;</span>
+		<span class="s1">&#39;Re-implement before using.&#39;</span><span class="p">)</span>
+
+	<span class="n">root_to_id_indices_map</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>  <span class="c1"># type: Dict[str, List[int]]</span>
+	<span class="n">matcher</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;^([A-Za-z0-9-/.]+)&quot;</span><span class="p">)</span>
+	<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sim_reaction_ids</span><span class="p">):</span>
+		<span class="n">match</span> <span class="o">=</span> <span class="n">matcher</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">rxn_id</span><span class="p">)</span>
+		<span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+			<span class="n">root</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+			<span class="n">root_to_id_indices_map</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">root_to_id_indices_map</span></div>
+
+
+
+<div class="viewcode-block" id="process_simulated_fluxes">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.toya.html#wholecell.utils.toya.process_simulated_fluxes">[docs]</a>
+<span class="k">def</span> <span class="nf">process_simulated_fluxes</span><span class="p">(</span>
+		<span class="n">output_ids</span><span class="p">,</span> <span class="n">reaction_ids</span><span class="p">,</span> <span class="n">reaction_fluxes</span><span class="p">):</span>
+	<span class="c1"># type: (Iterable[str], Iterable[str], Unum) -&gt; Tuple[Unum, Unum]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;Compute means and standard deviations of flux from simulation</span>
+
+<span class="sd">	For a given output ID from output_ids, find the mean and stdev of simulated</span>
+<span class="sd">	fluxes of the reaction with the matching ID.</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		output_ids: IDs of reactions to include in output</span>
+<span class="sd">		reaction_ids: IDs of the reactions in the order that they</span>
+<span class="sd">			appear in reaction_fluxes</span>
+<span class="sd">		reaction_fluxes: 2-dimensional matrix of reaction fluxes</span>
+<span class="sd">			where each column corresponds to a reaction (in the</span>
+<span class="sd">			order specified by reaction_ids) and each row is a time</span>
+<span class="sd">			point. Should have units FLUX_UNITS and be a numpy</span>
+<span class="sd">			matrix.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		Tuple of the lists of mean fluxes and standard deviations for each</span>
+<span class="sd">		reaction ID in output_ids. List elements are in the same</span>
+<span class="sd">		order as their associated reaction IDs in output_ids. Both</span>
+<span class="sd">		lists will have units FLUX_UNITS.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">reaction_id_to_index</span> <span class="o">=</span> <span class="p">{</span>
+		<span class="n">rxn_id</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">rxn_id</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reaction_ids</span><span class="p">)</span>
+	<span class="p">}</span>
+	<span class="n">means</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[np.ndarray]</span>
+	<span class="n">stdevs</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># type: List[np.ndarray]</span>
+	<span class="k">for</span> <span class="n">output_id</span> <span class="ow">in</span> <span class="n">output_ids</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">output_id</span> <span class="ow">in</span> <span class="n">reaction_id_to_index</span><span class="p">:</span>
+			<span class="n">time_course</span> <span class="o">=</span> <span class="n">reaction_fluxes</span><span class="p">[:,</span> <span class="n">reaction_id_to_index</span><span class="p">[</span><span class="n">output_id</span><span class="p">]]</span>
+			<span class="n">means</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">time_course</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">FLUX_UNITS</span><span class="p">))</span>
+			<span class="n">stdevs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">time_course</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">FLUX_UNITS</span><span class="p">)))</span>
+	<span class="n">means_</span> <span class="o">=</span> <span class="n">FLUX_UNITS</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">means</span><span class="p">)</span>
+	<span class="n">stdevs_</span> <span class="o">=</span> <span class="n">FLUX_UNITS</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stdevs</span><span class="p">)</span>
+	<span class="k">return</span> <span class="n">means_</span><span class="p">,</span> <span class="n">stdevs_</span></div>
+
+
+
+<div class="viewcode-block" id="process_toya_data">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.toya.html#wholecell.utils.toya.process_toya_data">[docs]</a>
+<span class="k">def</span> <span class="nf">process_toya_data</span><span class="p">(</span><span class="n">output_ids</span><span class="p">,</span> <span class="n">reaction_ids</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+	<span class="c1"># type: (Iterable[str], Iterable[str], Unum) -&gt; Unum</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;Filter toya fluxes or standard deviations by reaction ID</span>
+
+<span class="sd">	Arguments:</span>
+<span class="sd">		output_ids: IDs of reactions to include in the output.</span>
+<span class="sd">		reaction_ids: IDs of the reactions whose fluxes and standard</span>
+<span class="sd">			deviations are provided, in the order in which the</span>
+<span class="sd">			rections&#39; values appear in fluxes and stdevs.</span>
+<span class="sd">		data: 1-dimensional numpy array (with units FLUX_UNITS)</span>
+<span class="sd">			with average reaction fluxes or standard deviations.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		List of data in the order specified by output_ids. List is</span>
+<span class="sd">		of units FLUX_UNITS.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="n">data_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">reaction_ids</span><span class="p">,</span> <span class="n">data</span><span class="p">))</span>
+	<span class="n">output_data</span> <span class="o">=</span> <span class="p">[</span>
+		<span class="n">data_dict</span><span class="p">[</span><span class="n">output_id</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">FLUX_UNITS</span><span class="p">)</span>
+		<span class="k">for</span> <span class="n">output_id</span> <span class="ow">in</span> <span class="n">output_ids</span>
+	<span class="p">]</span>
+	<span class="k">return</span> <span class="n">FLUX_UNITS</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">output_data</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

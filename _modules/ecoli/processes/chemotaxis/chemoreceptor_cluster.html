@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.chemotaxis.chemoreceptor_cluster &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.chemotaxis.chemoreceptor_cluster</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.chemotaxis.chemoreceptor_cluster</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">=====================</span>
+<span class="sd">Chemoreceptor Cluster</span>
+<span class="sd">=====================</span>
+
+<span class="sd">This ReceptorCluster :term:`Process` models the activity of a chemoreceptor cluster</span>
+<span class="sd">composed of Tsr and Tar amino acid chemoreceptors. The model is a</span>
+<span class="sd">Monod-Wyman-Changeux (MWC) model adapted from &quot;Endres, R. G., &amp; Wingreen, N. S.</span>
+<span class="sd">(2006). Precise adaptation in bacterial chemotaxis through assistance neighborhoods”.</span>
+<span class="sd">Each receptor homodimer is modeled as a two-state system (on or off) with energy</span>
+<span class="sd">values based on ligand concentration and methylation levels. This results in four</span>
+<span class="sd">energy levels: 1) on without ligand, on with ligand, off without ligand, off with</span>
+<span class="sd">ligand. Sensory adaptation comes from the methylation of receptors, which alters the</span>
+<span class="sd">free-energy offset and transition rate to favor the on state; attractant ligand</span>
+<span class="sd">binding favors the off state.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="c1"># vivarium-core imports</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="n">simulate_process</span><span class="p">,</span> <span class="n">PROCESS_OUT_DIR</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="c1"># plots</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.chemoreceptor_cluster</span> <span class="kn">import</span> <span class="n">plot_receptor_output</span>
+
+
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;chemoreceptor_cluster&#39;</span>
+<span class="n">STEADY_STATE_DELTA</span> <span class="o">=</span> <span class="mf">1e-6</span>
+<span class="n">DEFAULT_ENVIRONMENT_PORT</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;external&#39;</span><span class="p">,)</span>
+<span class="n">DEFAULT_LIGAND</span> <span class="o">=</span> <span class="s1">&#39;MeAsp&#39;</span>
+<span class="n">DEFAULT_INITIAL_LIGAND</span> <span class="o">=</span> <span class="mf">1e-2</span>
+
+
+<div class="viewcode-block" id="run_step">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.run_step">[docs]</a>
+<span class="k">def</span> <span class="nf">run_step</span><span class="p">(</span><span class="n">receptor</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Run for a timestep, and update the chemoreceptor_activity and n_methyl states</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">update</span> <span class="o">=</span> <span class="n">receptor</span><span class="o">.</span><span class="n">next_update</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+    <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">update</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span>
+    <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;n_methyl&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">update</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;n_methyl&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="run_to_steady_state">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.run_to_steady_state">[docs]</a>
+<span class="k">def</span> <span class="nf">run_to_steady_state</span><span class="p">(</span><span class="n">receptor</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Runs the ReceptorCluster Process to steady state</span>
+
+<span class="sd">    This is used for initialization of the Process, so that</span>
+<span class="sd">    the chemoreceptors start off in an adapted state.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">P_on</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span>
+    <span class="n">n_methyl</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;n_methyl&#39;</span><span class="p">]</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">while</span> <span class="n">delta</span> <span class="o">&gt;</span> <span class="n">STEADY_STATE_DELTA</span><span class="p">:</span>
+        <span class="n">run_step</span><span class="p">(</span><span class="n">receptor</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
+        <span class="n">d_P_on</span> <span class="o">=</span> <span class="n">P_on</span> <span class="o">-</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span>
+        <span class="n">d_n_methyl</span> <span class="o">=</span> <span class="n">n_methyl</span> <span class="o">-</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;n_methyl&#39;</span><span class="p">]</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="p">(</span><span class="n">d_P_on</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">d_n_methyl</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mf">0.5</span>
+        <span class="n">P_on</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span>
+        <span class="n">n_methyl</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;n_methyl&#39;</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="ReceptorCluster">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.ReceptorCluster">[docs]</a>
+<span class="k">class</span> <span class="nc">ReceptorCluster</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Models the activity of a chemoreceptor cluster</span>
+
+<span class="sd">       :term:`Ports`:</span>
+
+<span class="sd">       * **internal**: Expects a :term:`store` with &#39;chemoreceptor_activity&#39;,</span>
+<span class="sd">         &#39;CheR&#39;, &#39;CheB&#39;, &#39;CheB_P&#39;, and &#39;n_methyl&#39;.</span>
+<span class="sd">       * **external**: Expects a :term:`store` with the ligand.</span>
+
+<span class="sd">       Arguments:</span>
+<span class="sd">           parameters: A dictionary of configuration options.</span>
+<span class="sd">               The following configuration options may be provided:</span>
+
+<span class="sd">               * **ligand_id** (:py:class:`str`): The name of the external</span>
+<span class="sd">                 ligand sensed by the cluster.</span>
+<span class="sd">               * **initial_ligand** (:py:class:`float`): The initial concentration</span>
+<span class="sd">                 of the ligand. The initial state of the cluster is set to</span>
+<span class="sd">                 steady state relative to this concetnration.</span>
+<span class="sd">               * **n_Tar** (:py:class:`int`): number of Tar receptors in a cluster</span>
+<span class="sd">               * **n_Tsr** (:py:class:`int`): number of Tsr receptors in a cluster</span>
+<span class="sd">               * **K_Tar_off** (:py:class:`float`): (mM) MeAsp binding by Tar (Endres06)</span>
+<span class="sd">               * **K_Tar_on** (:py:class:`float`): (mM) MeAsp binding by Tar (Endres06)</span>
+<span class="sd">               * **K_Tsr_off** (:py:class:`float`): (mM) MeAsp binding by Tsr (Endres06)</span>
+<span class="sd">               * **K_Tsr_on** (:py:class:`float`): (mM) MeAsp binding by Tsr (Endres06)</span>
+<span class="sd">               * **k_meth** (:py:class:`float`): Catalytic rate of methylation</span>
+<span class="sd">               * **k_demeth** (:py:class:`float`): Catalytic rate of demethylation</span>
+<span class="sd">               * **adapt_rate** (:py:class:`float`): adaptation rate relative to wild-type.</span>
+<span class="sd">                 cell-to-cell variation cause by variability in CheR and CheB</span>
+
+<span class="sd">       .. note::</span>
+<span class="sd">           * dissociation constants (mM)</span>
+<span class="sd">           * K_Tar_on = 12e-3  # Tar to Asp (Emonet05)</span>
+<span class="sd">           * K_Tar_off = 1.7e-3  # Tar to Asp (Emonet05)</span>
+<span class="sd">           * (Endres &amp; Wingreen, 2006) has dissociation constants for serine binding, NiCl2 binding</span>
+<span class="sd">       &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;ligand_id&#39;</span><span class="p">:</span> <span class="s1">&#39;MeAsp&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;initial_ligand&#39;</span><span class="p">:</span> <span class="mf">5.0</span><span class="p">,</span>
+        <span class="s1">&#39;initial_internal_state&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;n_methyl&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span>  <span class="c1"># initial number of methyl groups on receptor cluster (0 to 8)</span>
+            <span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="o">/</span><span class="mf">3.</span><span class="p">,</span>  <span class="c1"># initial probability of receptor cluster being on</span>
+            <span class="s1">&#39;CheR&#39;</span><span class="p">:</span> <span class="mf">0.00016</span><span class="p">,</span>  <span class="c1"># (mM) wild type concentration. 0.16 uM = 0.00016 mM</span>
+            <span class="s1">&#39;CheB&#39;</span><span class="p">:</span> <span class="mf">0.00028</span><span class="p">,</span>  <span class="c1"># (mM) wild type concentration. 0.28 uM = 0.00028 mM. [CheR]:[CheB]=0.16:0.28</span>
+            <span class="s1">&#39;CheB_P&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># phosphorylated CheB</span>
+        <span class="p">},</span>
+        <span class="c1"># Parameters from Endres and Wingreen 2006.</span>
+        <span class="s1">&#39;n_Tar&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="s1">&#39;n_Tsr&#39;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+        <span class="s1">&#39;K_Tar_off&#39;</span><span class="p">:</span> <span class="mf">0.02</span><span class="p">,</span>
+        <span class="s1">&#39;K_Tar_on&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="s1">&#39;K_Tsr_off&#39;</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">,</span>
+        <span class="s1">&#39;K_Tsr_on&#39;</span><span class="p">:</span> <span class="mf">10e6</span><span class="p">,</span>
+        <span class="s1">&#39;k_meth&#39;</span><span class="p">:</span> <span class="mf">0.0625</span><span class="p">,</span>
+        <span class="s1">&#39;k_demeth&#39;</span><span class="p">:</span> <span class="mf">0.0714</span><span class="p">,</span>
+        <span class="s1">&#39;adapt_rate&#39;</span><span class="p">:</span> <span class="mf">1.2</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># initialize the state by running until steady</span>
+        <span class="n">initial_internal_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;initial_internal_state&#39;</span><span class="p">]</span>
+        <span class="n">ligand_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ligand_id&#39;</span><span class="p">]</span>
+        <span class="n">initial_ligand</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;initial_ligand&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_state</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;internal&#39;</span><span class="p">:</span> <span class="n">initial_internal_state</span><span class="p">,</span>
+            <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="p">{</span><span class="n">ligand_id</span><span class="p">:</span> <span class="n">initial_ligand</span><span class="p">}}</span>
+        <span class="n">run_to_steady_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_state</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ReceptorCluster.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.ReceptorCluster.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        initialize **internal** and **external** ports</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ports</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;internal&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;external&#39;</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="n">schema</span> <span class="o">=</span> <span class="p">{</span><span class="n">port</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">ports</span><span class="p">}</span>
+
+        <span class="c1"># external</span>
+        <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;external&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">schema</span><span class="p">[</span><span class="s1">&#39;external&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;external&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">],</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+
+        <span class="c1"># internal</span>
+        <span class="n">set_update</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">,</span> <span class="s1">&#39;n_methyl&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">state</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">schema</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">],</span>
+                <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">set_update</span><span class="p">:</span>
+                <span class="n">schema</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="n">state</span><span class="p">][</span><span class="s1">&#39;_updater&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;set&#39;</span>
+
+        <span class="k">return</span> <span class="n">schema</span></div>
+
+
+<div class="viewcode-block" id="ReceptorCluster.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.ReceptorCluster.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        calculate update to chemoreceptor_activity and n_methyl from ligand concentration, CheR, and CheB</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># parameters</span>
+        <span class="n">n_Tar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_Tar&#39;</span><span class="p">]</span>
+        <span class="n">n_Tsr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_Tsr&#39;</span><span class="p">]</span>
+        <span class="n">K_Tar_off</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;K_Tar_off&#39;</span><span class="p">]</span>
+        <span class="n">K_Tar_on</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;K_Tar_on&#39;</span><span class="p">]</span>
+        <span class="n">K_Tsr_off</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;K_Tsr_off&#39;</span><span class="p">]</span>
+        <span class="n">K_Tsr_on</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;K_Tsr_on&#39;</span><span class="p">]</span>
+        <span class="n">adapt_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;adapt_rate&#39;</span><span class="p">]</span>
+        <span class="n">k_meth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;k_meth&#39;</span><span class="p">]</span>
+        <span class="n">k_demeth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;k_demeth&#39;</span><span class="p">]</span>
+
+        <span class="c1"># states</span>
+        <span class="n">n_methyl</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;n_methyl&#39;</span><span class="p">]</span>
+        <span class="n">P_on</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">]</span>
+        <span class="n">CheR</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;CheR&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">)</span>
+        <span class="n">CheB</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;internal&#39;</span><span class="p">][</span><span class="s1">&#39;CheB&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">)</span>
+        <span class="n">ligand_conc</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;external&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ligand_id&#39;</span><span class="p">]]</span>
+
+        <span class="c1"># convert to umol / L</span>
+        <span class="n">CheR</span> <span class="o">=</span> <span class="n">CheR</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;umol/L&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="n">CheB</span> <span class="o">=</span> <span class="n">CheB</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s1">&#39;umol/L&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+
+        <span class="k">if</span> <span class="n">n_methyl</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">n_methyl</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">elif</span> <span class="n">n_methyl</span> <span class="o">&gt;</span> <span class="mi">8</span><span class="p">:</span>
+            <span class="n">n_methyl</span> <span class="o">=</span> <span class="mi">8</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d_methyl</span> <span class="o">=</span> <span class="n">adapt_rate</span> <span class="o">*</span> <span class="p">(</span><span class="n">k_meth</span> <span class="o">*</span> <span class="n">CheR</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">P_on</span><span class="p">)</span> <span class="o">-</span> <span class="n">k_demeth</span> <span class="o">*</span> <span class="n">CheB</span> <span class="o">*</span> <span class="n">P_on</span><span class="p">)</span> <span class="o">*</span> <span class="n">timestep</span>
+            <span class="n">n_methyl</span> <span class="o">+=</span> <span class="n">d_methyl</span>
+
+        <span class="c1"># get free-energy offsets from methylation</span>
+        <span class="c1"># piece-wise linear model. Assumes same offset energy (epsilon) for both Tar and Tsr</span>
+        <span class="k">if</span> <span class="n">n_methyl</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">offset_energy</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">elif</span> <span class="n">n_methyl</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">offset_energy</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">n_methyl</span>
+        <span class="k">elif</span> <span class="n">n_methyl</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">offset_energy</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.3</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_methyl</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">n_methyl</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
+            <span class="n">offset_energy</span> <span class="o">=</span> <span class="o">-</span><span class="mf">0.6</span> <span class="o">-</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_methyl</span> <span class="o">-</span> <span class="mf">4.0</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">n_methyl</span> <span class="o">&lt;</span> <span class="mi">7</span><span class="p">:</span>
+            <span class="n">offset_energy</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.1</span> <span class="o">-</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_methyl</span> <span class="o">-</span> <span class="mf">6.0</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">n_methyl</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+            <span class="n">offset_energy</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span> <span class="o">-</span> <span class="p">(</span><span class="n">n_methyl</span> <span class="o">-</span> <span class="mf">7.0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">offset_energy</span> <span class="o">=</span> <span class="o">-</span><span class="mf">3.0</span>
+
+        <span class="c1"># free energy of the receptors.</span>
+        <span class="n">Tar_free_energy</span> <span class="o">=</span> <span class="n">n_Tar</span> <span class="o">*</span> <span class="p">(</span><span class="n">offset_energy</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mi">1</span><span class="o">+</span><span class="n">ligand_conc</span><span class="o">/</span><span class="n">K_Tar_off</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ligand_conc</span><span class="o">/</span><span class="n">K_Tar_on</span><span class="p">)))</span>
+        <span class="n">Tsr_free_energy</span> <span class="o">=</span> <span class="n">n_Tsr</span> <span class="o">*</span> <span class="p">(</span><span class="n">offset_energy</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mi">1</span><span class="o">+</span><span class="n">ligand_conc</span><span class="o">/</span><span class="n">K_Tsr_off</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ligand_conc</span><span class="o">/</span><span class="n">K_Tsr_on</span><span class="p">)))</span>
+
+        <span class="c1"># free energy of receptor clusters</span>
+        <span class="n">cluster_free_energy</span> <span class="o">=</span> <span class="n">Tar_free_energy</span> <span class="o">+</span> <span class="n">Tsr_free_energy</span>
+        <span class="n">P_on</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">cluster_free_energy</span><span class="p">))</span>  <span class="c1"># probability that receptor cluster is ON</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;internal&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;chemoreceptor_activity&#39;</span><span class="p">:</span> <span class="n">P_on</span><span class="p">,</span>
+                <span class="s1">&#39;n_methyl&#39;</span><span class="p">:</span> <span class="n">n_methyl</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<span class="c1"># tests and analyses of process</span>
+<div class="viewcode-block" id="get_pulse_timeline">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.get_pulse_timeline">[docs]</a>
+<span class="k">def</span> <span class="nf">get_pulse_timeline</span><span class="p">(</span><span class="n">ligand</span><span class="o">=</span><span class="s1">&#39;MeAsp&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    get a timeline with pulses applied to the external ligand</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timeline</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">0.0</span><span class="p">}),</span>
+        <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">0.01</span><span class="p">}),</span>
+        <span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">0.0</span><span class="p">}),</span>
+        <span class="p">(</span><span class="mi">300</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">0.1</span><span class="p">}),</span>
+        <span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">0.0</span><span class="p">}),</span>
+        <span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">1.0</span><span class="p">}),</span>
+        <span class="p">(</span><span class="mi">600</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">0.0</span><span class="p">}),</span>
+        <span class="p">(</span><span class="mi">700</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">):</span> <span class="mf">0.0</span><span class="p">})]</span>
+    <span class="k">return</span> <span class="n">timeline</span></div>
+
+
+<div class="viewcode-block" id="get_exponential_random_timeline">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.get_exponential_random_timeline">[docs]</a>
+<span class="k">def</span> <span class="nf">get_exponential_random_timeline</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    get timeline with random walk in exponential space</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">time</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+    <span class="n">timestep</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;timestep&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;base&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="o">+</span><span class="mf">1e-4</span><span class="p">)</span>  <span class="c1"># mM/um</span>
+    <span class="n">speed</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;speed&#39;</span><span class="p">,</span> <span class="mi">14</span><span class="p">)</span>     <span class="c1"># um/s</span>
+    <span class="n">conc_0</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;initial_conc&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># mM</span>
+    <span class="n">ligand</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ligand&#39;</span><span class="p">,</span> <span class="s1">&#39;MeAsp&#39;</span><span class="p">)</span>
+    <span class="n">env_port</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;environment_port&#39;</span><span class="p">,</span> <span class="n">DEFAULT_ENVIRONMENT_PORT</span><span class="p">)</span>
+
+    <span class="n">conc</span> <span class="o">=</span> <span class="n">conc_0</span>
+    <span class="n">timeline</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="p">{</span><span class="n">env_port</span> <span class="o">+</span> <span class="p">(</span><span class="n">ligand</span><span class="p">,):</span> <span class="n">conc</span><span class="p">})]</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">time</span><span class="p">:</span>
+        <span class="n">conc</span> <span class="o">+=</span> <span class="n">base</span><span class="o">**</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="n">speed</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">conc</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">conc</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">timeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">t</span><span class="p">,</span> <span class="p">{</span><span class="n">env_port</span> <span class="o">+</span> <span class="p">(</span><span class="n">ligand</span><span class="p">,):</span> <span class="n">conc</span><span class="p">}))</span>
+        <span class="n">t</span> <span class="o">+=</span> <span class="n">timestep</span>
+    <span class="k">return</span> <span class="n">timeline</span></div>
+
+
+
+<div class="viewcode-block" id="get_brownian_ligand_timeline">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.get_brownian_ligand_timeline">[docs]</a>
+<span class="k">def</span> <span class="nf">get_brownian_ligand_timeline</span><span class="p">(</span>
+        <span class="n">environment_port</span><span class="o">=</span><span class="n">DEFAULT_ENVIRONMENT_PORT</span><span class="p">,</span>
+        <span class="n">ligand_id</span><span class="o">=</span><span class="n">DEFAULT_LIGAND</span><span class="p">,</span>
+        <span class="n">initial_conc</span><span class="o">=</span><span class="n">DEFAULT_INITIAL_LIGAND</span><span class="p">,</span>
+        <span class="n">total_time</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+        <span class="n">timestep</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">base</span><span class="o">=</span><span class="mi">1</span><span class="o">+</span><span class="mf">3e-4</span><span class="p">,</span>
+        <span class="n">speed</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="k">return</span> <span class="n">get_exponential_random_timeline</span><span class="p">({</span>
+        <span class="s1">&#39;ligand&#39;</span><span class="p">:</span> <span class="n">ligand_id</span><span class="p">,</span>
+        <span class="s1">&#39;environment_port&#39;</span><span class="p">:</span> <span class="n">environment_port</span><span class="p">,</span>
+        <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="n">total_time</span><span class="p">,</span>
+        <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="n">timestep</span><span class="p">,</span>
+        <span class="s1">&#39;initial_conc&#39;</span><span class="p">:</span> <span class="n">initial_conc</span><span class="p">,</span>
+        <span class="s1">&#39;base&#39;</span><span class="p">:</span> <span class="n">base</span><span class="p">,</span>
+        <span class="s1">&#39;speed&#39;</span><span class="p">:</span> <span class="n">speed</span><span class="p">})</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_receptor</span><span class="p">(</span><span class="n">timeline</span><span class="o">=</span><span class="n">get_pulse_timeline</span><span class="p">(),</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">ligand</span> <span class="o">=</span> <span class="s1">&#39;MeAsp&#39;</span>
+
+    <span class="c1"># initialize process</span>
+    <span class="n">initial_ligand</span> <span class="o">=</span> <span class="n">timeline</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">][(</span><span class="s1">&#39;external&#39;</span><span class="p">,</span> <span class="n">ligand</span><span class="p">)]</span>
+    <span class="n">process_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;initial_ligand&#39;</span><span class="p">:</span> <span class="n">initial_ligand</span><span class="p">}</span>
+    <span class="n">receptor</span> <span class="o">=</span> <span class="n">ReceptorCluster</span><span class="p">(</span><span class="n">process_config</span><span class="p">)</span>
+
+    <span class="c1"># run experiment</span>
+    <span class="n">experiment_settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;timeline&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;timeline&#39;</span><span class="p">:</span> <span class="n">timeline</span><span class="p">}}</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">simulate_process</span><span class="p">(</span><span class="n">receptor</span><span class="p">,</span> <span class="n">experiment_settings</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.chemotaxis.chemoreceptor_cluster.html#ecoli.processes.chemotaxis.chemoreceptor_cluster.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROCESS_OUT_DIR</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+
+    <span class="n">timeline</span> <span class="o">=</span> <span class="n">get_pulse_timeline</span><span class="p">()</span>
+    <span class="n">timeseries</span> <span class="o">=</span> <span class="n">test_receptor</span><span class="p">(</span><span class="n">timeline</span><span class="p">,</span> <span class="n">return_data</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">plot_receptor_output</span><span class="p">(</span><span class="n">timeseries</span><span class="p">,</span> <span class="p">{},</span> <span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;pulse&#39;</span><span class="p">)</span>
+
+    <span class="n">exponential_random_config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="s1">&#39;base&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="o">+</span><span class="mf">4e-4</span><span class="p">,</span>
+        <span class="s1">&#39;speed&#39;</span><span class="p">:</span> <span class="mi">14</span><span class="p">}</span>
+    <span class="n">timeline4</span> <span class="o">=</span> <span class="n">get_exponential_random_timeline</span><span class="p">(</span><span class="n">exponential_random_config</span><span class="p">)</span>
+    <span class="n">output4</span> <span class="o">=</span> <span class="n">test_receptor</span><span class="p">(</span><span class="n">timeline4</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+    <span class="n">plot_receptor_output</span><span class="p">(</span><span class="n">output4</span><span class="p">,</span> <span class="p">{},</span> <span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;exponential_random&#39;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

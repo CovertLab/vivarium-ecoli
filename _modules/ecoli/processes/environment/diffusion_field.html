@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.environment.diffusion_field &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.environment.diffusion_field</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.environment.diffusion_field</h1><div class="highlight"><pre>
+<span></span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">===============</span>
+<span class="sd">Diffusion Field</span>
+<span class="sd">===============</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">convolve</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span><span class="p">,</span> <span class="n">assoc_path</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.engine</span> <span class="kn">import</span> <span class="n">Engine</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PROCESS_OUT_DIR</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span><span class="p">,</span> <span class="n">remove_units</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.topology</span> <span class="kn">import</span> <span class="n">get_in</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.dict_utils</span> <span class="kn">import</span> <span class="n">deep_merge</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.lattice_utils</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_bin_site</span><span class="p">,</span>
+    <span class="n">get_bin_volume</span><span class="p">,</span>
+    <span class="n">make_gradient</span><span class="p">,</span>
+    <span class="n">apply_exchanges</span><span class="p">,</span>
+    <span class="n">ExchangeAgent</span><span class="p">,</span>
+    <span class="n">make_diffusion_schema</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.snapshots</span> <span class="kn">import</span> <span class="n">plot_snapshots</span>
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;diffusion_field&#39;</span>
+
+<span class="c1"># laplacian kernel for diffusion</span>
+<span class="n">LAPLACIAN_2D</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]])</span>
+<span class="n">AVOGADRO</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">N_A</span>
+
+
+<div class="viewcode-block" id="DiffusionField">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField">[docs]</a>
+<span class="k">class</span> <span class="nc">DiffusionField</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Diffusion in 2-dimensional fields of molecules with agent exchange</span>
+
+<span class="sd">    Agent uptake and secretion occurs at agent locations.</span>
+
+<span class="sd">    Notes:</span>
+
+<span class="sd">    * Diffusion constant of glucose in 0.5 and 1.5 percent agarose gel</span>
+<span class="sd">      is around :math:`6 * 10^{-10} \\frac{m^2}{s}` (Weng et al. 2005.</span>
+<span class="sd">      Transport of glucose and poly(ethylene glycol)s in agarose gels).</span>
+<span class="sd">    * Conversion to micrometers:</span>
+<span class="sd">      :math:`6 * 10^{-10} \\frac{m^2}{s}=600 \\frac{micrometers^2}{s}`.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;glc&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;n_bins&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">],</span>
+        <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="mf">3000.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>  <span class="c1"># um</span>
+        <span class="s1">&#39;diffusion&#39;</span><span class="p">:</span> <span class="mf">5e-1</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">sec</span><span class="p">,</span>
+        <span class="s1">&#39;gradient&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;exchanges_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;exchanges&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;external_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;external&#39;</span><span class="p">),</span>
+        <span class="s1">&#39;location_path&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,</span> <span class="s1">&#39;location&#39;</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># initial state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;molecules&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;initial_state&#39;</span><span class="p">]</span>
+
+        <span class="c1"># parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_bins&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">]</span>
+        <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">]</span>
+
+        <span class="c1"># diffusion</span>
+        <span class="n">diffusion</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;diffusion&#39;</span><span class="p">]</span>
+        <span class="n">bins_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">bins_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">length_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">length_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">length_x</span> <span class="o">/</span> <span class="n">bins_x</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">length_y</span> <span class="o">/</span> <span class="n">bins_y</span>
+        <span class="n">dx2</span> <span class="o">=</span> <span class="n">dx</span> <span class="o">*</span> <span class="n">dy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diffusion</span> <span class="o">=</span> <span class="n">diffusion</span> <span class="o">/</span> <span class="n">dx2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diffusion_dt</span> <span class="o">=</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">sec</span>
+        <span class="c1"># self.diffusion_dt = 0.5 * dx ** 2 * dy ** 2 / (2 * self.diffusion * (dx ** 2 + dy ** 2))</span>
+
+        <span class="c1"># volume, to convert between counts and concentration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bin_volume</span> <span class="o">=</span> <span class="n">get_bin_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+
+        <span class="c1"># initialize gradient fields</span>
+        <span class="n">gradient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;gradient&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">gradient</span><span class="p">:</span>
+            <span class="n">unitless_bounds</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">bound</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span> <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">]</span>
+            <span class="n">gradient_fields</span> <span class="o">=</span> <span class="n">make_gradient</span><span class="p">(</span>
+                <span class="n">gradient</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span> <span class="n">unitless_bounds</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">gradient_fields</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchanges_path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;exchanges_path&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">external_path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;external_path&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;location_path&#39;</span><span class="p">])</span>
+
+<div class="viewcode-block" id="DiffusionField.initial_state">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.initial_state">[docs]</a>
+    <span class="k">def</span> <span class="nf">initial_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;fields&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">field</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ones_field</span><span class="p">())</span>
+                <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="DiffusionField.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">make_diffusion_schema</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchanges_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">external_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_bins&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ones_field</span><span class="p">(),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DiffusionField.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span>
+        <span class="n">agents</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+
+        <span class="c1"># make new fields for the updated state</span>
+        <span class="n">new_fields</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
+
+        <span class="c1">###################</span>
+        <span class="c1"># apply exchanges #</span>
+        <span class="c1">###################</span>
+        <span class="n">new_fields</span><span class="p">,</span> <span class="n">agent_updates</span> <span class="o">=</span> <span class="n">apply_exchanges</span><span class="p">(</span>
+            <span class="n">agents</span><span class="p">,</span>
+            <span class="n">new_fields</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchanges_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bin_volume</span><span class="p">)</span>
+
+        <span class="c1"># diffuse field</span>
+        <span class="n">new_fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffuse</span><span class="p">(</span><span class="n">new_fields</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
+
+        <span class="c1"># get total delta from exchange, diffusion, reaction</span>
+        <span class="n">delta_fields</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">mol_id</span><span class="p">:</span> <span class="n">new_fields</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">-</span> <span class="n">field</span>
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># get each agent&#39;s new local environment</span>
+        <span class="n">local_environments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_local_environments</span><span class="p">(</span><span class="n">agents</span><span class="p">,</span> <span class="n">new_fields</span><span class="p">)</span>
+
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;fields&#39;</span><span class="p">:</span> <span class="n">delta_fields</span><span class="p">,</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="n">agent_updates</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">deep_merge</span><span class="p">(</span><span class="n">update</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">],</span> <span class="n">local_environments</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">update</span></div>
+
+
+<div class="viewcode-block" id="DiffusionField.get_bin_site">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.get_bin_site">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_bin_site</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">location</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_bin_site</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DiffusionField.get_single_local_environments">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.get_single_local_environments">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_single_local_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">fields</span><span class="p">):</span>
+        <span class="n">bin_site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bin_site</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+        <span class="n">local_environment</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">local_environment</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;_value&#39;</span><span class="p">:</span> <span class="n">field</span><span class="p">[</span><span class="n">bin_site</span><span class="p">]</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mM</span><span class="p">,</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">local_environment</span></div>
+
+
+<div class="viewcode-block" id="DiffusionField.get_local_environments">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.get_local_environments">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_local_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agents</span><span class="p">,</span> <span class="n">fields</span><span class="p">):</span>
+        <span class="n">local_environments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">agents</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">assoc_path</span><span class="p">(</span>
+                    <span class="n">local_environments</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">agent_id</span><span class="p">,)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_path</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">get_single_local_environments</span><span class="p">(</span>
+                        <span class="n">get_in</span><span class="p">(</span><span class="n">specs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">location_path</span><span class="p">),</span>
+                        <span class="n">fields</span><span class="p">,</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">local_environments</span></div>
+
+
+<div class="viewcode-block" id="DiffusionField.ones_field">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.ones_field">[docs]</a>
+    <span class="k">def</span> <span class="nf">ones_field</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span></div>
+
+
+    <span class="c1"># diffusion functions</span>
+<div class="viewcode-block" id="DiffusionField.diffusion_delta">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.diffusion_delta">[docs]</a>
+    <span class="k">def</span> <span class="nf">diffusion_delta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39; calculate concentration changes cause by diffusion&#39;&#39;&#39;</span>
+        <span class="n">field_new</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusion_dt</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">sec</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span><span class="p">)</span>
+        <span class="n">diffusion</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusion</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">sec</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="k">while</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="n">timestep</span><span class="p">:</span>
+            <span class="n">field_new</span> <span class="o">+=</span> <span class="n">diffusion</span> <span class="o">*</span> <span class="n">dt</span> <span class="o">*</span> <span class="n">convolve</span><span class="p">(</span><span class="n">field_new</span><span class="p">,</span> <span class="n">LAPLACIAN_2D</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;reflect&#39;</span><span class="p">)</span>
+            <span class="n">t</span> <span class="o">+=</span> <span class="n">dt</span>
+
+        <span class="k">return</span> <span class="n">field_new</span> <span class="o">-</span> <span class="n">field</span><span class="p">,</span> <span class="n">field_new</span></div>
+
+
+<div class="viewcode-block" id="DiffusionField.diffuse">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.DiffusionField.diffuse">[docs]</a>
+    <span class="k">def</span> <span class="nf">diffuse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+        <span class="n">new_fields</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+            <span class="c1"># run diffusion if molecule field is not uniform</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">delta</span><span class="p">,</span> <span class="n">new_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">diffusion_delta</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">timestep</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+                <span class="n">new_field</span> <span class="o">=</span> <span class="n">field</span>
+            <span class="n">new_fields</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_field</span>
+
+        <span class="k">return</span> <span class="n">new_fields</span></div>
+</div>
+
+
+
+<span class="c1"># testing</span>
+<div class="viewcode-block" id="get_random_field_config">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.get_random_field_config">[docs]</a>
+<span class="k">def</span> <span class="nf">get_random_field_config</span><span class="p">():</span>
+    <span class="n">n_bins</span> <span class="o">=</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;glc&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;glc&#39;</span><span class="p">:</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">])},</span>
+        <span class="s1">&#39;n_bins&#39;</span><span class="p">:</span> <span class="n">n_bins</span><span class="p">,</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+        <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="mf">1e-2</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+        <span class="s1">&#39;diffusion&#39;</span><span class="p">:</span> <span class="mf">1e-2</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">sec</span><span class="p">,</span>  <span class="c1"># slow diffusion</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="get_gaussian_config">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.get_gaussian_config">[docs]</a>
+<span class="k">def</span> <span class="nf">get_gaussian_config</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;glc&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;n_bins&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+        <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+        <span class="s1">&#39;gradient&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;gaussian&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;glc&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;center&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                    <span class="s1">&#39;deviation&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}}}}</span></div>
+
+
+
+<div class="viewcode-block" id="get_exponential_config">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.get_exponential_config">[docs]</a>
+<span class="k">def</span> <span class="nf">get_exponential_config</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;glc&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;n_bins&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+        <span class="s1">&#39;bounds&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+        <span class="s1">&#39;depth&#39;</span><span class="p">:</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+        <span class="s1">&#39;gradient&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;exponential&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;glc&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;center&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span>
+                    <span class="s1">&#39;base&#39;</span><span class="p">:</span> <span class="mi">1</span> <span class="o">+</span> <span class="mf">1e-3</span><span class="p">,</span>
+                    <span class="s1">&#39;scale&#39;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}}}}</span></div>
+
+
+<span class="k">def</span> <span class="nf">test_all</span><span class="p">():</span>
+    <span class="n">run_diffusion_field</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">get_random_field_config</span><span class="p">(),</span> <span class="n">total_time</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">)</span>
+    <span class="n">run_diffusion_field</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">get_gaussian_config</span><span class="p">(),</span> <span class="n">total_time</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;gaussian&#39;</span><span class="p">)</span>
+    <span class="n">run_diffusion_field</span><span class="p">(</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">get_exponential_config</span><span class="p">(),</span> <span class="n">total_time</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;exponential&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="plot_fields">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.plot_fields">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_fields</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;out&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;fields&#39;</span><span class="p">):</span>
+    <span class="n">unitless_config</span> <span class="o">=</span> <span class="n">remove_units</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">{</span><span class="n">time</span><span class="p">:</span> <span class="n">time_data</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">time_data</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="n">plot_snapshots</span><span class="p">(</span>
+        <span class="n">unitless_config</span><span class="p">[</span><span class="s1">&#39;bounds&#39;</span><span class="p">],</span>
+        <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="run_diffusion_field">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.environment.diffusion_field.html#ecoli.processes.environment.diffusion_field.run_diffusion_field">[docs]</a>
+<span class="k">def</span> <span class="nf">run_diffusion_field</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">total_time</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;snapshots&#39;</span><span class="p">):</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">diff_process</span> <span class="o">=</span> <span class="n">DiffusionField</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="c1"># make the toy exchange agent</span>
+    <span class="n">agent_id</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>
+    <span class="n">agent_params</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;mol_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;glc&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;default_exchange&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="s1">&#39;max_move&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">agent_process</span> <span class="o">=</span> <span class="n">ExchangeAgent</span><span class="p">(</span><span class="n">agent_params</span><span class="p">)</span>
+
+    <span class="c1"># get initial fields</span>
+    <span class="n">initial_fields</span> <span class="o">=</span> <span class="n">diff_process</span><span class="o">.</span><span class="n">initial_state</span><span class="p">()</span>
+
+    <span class="c1"># put them together in a simulation</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span>
+        <span class="n">processes</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;diff&#39;</span><span class="p">:</span> <span class="n">diff_process</span><span class="p">,</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">agent_id</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="n">agent_process</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">},</span>
+        <span class="n">topology</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;diff&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">port</span><span class="p">:</span> <span class="p">(</span><span class="n">port</span><span class="p">,)</span>
+                <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">diff_process</span><span class="o">.</span><span class="n">ports_schema</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;agents&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">agent_id</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;boundary&#39;</span><span class="p">,)}</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">},</span>
+        <span class="n">initial_state</span><span class="o">=</span><span class="n">initial_fields</span>
+    <span class="p">)</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">total_time</span><span class="p">)</span>
+
+    <span class="c1"># plot</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">emitter</span><span class="o">.</span><span class="n">get_data_unitless</span><span class="p">()</span>
+
+    <span class="c1"># add empty angle back in for the plot (this is undesirable)</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;angle&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;width&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROCESS_OUT_DIR</span><span class="p">,</span> <span class="s1">&#39;environment&#39;</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+    <span class="n">snapshots_fig</span> <span class="o">=</span> <span class="n">plot_snapshots</span><span class="p">(</span>
+        <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">get_in</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="s1">&#39;dimensions&#39;</span><span class="p">,</span> <span class="s1">&#39;bounds&#39;</span><span class="p">)),</span>
+        <span class="n">agents</span><span class="o">=</span><span class="p">{</span>
+            <span class="n">time</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">},</span>
+        <span class="n">fields</span><span class="o">=</span><span class="p">{</span>
+            <span class="n">time</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;fields&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">},</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="c1"># python ecoli/processes/environment/diffusion_field.py</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="c1"># test_all()</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;diffusion_field&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--random&#39;</span><span class="p">,</span> <span class="s1">&#39;-r&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--gaussian&#39;</span><span class="p">,</span> <span class="s1">&#39;-g&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;--exponential&#39;</span><span class="p">,</span> <span class="s1">&#39;-e&#39;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+    <span class="n">no_args</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">no_args</span><span class="p">:</span>
+        <span class="n">test_all</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">random</span><span class="p">:</span>
+        <span class="n">run_diffusion_field</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">get_random_field_config</span><span class="p">(),</span> <span class="n">total_time</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">gaussian</span><span class="p">:</span>
+        <span class="n">run_diffusion_field</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">get_gaussian_config</span><span class="p">(),</span> <span class="n">total_time</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;gaussian&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">exponential</span><span class="p">:</span>
+        <span class="n">run_diffusion_field</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">get_exponential_config</span><span class="p">(),</span> <span class="n">total_time</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;exponential&#39;</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

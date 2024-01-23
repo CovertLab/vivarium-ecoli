@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.plots.snapshots &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.plots.snapshots</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.plots.snapshots</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="nn">patches</span>
+<span class="kn">from</span> <span class="nn">matplotlib.lines</span> <span class="kn">import</span> <span class="n">Line2D</span>
+<span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">hsv_to_rgb</span><span class="p">,</span> <span class="n">rgb_to_hsv</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.axes_grid1</span> <span class="kn">import</span> <span class="n">make_axes_locatable</span><span class="p">,</span> <span class="n">anchored_artists</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.library.dict_utils</span> <span class="kn">import</span> <span class="n">get_value_from_path</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">Quantity</span><span class="p">,</span> <span class="n">units</span>
+
+<span class="n">DEFAULT_BOUNDS</span> <span class="o">=</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">]</span>
+
+<span class="c1"># constants</span>
+<span class="n">PI</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+
+<span class="c1"># colors for phylogeny initial agents</span>
+<span class="n">HUES</span> <span class="o">=</span> <span class="p">[</span><span class="n">hue</span> <span class="o">/</span> <span class="mi">360</span> <span class="k">for</span> <span class="n">hue</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">360</span><span class="p">,</span> <span class="mi">30</span><span class="p">)]</span>
+<span class="n">DEFAULT_HUE</span> <span class="o">=</span> <span class="mi">45</span> <span class="o">/</span> <span class="mi">360</span>
+<span class="n">DEFAULT_SV</span> <span class="o">=</span> <span class="p">[</span><span class="mf">100.0</span> <span class="o">/</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">70.0</span> <span class="o">/</span> <span class="mf">100.0</span><span class="p">]</span>
+<span class="n">BASELINE_TAG_COLOR</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>  <span class="c1"># HSV</span>
+<span class="n">FLOURESCENT_SV</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>  <span class="c1"># SV for fluorescent colors</span>
+
+
+<div class="viewcode-block" id="LineWidthData">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.LineWidthData">[docs]</a>
+<span class="k">class</span> <span class="nc">LineWidthData</span><span class="p">(</span><span class="n">Line2D</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">_lw_data</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;linewidth&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lw_data</span> <span class="o">=</span> <span class="n">_lw_data</span>
+
+<div class="viewcode-block" id="LineWidthData._get_lw">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.LineWidthData._get_lw">[docs]</a>
+    <span class="k">def</span> <span class="nf">_get_lw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">axes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ppd</span> <span class="o">=</span> <span class="mf">72.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">dpi</span>
+            <span class="n">trans</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">transData</span><span class="o">.</span><span class="n">transform</span>
+            <span class="k">return</span> <span class="p">((</span><span class="n">trans</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lw_data</span><span class="p">))</span> <span class="o">-</span> <span class="n">trans</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)))</span> <span class="o">*</span> <span class="n">ppd</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="LineWidthData._set_lw">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.LineWidthData._set_lw">[docs]</a>
+    <span class="k">def</span> <span class="nf">_set_lw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lw</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lw_data</span> <span class="o">=</span> <span class="n">lw</span></div>
+
+
+    <span class="n">_linewidth</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="n">_get_lw</span><span class="p">,</span> <span class="n">_set_lw</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="init_axes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.init_axes">[docs]</a>
+<span class="k">def</span> <span class="nf">init_axes</span><span class="p">(</span>
+    <span class="n">fig</span><span class="p">,</span>
+    <span class="n">edge_length_x</span><span class="p">,</span>
+    <span class="n">edge_length_y</span><span class="p">,</span>
+    <span class="n">grid</span><span class="p">,</span>
+    <span class="n">row_idx</span><span class="p">,</span>
+    <span class="n">col_idx</span><span class="p">,</span>
+    <span class="n">time</span><span class="p">,</span>
+    <span class="n">molecule</span><span class="p">,</span>
+    <span class="n">ylabel_size</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">title_size</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">grid</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">row_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">plot_title</span> <span class="o">=</span> <span class="s2">&quot;time: </span><span class="si">{:.4f}</span><span class="s2"> s&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">time</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">plot_title</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.08</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">title_size</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">col_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span>
+            <span class="n">molecule</span><span class="p">,</span>
+            <span class="n">fontsize</span><span class="o">=</span><span class="n">ylabel_size</span><span class="p">,</span>
+            <span class="n">rotation</span><span class="o">=</span><span class="s2">&quot;horizontal&quot;</span><span class="p">,</span>
+            <span class="n">horizontalalignment</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xlim</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">edge_length_x</span><span class="p">],</span> <span class="n">ylim</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">edge_length_y</span><span class="p">],</span> <span class="n">aspect</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">([])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">([])</span>
+    <span class="k">return</span> <span class="n">ax</span></div>
+
+
+
+<div class="viewcode-block" id="add_time_axis">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.add_time_axis">[docs]</a>
+<span class="k">def</span> <span class="nf">add_time_axis</span><span class="p">(</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">n_rows</span><span class="p">,</span> <span class="n">n_cols</span><span class="p">,</span> <span class="n">n_snapshots</span><span class="p">,</span> <span class="n">snapshot_times</span><span class="p">,</span> <span class="n">time_unit</span><span class="o">=</span><span class="s2">&quot;s&quot;</span>
+<span class="p">):</span>
+    <span class="c1"># Add time axis across subplots</span>
+    <span class="n">super_spec</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">gridspec</span><span class="o">.</span><span class="n">SubplotSpec</span><span class="p">(</span>
+        <span class="n">grid</span><span class="p">,</span>
+        <span class="p">(</span><span class="n">n_rows</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_cols</span><span class="p">,</span>
+        <span class="p">(</span><span class="n">n_rows</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n_cols</span> <span class="o">+</span> <span class="n">n_snapshots</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">grid_params</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">get_subplot_params</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">n_snapshots</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">time_per_snapshot</span> <span class="o">=</span> <span class="p">(</span><span class="n">snapshot_times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">snapshot_times</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">n_snapshots</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">grid_params</span><span class="o">.</span><span class="n">wspace</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">time_per_snapshot</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># Arbitrary</span>
+    <span class="n">super_ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span>  <span class="c1"># type: ignore</span>
+        <span class="n">super_spec</span><span class="p">,</span>
+        <span class="n">xticks</span><span class="o">=</span><span class="n">snapshot_times</span><span class="p">,</span>
+        <span class="n">xlim</span><span class="o">=</span><span class="p">(</span>
+            <span class="n">snapshot_times</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">time_per_snapshot</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="n">snapshot_times</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">time_per_snapshot</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">yticks</span><span class="o">=</span><span class="p">[],</span>
+    <span class="p">)</span>
+    <span class="n">super_ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time (</span><span class="si">{</span><span class="n">time_unit</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">labelpad</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+    <span class="n">super_ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_tick_params</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">spine_name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;top&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="s2">&quot;left&quot;</span><span class="p">):</span>
+        <span class="n">super_ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="n">spine_name</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">super_ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;bottom&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_linewidth</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="mutate_color">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.mutate_color">[docs]</a>
+<span class="k">def</span> <span class="nf">mutate_color</span><span class="p">(</span><span class="n">baseline_hsv</span><span class="p">):</span>
+    <span class="n">mutation</span> <span class="o">=</span> <span class="mf">0.1</span>
+    <span class="n">new_hsv</span> <span class="o">=</span> <span class="p">[(</span><span class="n">n</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">mutation</span><span class="p">,</span> <span class="n">mutation</span><span class="p">))</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">baseline_hsv</span><span class="p">]</span>
+    <span class="c1"># wrap hue around</span>
+    <span class="n">new_hsv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_hsv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">%</span> <span class="mi">1</span>
+    <span class="c1"># reflect saturation and value</span>
+    <span class="k">if</span> <span class="n">new_hsv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">new_hsv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">new_hsv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">new_hsv</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">new_hsv</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">new_hsv</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">new_hsv</span></div>
+
+
+
+<div class="viewcode-block" id="plot_agent">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.plot_agent">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_agent</span><span class="p">(</span>
+    <span class="n">ax</span><span class="p">,</span>
+    <span class="n">data</span><span class="p">,</span>
+    <span class="n">color</span><span class="p">,</span>
+    <span class="n">agent_shape</span><span class="p">,</span>
+    <span class="n">membrane_width</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">membrane_color</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+    <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot an agent</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ax: The axes to draw on.</span>
+<span class="sd">        data (dict): The agent data dictionary.</span>
+<span class="sd">        color (list): HSV color of agent body.</span>
+<span class="sd">        agent_shape (str): One of ``rectangle``, ``segment``, and ``circle``.</span>
+<span class="sd">        membrane_width (float): Width of drawn agent boundary.</span>
+<span class="sd">        membrane_color (list): RGB color of drawn agent boundary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;boundary&quot;</span><span class="p">):</span>
+        <span class="k">return</span>
+    <span class="n">x_center</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;location&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">y_center</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;location&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># get color, convert to rgb. Strings are already RGB</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">color</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">rgb</span> <span class="o">=</span> <span class="n">color</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rgb</span> <span class="o">=</span> <span class="n">hsv_to_rgb</span><span class="p">(</span><span class="n">color</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;rectangle&quot;</span><span class="p">:</span>
+        <span class="n">theta</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;angle&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">PI</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">+</span> <span class="mi">90</span>
+        <span class="p">)</span>  <span class="c1"># rotate 90 degrees to match field</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;length&quot;</span><span class="p">]</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+
+        <span class="c1"># get bottom left position</span>
+        <span class="n">x_offset</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">y_offset</span> <span class="o">=</span> <span class="n">length</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">theta_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="n">x_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span> <span class="o">-</span> <span class="n">y_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">x_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span> <span class="o">+</span> <span class="n">y_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x_center</span> <span class="o">-</span> <span class="n">dx</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y_center</span> <span class="o">-</span> <span class="n">dy</span>
+
+        <span class="c1"># Create a rectangle</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">Rectangle</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+            <span class="n">width</span><span class="p">,</span>
+            <span class="n">length</span><span class="p">,</span>
+            <span class="n">angle</span><span class="o">=</span><span class="n">theta</span><span class="p">,</span>
+            <span class="n">linewidth</span><span class="o">=</span><span class="n">membrane_width</span><span class="p">,</span>
+            <span class="n">edgecolor</span><span class="o">=</span><span class="n">membrane_color</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+            <span class="n">facecolor</span><span class="o">=</span><span class="n">rgb</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;segment&quot;</span><span class="p">:</span>
+        <span class="n">theta</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;angle&quot;</span><span class="p">]</span> <span class="o">/</span> <span class="n">PI</span> <span class="o">*</span> <span class="mi">180</span> <span class="o">+</span> <span class="mi">90</span>
+        <span class="p">)</span>  <span class="c1"># rotate 90 degrees to match field</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;length&quot;</span><span class="p">]</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+
+        <span class="n">radius</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+
+        <span class="c1"># get the two ends</span>
+        <span class="n">length_offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">radius</span>
+        <span class="n">theta_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
+        <span class="n">dx</span> <span class="o">=</span> <span class="o">-</span><span class="n">length_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span>
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">length_offset</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta_rad</span><span class="p">)</span>
+
+        <span class="n">x1</span> <span class="o">=</span> <span class="n">x_center</span> <span class="o">-</span> <span class="n">dx</span>
+        <span class="n">y1</span> <span class="o">=</span> <span class="n">y_center</span> <span class="o">-</span> <span class="n">dy</span>
+        <span class="n">x2</span> <span class="o">=</span> <span class="n">x_center</span> <span class="o">+</span> <span class="n">dx</span>
+        <span class="n">y2</span> <span class="o">=</span> <span class="n">y_center</span> <span class="o">+</span> <span class="n">dy</span>
+
+        <span class="c1"># segment plot</span>
+        <span class="n">membrane</span> <span class="o">=</span> <span class="n">LineWidthData</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">],</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">membrane_color</span><span class="p">,</span>
+            <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+            <span class="n">solid_capstyle</span><span class="o">=</span><span class="s2">&quot;round&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">LineWidthData</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">],</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">rgb</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+            <span class="n">linewidth</span><span class="o">=</span><span class="n">width</span> <span class="o">-</span> <span class="n">membrane_width</span><span class="p">,</span>
+            <span class="n">solid_capstyle</span><span class="o">=</span><span class="s2">&quot;round&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_line</span><span class="p">(</span><span class="n">membrane</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_line</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;circle&quot;</span><span class="p">:</span>
+        <span class="n">diameter</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">][</span><span class="s2">&quot;diameter&quot;</span><span class="p">]</span>
+
+        <span class="c1"># get bottom left position</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="n">diameter</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x_center</span> <span class="o">-</span> <span class="n">radius</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y_center</span> <span class="o">-</span> <span class="n">radius</span>
+
+        <span class="c1"># Create a circle</span>
+        <span class="n">circle</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">Circle</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+            <span class="n">radius</span><span class="p">,</span>
+            <span class="n">linewidth</span><span class="o">=</span><span class="n">membrane_width</span><span class="p">,</span>
+            <span class="n">edgecolor</span><span class="o">=</span><span class="n">membrane_color</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">circle</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="plot_agents">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.plot_agents">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_agents</span><span class="p">(</span>
+    <span class="n">ax</span><span class="p">,</span>
+    <span class="n">agents</span><span class="p">,</span>
+    <span class="n">agent_colors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">agent_shape</span><span class="o">=</span><span class="s2">&quot;segment&quot;</span><span class="p">,</span>
+    <span class="n">dead_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">membrane_width</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">membrane_color</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+    <span class="n">alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">highlight_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot agents.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ax: the axis for plot</span>
+<span class="sd">        agents (dict): a mapping from agent ID to that agent&#39;s data,</span>
+<span class="sd">            which should have keys ``location``, ``angle``, ``length``,</span>
+<span class="sd">            and ``width``.</span>
+<span class="sd">        agent_colors (dict): Mapping from agent ID to HSV color.</span>
+<span class="sd">        dead_color (list): List of 3 floats that define HSV color to use</span>
+<span class="sd">            for dead cells. Dead cells only get treated differently if</span>
+<span class="sd">            this is set.</span>
+<span class="sd">        membrane_width (float): Width of agent outline to draw.</span>
+<span class="sd">        membrane_color (list): List of 3 floats that define the RGB</span>
+<span class="sd">            color to use for agent outlines.</span>
+<span class="sd">        alpha: Alpha value for agents.</span>
+<span class="sd">        highlight_agent: Mapping of agent ID to `membrane_color` and</span>
+<span class="sd">            `membrane_width`. Useful for highlighting specific agents,</span>
+<span class="sd">            with rest using default `membrane_width` and `membrane_color`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">agent_colors</span><span class="p">:</span>
+        <span class="n">agent_colors</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">highlight_agent</span><span class="p">:</span>
+        <span class="n">highlight_agent</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">agent_data</span> <span class="ow">in</span> <span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">color</span> <span class="o">=</span> <span class="n">agent_colors</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="p">[</span><span class="n">DEFAULT_HUE</span><span class="p">]</span> <span class="o">+</span> <span class="n">DEFAULT_SV</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dead_color</span> <span class="ow">and</span> <span class="n">agent_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;boundary&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">agent_data</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dead&quot;</span><span class="p">):</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">dead_color</span>
+        <span class="k">if</span> <span class="n">agent_data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">highlight_agent</span><span class="p">:</span>
+                <span class="n">agent_membrane_width</span> <span class="o">=</span> <span class="n">highlight_agent</span><span class="p">[</span>
+                    <span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;membrane_width&#39;</span><span class="p">]</span>
+                <span class="n">agent_membrane_color</span> <span class="o">=</span> <span class="n">highlight_agent</span><span class="p">[</span>
+                    <span class="n">agent_id</span><span class="p">][</span><span class="s1">&#39;membrane_color&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">agent_membrane_width</span> <span class="o">=</span> <span class="n">membrane_width</span>
+                <span class="n">agent_membrane_color</span> <span class="o">=</span> <span class="n">membrane_color</span>
+            <span class="n">plot_agent</span><span class="p">(</span>
+                <span class="n">ax</span><span class="p">,</span>
+                <span class="n">agent_data</span><span class="p">,</span>
+                <span class="n">color</span><span class="p">,</span>
+                <span class="n">agent_shape</span><span class="p">,</span>
+                <span class="n">agent_membrane_width</span><span class="p">,</span>
+                <span class="n">agent_membrane_color</span><span class="p">,</span>
+                <span class="n">alpha</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">agents</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;1 agent&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">agents</span><span class="p">)</span><span class="si">}</span><span class="s2"> agents&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.1</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="color_phylogeny">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.color_phylogeny">[docs]</a>
+<span class="k">def</span> <span class="nf">color_phylogeny</span><span class="p">(</span><span class="n">ancestor_id</span><span class="p">,</span> <span class="n">phylogeny</span><span class="p">,</span> <span class="n">baseline_hsv</span><span class="p">,</span> <span class="n">phylogeny_colors</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    get colors for all descendants of the ancestor</span>
+<span class="sd">    through recursive calls to each generation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">phylogeny_colors</span><span class="p">:</span>
+        <span class="n">phylogeny_colors</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">phylogeny_colors</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">ancestor_id</span><span class="p">:</span> <span class="n">baseline_hsv</span><span class="p">})</span>
+    <span class="n">daughter_ids</span> <span class="o">=</span> <span class="n">phylogeny</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ancestor_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">daughter_ids</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">daughter_id</span> <span class="ow">in</span> <span class="n">daughter_ids</span><span class="p">:</span>
+            <span class="n">daughter_color</span> <span class="o">=</span> <span class="n">mutate_color</span><span class="p">(</span><span class="n">baseline_hsv</span><span class="p">)</span>
+            <span class="n">color_phylogeny</span><span class="p">(</span><span class="n">daughter_id</span><span class="p">,</span> <span class="n">phylogeny</span><span class="p">,</span> <span class="n">daughter_color</span><span class="p">,</span> <span class="n">phylogeny_colors</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">phylogeny_colors</span></div>
+
+
+
+<div class="viewcode-block" id="get_phylogeny_colors_from_names">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.get_phylogeny_colors_from_names">[docs]</a>
+<span class="k">def</span> <span class="nf">get_phylogeny_colors_from_names</span><span class="p">(</span><span class="n">agent_ids</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get agent colors using phlogeny saved in agent_ids</span>
+<span class="sd">    This assumes the names use daughter_phylogeny_id() from meta_division</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># make phylogeny with {mother_id: [daughter_1_id, daughter_2_id]}</span>
+    <span class="n">phylogeny</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent_id</span><span class="p">:</span> <span class="p">[]</span> <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">agent_ids</span><span class="p">}</span>
+    <span class="k">for</span> <span class="n">agent1</span><span class="p">,</span> <span class="n">agent2</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">agent_ids</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">agent1</span> <span class="o">==</span> <span class="n">agent2</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">phylogeny</span><span class="p">[</span><span class="n">agent1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">agent2</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">agent2</span> <span class="o">==</span> <span class="n">agent1</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="n">phylogeny</span><span class="p">[</span><span class="n">agent2</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">agent1</span><span class="p">)</span>
+
+    <span class="c1"># get initial ancestors</span>
+    <span class="n">daughters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">phylogeny</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="n">daughters</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">daughters</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">])</span>
+    <span class="n">mothers</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">phylogeny</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+    <span class="n">ancestors</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mothers</span> <span class="o">-</span> <span class="n">daughters</span><span class="p">)</span>
+
+    <span class="c1"># agent colors based on phylogeny</span>
+    <span class="n">agent_colors</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent_id</span><span class="p">:</span> <span class="p">[]</span> <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">agent_ids</span><span class="p">}</span>
+    <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">ancestors</span><span class="p">:</span>
+        <span class="n">hue</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">HUES</span><span class="p">)</span>  <span class="c1"># select random initial hue</span>
+        <span class="n">initial_color</span> <span class="o">=</span> <span class="p">[</span><span class="n">hue</span><span class="p">]</span> <span class="o">+</span> <span class="n">DEFAULT_SV</span>
+        <span class="n">agent_colors</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">color_phylogeny</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">phylogeny</span><span class="p">,</span> <span class="n">initial_color</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">agent_colors</span></div>
+
+
+
+<div class="viewcode-block" id="format_snapshot_data">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.format_snapshot_data">[docs]</a>
+<span class="k">def</span> <span class="nf">format_snapshot_data</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+    <span class="n">agents</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">time_data</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">agents</span><span class="p">[</span><span class="n">time</span><span class="p">]</span> <span class="o">=</span> <span class="n">time_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;agents&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">fields</span><span class="p">[</span><span class="n">time</span><span class="p">]</span> <span class="o">=</span> <span class="n">time_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fields&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="k">return</span> <span class="n">agents</span><span class="p">,</span> <span class="n">fields</span></div>
+
+
+
+<div class="viewcode-block" id="get_field_range">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.get_field_range">[docs]</a>
+<span class="k">def</span> <span class="nf">get_field_range</span><span class="p">(</span>
+    <span class="n">fields</span><span class="p">,</span>
+    <span class="n">time_vec</span><span class="p">,</span>
+    <span class="n">include_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">skip_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">min_pct</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+    <span class="n">max_pct</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">skip_fields</span><span class="p">:</span>
+        <span class="n">skip_fields</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">field_range</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">fields</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">include_fields</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">field_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="n">time_vec</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">field_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">include_fields</span><span class="p">)</span>
+
+        <span class="n">field_ids</span> <span class="o">-=</span> <span class="nb">set</span><span class="p">(</span><span class="n">skip_fields</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">field_id</span> <span class="ow">in</span> <span class="n">field_ids</span><span class="p">:</span>
+            <span class="n">field_min</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">field_data</span><span class="p">[</span><span class="n">field_id</span><span class="p">]))</span> <span class="o">*</span> <span class="n">min_pct</span> <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">field_data</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+            <span class="p">)</span>
+            <span class="n">field_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">field_data</span><span class="p">[</span><span class="n">field_id</span><span class="p">]))</span> <span class="o">*</span> <span class="n">max_pct</span> <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">field_data</span> <span class="ow">in</span> <span class="n">fields</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+            <span class="p">)</span>
+            <span class="n">field_range</span><span class="p">[</span><span class="n">field_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">field_min</span><span class="p">,</span> <span class="n">field_max</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">field_range</span></div>
+
+
+
+<div class="viewcode-block" id="get_agent_ids">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.get_agent_ids">[docs]</a>
+<span class="k">def</span> <span class="nf">get_agent_ids</span><span class="p">(</span><span class="n">agents</span><span class="p">):</span>
+    <span class="n">agent_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">time</span><span class="p">,</span> <span class="n">time_data</span> <span class="ow">in</span> <span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">current_agents</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">time_data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">agent_ids</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">current_agents</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">agent_ids</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_agent_colors">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.get_agent_colors">[docs]</a>
+<span class="k">def</span> <span class="nf">get_agent_colors</span><span class="p">(</span>
+    <span class="n">agents</span><span class="p">,</span>
+    <span class="n">phylogeny_names</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">agent_fill_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">agent_ids</span> <span class="o">=</span> <span class="n">get_agent_ids</span><span class="p">(</span><span class="n">agents</span><span class="p">)</span>
+    <span class="n">agent_colors</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">agents</span><span class="p">:</span>
+        <span class="c1"># set agent colors</span>
+        <span class="k">if</span> <span class="n">agent_fill_color</span><span class="p">:</span>
+            <span class="n">agent_colors</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent_id</span><span class="p">:</span> <span class="n">agent_fill_color</span> <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">agent_ids</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="n">phylogeny_names</span><span class="p">:</span>
+            <span class="n">agent_colors</span> <span class="o">=</span> <span class="n">get_phylogeny_colors_from_names</span><span class="p">(</span><span class="n">agent_ids</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">agent_colors</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="n">agent_ids</span><span class="p">:</span>
+                <span class="n">hue</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">HUES</span><span class="p">)</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="p">[</span><span class="n">hue</span><span class="p">]</span> <span class="o">+</span> <span class="n">DEFAULT_SV</span>
+                <span class="n">agent_colors</span><span class="p">[</span><span class="n">agent_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">color</span>
+    <span class="k">return</span> <span class="n">agent_colors</span></div>
+
+
+
+<div class="viewcode-block" id="plot_snapshots">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.plot_snapshots">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_snapshots</span><span class="p">(</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">agents</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">snapshot_times</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">agent_fill_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">agent_colors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">phylogeny_names</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">skip_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_fields</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">out_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;snapshots&quot;</span><span class="p">,</span>
+    <span class="n">min_pct</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+    <span class="n">max_pct</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot snapshots of the simulation over time</span>
+
+<span class="sd">    The snapshots depict the agents and environmental molecule</span>
+<span class="sd">    concentrations.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        data (dict): A dictionary with the following keys:</span>
+
+<span class="sd">            * **bounds** (:py:class:`tuple`): The dimensions of the</span>
+<span class="sd">              environment.</span>
+<span class="sd">            * **agents** (:py:class:`dict`): A mapping from times to</span>
+<span class="sd">              dictionaries of agent data at that timepoint. Agent data</span>
+<span class="sd">              dictionaries should have the same form as the hierarchy</span>
+<span class="sd">              tree rooted at ``agents``.</span>
+<span class="sd">            * **fields** (:py:class:`dict`): A mapping from times to</span>
+<span class="sd">              dictionaries of environmental field data at that</span>
+<span class="sd">              timepoint.  Field data dictionaries should have the same</span>
+<span class="sd">              form as the hierarchy tree rooted at ``fields``.</span>
+<span class="sd">            * **n_snapshots** (:py:class:`int`): Number of snapshots to</span>
+<span class="sd">              show per row (i.e. for each molecule). Defaults to 6.</span>
+<span class="sd">            * **phylogeny_names** (:py:class:`bool`): This selects agent</span>
+<span class="sd">              colors based on phylogenies seved in their names using</span>
+<span class="sd">              meta_division.py daughter_phylogeny_id()</span>
+<span class="sd">            * **skip_fields** (:py:class:`Iterable`): Keys of fields to</span>
+<span class="sd">              exclude from the plot. This takes priority over</span>
+<span class="sd">              ``include_fields``.</span>
+<span class="sd">            * **include_fields** (:py:class:`Iterable`): Keys of fields</span>
+<span class="sd">              to plot.</span>
+<span class="sd">            * **snapshot_times** (:py:class:`Iterable`): Times to plot</span>
+<span class="sd">              snapshots for. Defaults to None, in which case n_snapshots</span>
+<span class="sd">              is used.</span>
+<span class="sd">            * **out_dir** (:py:class:`str`): Output directory, which is</span>
+<span class="sd">              ``out`` by default.</span>
+<span class="sd">            * **filename** (:py:class:`str`): Base name of output file.</span>
+<span class="sd">              ``snapshots`` by default.</span>
+<span class="sd">            * **min_pct** (:py:class:`float`): Percent of minimum value</span>
+<span class="sd">              to use as minimum in colorbar (1 = 100%)</span>
+<span class="sd">            * **max_pct** (:py:class:`float`): Percent of maximum value</span>
+<span class="sd">              to use as maximum in colorbar (1 = 100%)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">agents</span><span class="p">:</span>
+        <span class="n">agents</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">fields</span><span class="p">:</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">skip_fields</span><span class="p">:</span>
+        <span class="n">skip_fields</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Strip units from bounds if present.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Quantity</span><span class="p">):</span>
+        <span class="n">bounds</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">bound</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span> <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">)</span>
+    <span class="c1"># time steps that will be used</span>
+    <span class="k">if</span> <span class="n">agents</span> <span class="ow">and</span> <span class="n">fields</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">agents</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span>
+            <span class="nb">list</span><span class="p">(</span><span class="n">fields</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="p">),</span> <span class="s2">&quot;agent and field times are different&quot;</span>
+        <span class="n">time_vec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">agents</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="n">agents</span><span class="p">:</span>
+        <span class="n">time_vec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">agents</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">elif</span> <span class="n">fields</span><span class="p">:</span>
+        <span class="n">time_vec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">fields</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">agents</span> <span class="o">=</span> <span class="p">{</span><span class="n">t</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">time_vec</span><span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No agents or field data&quot;</span><span class="p">)</span>
+
+    <span class="c1"># get fields id and range</span>
+    <span class="n">field_range</span> <span class="o">=</span> <span class="n">get_field_range</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">time_vec</span><span class="p">,</span> <span class="n">include_fields</span><span class="p">,</span> <span class="n">skip_fields</span><span class="p">,</span>
+        <span class="n">min_pct</span><span class="p">,</span> <span class="n">max_pct</span><span class="p">)</span>
+
+    <span class="c1"># get agent ids</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">agent_colors</span><span class="p">:</span>
+        <span class="n">agent_colors</span> <span class="o">=</span> <span class="n">get_agent_colors</span><span class="p">(</span><span class="n">agents</span><span class="p">,</span> <span class="n">phylogeny_names</span><span class="p">,</span> <span class="n">agent_fill_color</span><span class="p">)</span>
+
+    <span class="c1"># get time data</span>
+    <span class="k">if</span> <span class="n">snapshot_times</span><span class="p">:</span>
+        <span class="n">n_snapshots</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">snapshot_times</span><span class="p">)</span>
+        <span class="n">time_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_vec</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="k">for</span> <span class="n">time</span> <span class="ow">in</span> <span class="n">snapshot_times</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">time_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">time_vec</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_snapshots</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+            <span class="nb">int</span>
+        <span class="p">)</span>
+        <span class="n">snapshot_times</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">time_indices</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">make_snapshots_figure</span><span class="p">(</span>
+        <span class="n">agents</span><span class="o">=</span><span class="n">agents</span><span class="p">,</span>
+        <span class="n">agent_colors</span><span class="o">=</span><span class="n">agent_colors</span><span class="p">,</span>
+        <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span>
+        <span class="n">field_range</span><span class="o">=</span><span class="n">field_range</span><span class="p">,</span>
+        <span class="n">n_snapshots</span><span class="o">=</span><span class="n">n_snapshots</span><span class="p">,</span>
+        <span class="n">time_indices</span><span class="o">=</span><span class="n">time_indices</span><span class="p">,</span>
+        <span class="n">snapshot_times</span><span class="o">=</span><span class="n">snapshot_times</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
+        <span class="n">out_dir</span><span class="o">=</span><span class="n">out_dir</span><span class="p">,</span>
+        <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_snapshots_figure">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.make_snapshots_figure">[docs]</a>
+<span class="k">def</span> <span class="nf">make_snapshots_figure</span><span class="p">(</span>
+    <span class="n">agents</span><span class="p">,</span>
+    <span class="n">fields</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">n_snapshots</span><span class="p">,</span>
+    <span class="n">time_indices</span><span class="p">,</span>
+    <span class="n">snapshot_times</span><span class="p">,</span>
+    <span class="n">time_unit</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">,</span>
+    <span class="n">plot_width</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+    <span class="n">field_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">agent_colors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">dead_color</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+    <span class="n">membrane_width</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">membrane_color</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+    <span class="n">default_font_size</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span>
+    <span class="n">field_label_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+    <span class="n">agent_shape</span><span class="o">=</span><span class="s2">&quot;segment&quot;</span><span class="p">,</span>
+    <span class="n">agent_alpha</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">colorbar_decimals</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">show_timeline</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">scale_bar_length</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">scale_bar_color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
+    <span class="n">xlim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ylim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">min_color</span><span class="o">=</span><span class="s2">&quot;white&quot;</span><span class="p">,</span>
+    <span class="n">max_color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span>
+    <span class="n">out_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;snapshots&quot;</span><span class="p">,</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Args:</span>
+<span class="sd">        bounds (:py:class:`tuple`): The dimensions of the</span>
+<span class="sd">            environment.</span>
+<span class="sd">        field_label_size (:py:class:`float`): Font size of the</span>
+<span class="sd">            field label.</span>
+<span class="sd">        dead_color (:py:class:`list` of 3 :py:class:`float`):</span>
+<span class="sd">            Color for dead cells in HSV. Defaults to [0, 0, 0], which</span>
+<span class="sd">            is black.</span>
+<span class="sd">        default_font_size (:py:class:`float`): Font size for</span>
+<span class="sd">            titles and axis labels.</span>
+<span class="sd">        agent_shape (:py:class:`str`): the shape of the agents.</span>
+<span class="sd">            select from ``rectangle``, ``segment``</span>
+<span class="sd">        agent_alpha (:py:class:`float`): Alpha for agent</span>
+<span class="sd">            plots.</span>
+<span class="sd">        colorbar_decimals (:py:class:`int`): number of decimals in</span>
+<span class="sd">            colorbar.</span>
+<span class="sd">        scale_bar_length (:py:class:`float`): Length of scale</span>
+<span class="sd">            bar.  Defaults to 1 (in units of micrometers). If 0, no</span>
+<span class="sd">            bar plotted.</span>
+<span class="sd">        scale_bar_color (:py:class:`str`): Color of scale bar</span>
+<span class="sd">        xlim (:py:class:`tuple` of :py:class:`float`): Tuple</span>
+<span class="sd">            of lower and upper x-axis limits.</span>
+<span class="sd">        ylim (:py:class:`tuple` of :py:class:`float`): Tuple</span>
+<span class="sd">            of lower and upper y-axis limits.</span>
+<span class="sd">        min_color (any valid matplotlib color): Color for</span>
+<span class="sd">            minimum field values.</span>
+<span class="sd">        max_color (any valid matplotlib color): Color for</span>
+<span class="sd">            maximum field values.</span>
+<span class="sd">        out_dir (:py:class:`str`): Output directory, which is</span>
+<span class="sd">            ``out`` by default.</span>
+<span class="sd">        filename (:py:class:`str`): Base name of output file.</span>
+<span class="sd">            ``snapshots`` by default.</span>
+<span class="sd">        figsize (:py:class:`tuple`): Dimensions of figure in</span>
+<span class="sd">            inches (takes precedence over `plot_width`)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">edge_length_x</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">edge_length_y</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># make the figure</span>
+    <span class="n">field_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">field_range</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">n_rows</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">field_ids</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">n_cols</span> <span class="o">=</span> <span class="n">n_snapshots</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># one column for the colorbar</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">figsize</span><span class="p">:</span>
+        <span class="n">figsize</span> <span class="o">=</span> <span class="p">(</span><span class="n">plot_width</span> <span class="o">*</span> <span class="n">n_cols</span><span class="p">,</span> <span class="n">plot_width</span> <span class="o">*</span> <span class="n">n_rows</span><span class="p">)</span>
+    <span class="n">max_dpi</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="mi">2</span><span class="o">**</span><span class="mi">16</span> <span class="o">//</span> <span class="n">dim</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">figsize</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">max_dpi</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="n">n_rows</span><span class="p">,</span> <span class="n">n_cols</span><span class="p">,</span> <span class="n">wspace</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+    <span class="n">original_fontsize</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s2">&quot;font.size&quot;</span><span class="p">]</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;font.size&quot;</span><span class="p">:</span> <span class="n">default_font_size</span><span class="p">})</span>
+
+    <span class="c1"># Add time axis across subplots</span>
+    <span class="k">if</span> <span class="n">show_timeline</span><span class="p">:</span>
+        <span class="n">add_time_axis</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">n_rows</span><span class="p">,</span> <span class="n">n_cols</span><span class="p">,</span> <span class="n">n_snapshots</span><span class="p">,</span> <span class="n">snapshot_times</span><span class="p">,</span> <span class="n">time_unit</span><span class="p">)</span>
+
+    <span class="c1"># Make the colormap</span>
+    <span class="n">min_rgb</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">to_rgb</span><span class="p">(</span><span class="n">min_color</span><span class="p">)</span>
+    <span class="n">max_rgb</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">to_rgb</span><span class="p">(</span><span class="n">max_color</span><span class="p">)</span>
+    <span class="n">colors_dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;red&quot;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_rgb</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">min_rgb</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_rgb</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">max_rgb</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span>
+        <span class="p">],</span>
+        <span class="s2">&quot;green&quot;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_rgb</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">min_rgb</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_rgb</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">max_rgb</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+        <span class="p">],</span>
+        <span class="s2">&quot;blue&quot;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_rgb</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">min_rgb</span><span class="p">[</span><span class="mi">2</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_rgb</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">max_rgb</span><span class="p">[</span><span class="mi">2</span><span class="p">]],</span>
+        <span class="p">],</span>
+    <span class="p">}</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">LinearSegmentedColormap</span><span class="p">(</span>
+        <span class="s2">&quot;field&quot;</span><span class="p">,</span> <span class="n">segmentdata</span><span class="o">=</span><span class="n">colors_dict</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="mi">512</span>
+    <span class="p">)</span>
+
+    <span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;agents&quot;</span><span class="p">:</span> <span class="p">{},</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">field_ids</span><span class="p">:</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;fields&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">field_id</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">field_id</span> <span class="ow">in</span> <span class="n">field_ids</span><span class="p">}</span>
+    <span class="c1"># plot snapshot data in each subsequent column</span>
+    <span class="k">for</span> <span class="n">col_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">time_idx</span><span class="p">,</span> <span class="n">time</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">time_indices</span><span class="p">,</span> <span class="n">snapshot_times</span><span class="p">)):</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;agents&quot;</span><span class="p">][</span><span class="n">time</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">agents</span><span class="p">[</span><span class="n">time</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">field_ids</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">row_idx</span><span class="p">,</span> <span class="n">field_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">field_ids</span><span class="p">):</span>
+
+                <span class="n">ax</span> <span class="o">=</span> <span class="n">init_axes</span><span class="p">(</span>
+                    <span class="n">fig</span><span class="p">,</span>
+                    <span class="n">edge_length_x</span><span class="p">,</span>
+                    <span class="n">edge_length_y</span><span class="p">,</span>
+                    <span class="n">grid</span><span class="p">,</span>
+                    <span class="n">row_idx</span><span class="p">,</span>
+                    <span class="n">col_idx</span><span class="p">,</span>
+                    <span class="n">time</span><span class="p">,</span>
+                    <span class="n">field_id</span><span class="p">,</span>
+                    <span class="n">field_label_size</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span>
+                    <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span>
+                    <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">top</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">left</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">right</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="c1"># transpose field to align with agents</span>
+                <span class="n">field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="n">time</span><span class="p">][</span><span class="n">field_id</span><span class="p">]))</span>
+                <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="n">field_range</span><span class="p">[</span><span class="n">field_id</span><span class="p">]</span>
+                <span class="n">q1</span><span class="p">,</span> <span class="n">q2</span><span class="p">,</span> <span class="n">q3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="p">[</span><span class="mi">25</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">75</span><span class="p">])</span>
+                <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;fields&quot;</span><span class="p">][</span><span class="n">field_id</span><span class="p">][</span><span class="n">time</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">q1</span><span class="p">,</span> <span class="n">q2</span><span class="p">,</span> <span class="n">q3</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+                <span class="n">im</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span>
+                    <span class="n">field</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                    <span class="n">origin</span><span class="o">=</span><span class="s2">&quot;lower&quot;</span><span class="p">,</span>
+                    <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">edge_length_x</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">edge_length_y</span><span class="p">],</span>
+                    <span class="n">vmin</span><span class="o">=</span><span class="n">vmin</span><span class="p">,</span>
+                    <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span><span class="p">,</span>
+                    <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">agents</span><span class="p">:</span>
+                    <span class="n">agents_now</span> <span class="o">=</span> <span class="n">agents</span><span class="p">[</span><span class="n">time</span><span class="p">]</span>
+                    <span class="n">plot_agents</span><span class="p">(</span>
+                        <span class="n">ax</span><span class="p">,</span>
+                        <span class="n">agents_now</span><span class="p">,</span>
+                        <span class="n">agent_colors</span><span class="p">,</span>
+                        <span class="n">agent_shape</span><span class="o">=</span><span class="n">agent_shape</span><span class="p">,</span>
+                        <span class="n">dead_color</span><span class="o">=</span><span class="n">dead_color</span><span class="p">,</span>
+                        <span class="n">membrane_width</span><span class="o">=</span><span class="n">membrane_width</span><span class="p">,</span>
+                        <span class="n">membrane_color</span><span class="o">=</span><span class="n">membrane_color</span><span class="p">,</span>
+                        <span class="n">alpha</span><span class="o">=</span><span class="n">agent_alpha</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">*</span><span class="n">xlim</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">*</span><span class="n">ylim</span><span class="p">)</span>
+
+                <span class="c1"># colorbar in new column after final snapshot</span>
+                <span class="k">if</span> <span class="n">col_idx</span> <span class="o">==</span> <span class="n">n_snapshots</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">cbar_col</span> <span class="o">=</span> <span class="n">col_idx</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">grid</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">cbar_col</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">row_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Concentration</span><span class="se">\n</span><span class="s2">(mM)&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.08</span><span class="p">)</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">vmin</span> <span class="o">==</span> <span class="n">vmax</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">divider</span> <span class="o">=</span> <span class="n">make_axes_locatable</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+                    <span class="n">cax</span> <span class="o">=</span> <span class="n">divider</span><span class="o">.</span><span class="n">append_axes</span><span class="p">(</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;5%&quot;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+                    <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">cax</span><span class="o">=</span><span class="n">cax</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;%.</span><span class="si">{</span><span class="n">colorbar_decimals</span><span class="si">}</span><span class="s2">f&quot;</span><span class="p">)</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+                <span class="c1"># Scale bar in first snapshot of each row</span>
+                <span class="k">if</span> <span class="n">col_idx</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">scale_bar_length</span><span class="p">:</span>
+                    <span class="n">scale_bar</span> <span class="o">=</span> <span class="n">anchored_artists</span><span class="o">.</span><span class="n">AnchoredSizeBar</span><span class="p">(</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">transData</span><span class="p">,</span>
+                        <span class="n">scale_bar_length</span><span class="p">,</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scale_bar_length</span><span class="si">}</span><span class="s2"> μm&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;lower left&quot;</span><span class="p">,</span>
+                        <span class="n">color</span><span class="o">=</span><span class="n">scale_bar_color</span><span class="p">,</span>
+                        <span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">sep</span><span class="o">=</span><span class="n">scale_bar_length</span><span class="p">,</span>
+                        <span class="n">size_vertical</span><span class="o">=</span><span class="n">scale_bar_length</span> <span class="o">/</span> <span class="mi">20</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">scale_bar</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">row_idx</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">init_axes</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">grid</span><span class="p">,</span> <span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">agents</span><span class="p">:</span>
+                <span class="n">agents_now</span> <span class="o">=</span> <span class="n">agents</span><span class="p">[</span><span class="n">time</span><span class="p">]</span>
+                <span class="n">plot_agents</span><span class="p">(</span>
+                    <span class="n">ax</span><span class="p">,</span>
+                    <span class="n">agents_now</span><span class="p">,</span>
+                    <span class="n">agent_colors</span><span class="p">,</span>
+                    <span class="n">agent_shape</span><span class="o">=</span><span class="n">agent_shape</span><span class="p">,</span>
+                    <span class="n">dead_color</span><span class="o">=</span><span class="n">dead_color</span><span class="p">,</span>
+                    <span class="n">membrane_width</span><span class="o">=</span><span class="n">membrane_width</span><span class="p">,</span>
+                    <span class="n">membrane_color</span><span class="o">=</span><span class="n">membrane_color</span><span class="p">,</span>
+                    <span class="n">alpha</span><span class="o">=</span><span class="n">agent_alpha</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">*</span><span class="n">xlim</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">*</span><span class="n">ylim</span><span class="p">)</span>
+            <span class="c1"># Scale bar in first snapshot of each row</span>
+            <span class="k">if</span> <span class="n">col_idx</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">scale_bar_length</span><span class="p">:</span>
+                <span class="n">scale_bar</span> <span class="o">=</span> <span class="n">anchored_artists</span><span class="o">.</span><span class="n">AnchoredSizeBar</span><span class="p">(</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">transData</span><span class="p">,</span>
+                    <span class="n">scale_bar_length</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scale_bar_length</span><span class="si">}</span><span class="s2"> μm&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;lower left&quot;</span><span class="p">,</span>
+                    <span class="n">color</span><span class="o">=</span><span class="n">scale_bar_color</span><span class="p">,</span>
+                    <span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">sep</span><span class="o">=</span><span class="n">scale_bar_length</span><span class="p">,</span>
+                    <span class="n">size_vertical</span><span class="o">=</span><span class="n">scale_bar_length</span> <span class="o">/</span> <span class="mi">20</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">scale_bar</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;font.size&quot;</span><span class="p">:</span> <span class="n">original_fontsize</span><span class="p">})</span>
+    <span class="k">if</span> <span class="n">out_dir</span><span class="p">:</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fig</span></div>
+
+
+
+<div class="viewcode-block" id="plot_tags">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.plot_tags">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_tags</span><span class="p">(</span>
+    <span class="n">data</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">snapshot_times</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">agents</span><span class="p">,</span> <span class="n">fields</span> <span class="o">=</span> <span class="n">format_snapshot_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">time_vec</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">agents</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="c1"># get time data</span>
+    <span class="k">if</span> <span class="n">snapshot_times</span><span class="p">:</span>
+        <span class="n">n_snapshots</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">snapshot_times</span><span class="p">)</span>
+        <span class="n">time_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_vec</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">time</span><span class="p">)</span> <span class="k">for</span> <span class="n">time</span> <span class="ow">in</span> <span class="n">snapshot_times</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">time_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">time_vec</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_snapshots</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+            <span class="nb">int</span>
+        <span class="p">)</span>
+        <span class="n">snapshot_times</span> <span class="o">=</span> <span class="p">[</span><span class="n">time_vec</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">time_indices</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">make_tags_figure</span><span class="p">(</span>
+        <span class="n">agents</span><span class="o">=</span><span class="n">agents</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span><span class="p">,</span>
+        <span class="n">n_snapshots</span><span class="o">=</span><span class="n">n_snapshots</span><span class="p">,</span>
+        <span class="n">time_indices</span><span class="o">=</span><span class="n">time_indices</span><span class="p">,</span>
+        <span class="n">snapshot_times</span><span class="o">=</span><span class="n">snapshot_times</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_tag_ranges">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.get_tag_ranges">[docs]</a>
+<span class="k">def</span> <span class="nf">get_tag_ranges</span><span class="p">(</span>
+    <span class="n">agents</span><span class="p">,</span> <span class="n">tagged_molecules</span><span class="p">,</span> <span class="n">time_indices</span><span class="p">,</span> <span class="n">convert_to_concs</span><span class="p">,</span> <span class="n">tag_colors</span>
+<span class="p">):</span>
+    <span class="c1"># get tag ids and range</span>
+    <span class="n">tag_ranges</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">time_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">time</span><span class="p">,</span> <span class="n">time_data</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="n">time_idx</span> <span class="ow">in</span> <span class="n">time_indices</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">agent_data</span> <span class="ow">in</span> <span class="n">time_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">volume</span> <span class="o">=</span> <span class="n">agent_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;boundary&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;volume&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">tag_id</span> <span class="ow">in</span> <span class="n">tagged_molecules</span><span class="p">:</span>
+                    <span class="n">level</span> <span class="o">=</span> <span class="n">get_value_from_path</span><span class="p">(</span><span class="n">agent_data</span><span class="p">,</span> <span class="n">tag_id</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">level</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">convert_to_concs</span><span class="p">:</span>
+                        <span class="n">level</span> <span class="o">=</span> <span class="n">level</span> <span class="o">/</span> <span class="n">volume</span> <span class="k">if</span> <span class="n">volume</span> <span class="k">else</span> <span class="mi">0</span>
+                    <span class="k">if</span> <span class="n">tag_id</span> <span class="ow">in</span> <span class="n">tag_ranges</span><span class="p">:</span>
+                        <span class="n">tag_ranges</span><span class="p">[</span><span class="n">tag_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                            <span class="nb">min</span><span class="p">(</span><span class="n">tag_ranges</span><span class="p">[</span><span class="n">tag_id</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">level</span><span class="p">),</span>
+                            <span class="nb">max</span><span class="p">(</span><span class="n">tag_ranges</span><span class="p">[</span><span class="n">tag_id</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">level</span><span class="p">),</span>
+                        <span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># add new tag</span>
+                        <span class="n">tag_ranges</span><span class="p">[</span><span class="n">tag_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">level</span><span class="p">,</span> <span class="n">level</span><span class="p">]</span>
+
+                        <span class="c1"># select random initial hue</span>
+                        <span class="k">if</span> <span class="n">tag_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tag_colors</span><span class="p">:</span>
+                            <span class="n">hue</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">HUES</span><span class="p">)</span>
+                            <span class="n">tag_color</span> <span class="o">=</span> <span class="p">[</span><span class="n">hue</span><span class="p">]</span> <span class="o">+</span> <span class="n">FLOURESCENT_SV</span>
+                            <span class="n">tag_colors</span><span class="p">[</span><span class="n">tag_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">tag_color</span>
+    <span class="k">return</span> <span class="n">tag_ranges</span><span class="p">,</span> <span class="n">tag_colors</span></div>
+
+
+
+<div class="viewcode-block" id="make_tags_figure">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.snapshots.html#ecoli.plots.snapshots.make_tags_figure">[docs]</a>
+<span class="k">def</span> <span class="nf">make_tags_figure</span><span class="p">(</span>
+    <span class="n">agents</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">time_indices</span><span class="p">,</span>
+    <span class="n">snapshot_times</span><span class="p">,</span>
+    <span class="n">tag_ranges</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">tag_colors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">min_color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
+    <span class="n">agent_colors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">n_snapshots</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+    <span class="n">scale_bar_length</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">scale_bar_color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
+    <span class="n">show_timeline</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">show_colorbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">time_unit</span><span class="o">=</span><span class="s2">&quot;s&quot;</span><span class="p">,</span>
+    <span class="n">tagged_molecules</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">out_dir</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">filename</span><span class="o">=</span><span class="s2">&quot;tags&quot;</span><span class="p">,</span>
+    <span class="n">agent_shape</span><span class="o">=</span><span class="s2">&quot;segment&quot;</span><span class="p">,</span>
+    <span class="n">background_color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
+    <span class="n">colorbar_decimals</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">tag_path_name_map</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">tag_label_size</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">plot_width</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+    <span class="n">default_font_size</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span>
+    <span class="n">convert_to_concs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">membrane_width</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">membrane_color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">xlim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ylim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">highlight_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot snapshots of the simulation over time</span>
+
+<span class="sd">    The snapshots depict the agents and the levels of tagged molecules</span>
+<span class="sd">    in each agent by agent color intensity.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        data (dict): A dictionary with the following keys:</span>
+
+<span class="sd">            * **agents** (:py:class:`dict`): A mapping from times to</span>
+<span class="sd">              dictionaries of agent data at that timepoint. Agent data</span>
+<span class="sd">              dictionaries should have the same form as the hierarchy</span>
+<span class="sd">              tree rooted at ``agents``.</span>
+<span class="sd">            * **n_snapshots** (:py:class:`int`): Number of snapshots to</span>
+<span class="sd">              show per row (i.e. for each molecule). Defaults to 6.</span>
+<span class="sd">            * **out_dir** (:py:class:`str`): Output directory, which is</span>
+<span class="sd">              ``out`` by default.</span>
+<span class="sd">            * **filename** (:py:class:`str`): Base name of output file.</span>
+<span class="sd">              ``tags`` by default.</span>
+<span class="sd">            * **tagged_molecules** (:py:class:`typing.Iterable`): The</span>
+<span class="sd">              tagged molecules whose concentrations will be indicated by</span>
+<span class="sd">              agent color. Each molecule should be specified as a</span>
+<span class="sd">              :py:class:`tuple` of the path in the agent compartment</span>
+<span class="sd">              to where the molecule&#39;s count can be found, with the last</span>
+<span class="sd">              value being the molecule&#39;s count variable.</span>
+<span class="sd">            * **convert_to_concs** (:py:class:`bool`): if True, convert counts</span>
+<span class="sd">              to concentrations.</span>
+<span class="sd">            * **background_color** (:py:class:`str`): use matplotlib colors,</span>
+<span class="sd">              ``black`` by default</span>
+<span class="sd">            * **colorbar_decimals** (:py:class:`int`): number of decimals in</span>
+<span class="sd">              colorbar.</span>
+<span class="sd">            * **tag_label_size** (:py:class:`float`): The font size for</span>
+<span class="sd">              the tag name label</span>
+<span class="sd">            * **default_font_size** (:py:class:`float`): Font size for</span>
+<span class="sd">              titles and axis labels.</span>
+<span class="sd">            * **membrane_width** (:py:class:`float`): Width to use for</span>
+<span class="sd">                drawing agent edges.</span>
+<span class="sd">            * **membrane_color** (:py:class:`list`): RGB color to use</span>
+<span class="sd">                for drawing agent edges.</span>
+<span class="sd">            * **tag_colors** (:py:class:`dict`): Mapping from tag ID to</span>
+<span class="sd">                the HSV color to use for that tag as a list. Alternatively,</span>
+<span class="sd">                each tag ID is mapped to a dictionary containing the `cmp`</span>
+<span class="sd">                and `norm` keys with the :py:class:`matplotlib.colors.Colormap`</span>
+<span class="sd">                and the :py:class:`matplotlib.colors.Normalize` instance to use</span>
+<span class="sd">                for that tag. Using dictionaries will override ``min_color``</span>
+<span class="sd">            * **figsize** (:py:class:`tuple`): Dimensions of figure in</span>
+<span class="sd">                inches (takes precedence over `plot_width`)</span>
+<span class="sd">            * **highlight_agent** (:py:class:`dict`): Mapping of agent IDs to</span>
+<span class="sd">                `membrane_color` and `membrane_width`. Useful for highlighting</span>
+<span class="sd">                specific agents, with rest using default color / width</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">membrane_color</span> <span class="o">=</span> <span class="n">membrane_color</span> <span class="ow">or</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">agent_colors</span> <span class="o">=</span> <span class="n">agent_colors</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">tag_colors</span> <span class="o">=</span> <span class="n">tag_colors</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">tag_path_name_map</span> <span class="o">=</span> <span class="n">tag_path_name_map</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="n">tagged_molecules</span> <span class="o">=</span> <span class="n">tagged_molecules</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">tagged_molecules</span> <span class="o">==</span> <span class="p">[]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least one molecule must be tagged.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">tag_ranges</span><span class="p">:</span>
+        <span class="n">tag_ranges</span><span class="p">,</span> <span class="n">tag_colors</span> <span class="o">=</span> <span class="n">get_tag_ranges</span><span class="p">(</span>
+            <span class="n">agents</span><span class="p">,</span> <span class="n">tagged_molecules</span><span class="p">,</span> <span class="n">time_indices</span><span class="p">,</span> <span class="n">convert_to_concs</span><span class="p">,</span> <span class="n">tag_colors</span>
+        <span class="p">)</span>
+
+    <span class="c1"># get data</span>
+    <span class="n">edge_length_x</span><span class="p">,</span> <span class="n">edge_length_y</span> <span class="o">=</span> <span class="n">bounds</span>
+
+    <span class="c1"># make the figure</span>
+    <span class="n">n_rows</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tagged_molecules</span><span class="p">)</span>
+    <span class="n">n_cols</span> <span class="o">=</span> <span class="n">n_snapshots</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># one column for the colorbar</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">figsize</span><span class="p">:</span>
+        <span class="n">figsize</span> <span class="o">=</span> <span class="p">(</span><span class="n">plot_width</span> <span class="o">*</span> <span class="n">n_cols</span><span class="p">,</span> <span class="n">plot_width</span> <span class="o">*</span> <span class="n">n_rows</span><span class="p">)</span>
+    <span class="n">max_dpi</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="mi">2</span><span class="o">**</span><span class="mi">16</span> <span class="o">//</span> <span class="n">dim</span> <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">figsize</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">max_dpi</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">GridSpec</span><span class="p">(</span><span class="n">n_rows</span><span class="p">,</span> <span class="n">n_cols</span><span class="p">,</span> <span class="n">wspace</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+    <span class="n">original_fontsize</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s2">&quot;font.size&quot;</span><span class="p">]</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;font.size&quot;</span><span class="p">:</span> <span class="n">default_font_size</span><span class="p">})</span>
+
+    <span class="c1"># Add time axis across subplots</span>
+    <span class="k">if</span> <span class="n">show_timeline</span><span class="p">:</span>
+        <span class="n">add_time_axis</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">n_rows</span><span class="p">,</span> <span class="n">n_cols</span><span class="p">,</span> <span class="n">n_snapshots</span><span class="p">,</span> <span class="n">snapshot_times</span><span class="p">,</span> <span class="n">time_unit</span><span class="p">)</span>
+
+    <span class="c1"># plot tags</span>
+    <span class="k">for</span> <span class="n">row_idx</span><span class="p">,</span> <span class="n">tag_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tag_ranges</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="k">for</span> <span class="n">col_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">time_idx</span><span class="p">,</span> <span class="n">time</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">time_indices</span><span class="p">,</span> <span class="n">snapshot_times</span><span class="p">)):</span>
+            <span class="n">tag_name</span> <span class="o">=</span> <span class="n">tag_path_name_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tag_id</span><span class="p">,</span> <span class="n">tag_id</span><span class="p">)</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">init_axes</span><span class="p">(</span>
+                <span class="n">fig</span><span class="p">,</span>
+                <span class="n">edge_length_x</span><span class="p">,</span>
+                <span class="n">edge_length_y</span><span class="p">,</span>
+                <span class="n">grid</span><span class="p">,</span>
+                <span class="n">row_idx</span><span class="p">,</span>
+                <span class="n">col_idx</span><span class="p">,</span>
+                <span class="n">time</span><span class="p">,</span>
+                <span class="n">tag_name</span><span class="p">,</span>
+                <span class="n">tag_label_size</span><span class="p">,</span>
+                <span class="n">title_size</span><span class="o">=</span><span class="n">default_font_size</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span>
+                <span class="n">axis</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span>
+                <span class="n">which</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span>
+                <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">top</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">left</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">right</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_facecolor</span><span class="p">(</span><span class="n">background_color</span><span class="p">)</span>
+
+            <span class="c1"># update agent colors based on tag_level</span>
+            <span class="n">min_tag</span><span class="p">,</span> <span class="n">max_tag</span> <span class="o">=</span> <span class="n">tag_ranges</span><span class="p">[</span><span class="n">tag_id</span><span class="p">]</span>
+            <span class="n">agent_tag_colors</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tag_colors</span><span class="p">[</span><span class="n">tag_id</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">cmap</span> <span class="o">=</span> <span class="n">tag_colors</span><span class="p">[</span><span class="n">tag_id</span><span class="p">][</span><span class="s1">&#39;cmp&#39;</span><span class="p">]</span>
+                <span class="n">norm</span> <span class="o">=</span> <span class="n">tag_colors</span><span class="p">[</span><span class="n">tag_id</span><span class="p">][</span><span class="s1">&#39;norm&#39;</span><span class="p">]</span>
+                <span class="n">mappable</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tag_h</span><span class="p">,</span> <span class="n">tag_s</span><span class="p">,</span> <span class="n">tag_v</span> <span class="o">=</span> <span class="n">tag_colors</span><span class="p">[</span><span class="n">tag_id</span><span class="p">]</span>
+                <span class="n">tag_color_rgb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                    <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">hsv_to_rgb</span><span class="p">([</span><span class="n">tag_h</span><span class="p">,</span> <span class="n">tag_s</span><span class="p">,</span> <span class="n">tag_v</span><span class="p">])</span>
+                <span class="p">)</span>
+                <span class="n">min_color</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">to_rgb</span><span class="p">(</span><span class="n">min_color</span><span class="p">))</span>
+                <span class="n">cmap</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;row_</span><span class="si">{</span><span class="n">row_idx</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="n">min_color</span><span class="p">,</span> <span class="n">tag_color_rgb</span><span class="p">])</span>
+                <span class="n">norm</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="n">vmin</span><span class="o">=</span><span class="n">min_tag</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">max_tag</span><span class="p">)</span>
+                <span class="n">mappable</span> <span class="o">=</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">ScalarMappable</span><span class="p">(</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">agent_data</span> <span class="ow">in</span> <span class="n">agents</span><span class="p">[</span><span class="n">time</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># get current tag concentration, and determine color</span>
+                <span class="n">level</span> <span class="o">=</span> <span class="n">get_value_from_path</span><span class="p">(</span><span class="n">agent_data</span><span class="p">,</span> <span class="n">tag_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">convert_to_concs</span><span class="p">:</span>
+                    <span class="n">volume</span> <span class="o">=</span> <span class="n">agent_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;boundary&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;volume&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="n">level</span> <span class="o">=</span> <span class="n">level</span> <span class="o">/</span> <span class="n">volume</span> <span class="k">if</span> <span class="n">volume</span> <span class="k">else</span> <span class="mi">0</span>
+                <span class="n">agent_tag_colors</span><span class="p">[</span><span class="n">agent_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">rgb_to_hsv</span><span class="p">(</span>
+                    <span class="n">mappable</span><span class="o">.</span><span class="n">to_rgba</span><span class="p">(</span><span class="n">level</span><span class="p">)[:</span><span class="mi">3</span><span class="p">])</span>
+
+            <span class="n">agent_tag_colors</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">agent_colors</span><span class="p">)</span>
+            <span class="n">plot_agents</span><span class="p">(</span>
+                <span class="n">ax</span><span class="p">,</span>
+                <span class="n">agents</span><span class="p">[</span><span class="n">time</span><span class="p">],</span>
+                <span class="n">agent_tag_colors</span><span class="p">,</span>
+                <span class="n">agent_shape</span><span class="p">,</span>
+                <span class="kc">None</span><span class="p">,</span>
+                <span class="n">membrane_width</span><span class="p">,</span>
+                <span class="n">membrane_color</span><span class="p">,</span>
+                <span class="n">highlight_agent</span><span class="o">=</span><span class="n">highlight_agent</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">*</span><span class="n">xlim</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">*</span><span class="n">ylim</span><span class="p">)</span>
+
+            <span class="c1"># Scale bar in first snapshot of each row</span>
+            <span class="k">if</span> <span class="n">col_idx</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">scale_bar_length</span><span class="p">:</span>
+                <span class="n">scale_bar</span> <span class="o">=</span> <span class="n">anchored_artists</span><span class="o">.</span><span class="n">AnchoredSizeBar</span><span class="p">(</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">transData</span><span class="p">,</span>
+                    <span class="n">scale_bar_length</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scale_bar_length</span><span class="si">}</span><span class="s2"> μm&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;lower left&quot;</span><span class="p">,</span>
+                    <span class="n">color</span><span class="o">=</span><span class="n">scale_bar_color</span><span class="p">,</span>
+                    <span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">sep</span><span class="o">=</span><span class="n">scale_bar_length</span><span class="p">,</span>
+                    <span class="n">size_vertical</span><span class="o">=</span><span class="n">scale_bar_length</span> <span class="o">/</span> <span class="mi">20</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">scale_bar</span><span class="p">)</span>
+
+            <span class="c1"># colorbar in new column after final snapshot</span>
+            <span class="k">if</span> <span class="n">col_idx</span> <span class="o">==</span> <span class="n">n_snapshots</span> <span class="o">-</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">show_colorbar</span><span class="p">:</span>
+                <span class="n">cbar_col</span> <span class="o">=</span> <span class="n">col_idx</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">grid</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">cbar_col</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">row_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">convert_to_concs</span><span class="p">:</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Concentration</span><span class="se">\n</span><span class="s2">(counts/fL)&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">1.08</span><span class="p">)</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">min_tag</span> <span class="o">==</span> <span class="n">max_tag</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">divider</span> <span class="o">=</span> <span class="n">make_axes_locatable</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+                <span class="n">cax</span> <span class="o">=</span> <span class="n">divider</span><span class="o">.</span><span class="n">append_axes</span><span class="p">(</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="s2">&quot;5%&quot;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">mappable</span><span class="p">,</span> <span class="n">cax</span><span class="o">=</span><span class="n">cax</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;%.</span><span class="si">{</span><span class="n">colorbar_decimals</span><span class="si">}</span><span class="s2">f&quot;</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;font.size&quot;</span><span class="p">:</span> <span class="n">original_fontsize</span><span class="p">})</span>
+    <span class="k">if</span> <span class="n">out_dir</span><span class="p">:</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">wspace</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fig</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

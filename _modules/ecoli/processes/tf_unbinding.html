@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.tf_unbinding &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.tf_unbinding</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.tf_unbinding</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">TfUnbinding</span>
+<span class="sd">Unbind transcription factors from DNA to allow signaling processes before</span>
+<span class="sd">binding back to DNA.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Step</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="n">bulk_name_to_idx</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">numpy_schema</span>
+
+<span class="c1"># Register default topology for this process, associating it with process name</span>
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-tf-unbinding&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;bulk&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;promoters&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;promoter&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;global_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;global_time&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;next_update_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;next_update_time&quot;</span><span class="p">,</span> <span class="s2">&quot;tf_unbinding&quot;</span><span class="p">),</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TfUnbinding">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_unbinding.html#ecoli.processes.tf_unbinding.TfUnbinding">[docs]</a>
+<span class="k">class</span> <span class="nc">TfUnbinding</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; TfUnbinding &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span>
+    <span class="p">}</span>
+
+    <span class="c1"># Constructor</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;tf_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submass_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_indices&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_masses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;active_tf_masses&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Numpy indices for bulk molecules</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="TfUnbinding.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_unbinding.html#ecoli.processes.tf_unbinding.TfUnbinding.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;promoters&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;promoters&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+                
+            <span class="s1">&#39;global_time&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]},</span>
+            <span class="s1">&#39;next_update_time&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">},</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="TfUnbinding.update_condition">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_unbinding.html#ecoli.processes.tf_unbinding.TfUnbinding.update_condition">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        See :py:meth:`~.Requester.update_condition`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> updated at t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> instead of t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">. Decrease the &quot;</span>
+                    <span class="s2">&quot;timestep for the global clock process for more &quot;</span>
+                    <span class="s2">&quot;accurate timekeeping.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="TfUnbinding.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.tf_unbinding.html#ecoli.processes.tf_unbinding.TfUnbinding.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># At t=0, convert all strings to indices</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">tf</span> <span class="o">+</span> <span class="s1">&#39;[c]&#39;</span> <span class="k">for</span> <span class="n">tf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_ids</span><span class="p">],</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Get attributes of all promoters</span>
+        <span class="n">bound_TF</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;bound_TF&#39;</span><span class="p">])</span>
+        <span class="c1"># If there are no promoters, return immediately</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bound_TF</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+
+        <span class="c1"># Calculate number of bound TFs for each TF prior to changes</span>
+        <span class="n">n_bound_TF</span> <span class="o">=</span> <span class="n">bound_TF</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="c1"># Free all DNA-bound TFs into free active TFs</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_tf_idx</span><span class="p">,</span> <span class="n">n_bound_TF</span><span class="p">)],</span>
+            <span class="s1">&#39;promoters&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="c1"># Reset bound_TF attribute of promoters</span>
+                <span class="s1">&#39;set&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;bound_TF&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bound_TF</span><span class="p">)</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Add mass_diffs array to promoter submass</span>
+        <span class="n">mass_diffs</span> <span class="o">=</span> <span class="n">bound_TF</span> <span class="o">@</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">active_tf_masses</span>
+        <span class="k">for</span> <span class="n">submass</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submass_indices</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">][</span><span class="s1">&#39;set&#39;</span><span class="p">][</span><span class="n">submass</span><span class="p">]</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="n">submass</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">mass_diffs</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">]</span>
+
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">update</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Extracts concentrations for metabolites from various raw data files.</span>
+
+<span class="sd">Data in lempp2019.tsv was converted to a tsv from the file downloaded from</span>
+<span class="sd">Lempp et al. Systematic identification of metabolites controlling gene</span>
+<span class="sd">expression in E. coli. 2019.</span>
+<span class="sd">https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-019-12474-1/MediaObjects/41467_2019_12474_MOESM4_ESM.xlsx</span>
+
+<span class="sd">Data in park2016.tsv was converted to a tsv from supplementary table 5</span>
+<span class="sd">(manually removed some columns and rows) in the file downloaded from</span>
+<span class="sd">https://static-content.springer.com/esm/art%3A10.1038%2Fnchembio.2077/MediaObjects/41589_2016_BFnchembio2077_MOESM583_ESM.pdf</span>
+
+<span class="sd">Data in kochanowski2017*.tsv was converted to a tsv from EV table 6-1</span>
+<span class="sd">(absolute) and EV table 6-2 (relative) (manually removed some rows)</span>
+<span class="sd">from the file downloaded from</span>
+<span class="sd">https://www.embopress.org/action/downloadSupplement?doi=10.15252%2Fmsb.20167402&amp;file=msb167402-sup-0007-TableEV6.xlsx</span>
+
+<span class="sd">Data in sander2019.tsv is from Sander et al. Allosteric Feedback Inhibition</span>
+<span class="sd">Enables Robust Amino Acid Biosynthesis in E. coli by Enforcing Enzyme Overabundance.</span>
+<span class="sd">2019 Table S7 (tab &#39;Amino Acids&#39;) from</span>
+<span class="sd">https://ars.els-cdn.com/content/image/1-s2.0-S2405471218304794-mmc2.xlsx</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">IO</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span> <span class="nn">urllib</span> <span class="kn">import</span> <span class="n">request</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.io</span> <span class="kn">import</span> <span class="n">tsv</span>
+
+
+<span class="c1"># Directories</span>
+<span class="n">FILE_LOCATION</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+<span class="n">DATA_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">)</span>
+<span class="n">OUT_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s1">&#39;out&#39;</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">OUT_DIR</span><span class="p">):</span>
+	<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">OUT_DIR</span><span class="p">)</span>
+
+<span class="c1"># Files</span>
+<span class="n">LEMPP_INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s1">&#39;lempp2019.tsv&#39;</span><span class="p">)</span>
+<span class="n">PARK_INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s1">&#39;park2016.tsv&#39;</span><span class="p">)</span>
+<span class="n">KOCHANOWSKI_ABSOLUTE_INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s1">&#39;kochanowski2017absolute.tsv&#39;</span><span class="p">)</span>
+<span class="n">KOCHANOWSKI_RELATIVE_INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s1">&#39;kochanowski2017relative.tsv&#39;</span><span class="p">)</span>
+<span class="n">SANDER_INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">DATA_DIR</span><span class="p">,</span> <span class="s1">&#39;sander2019.tsv&#39;</span><span class="p">)</span>
+<span class="n">ABSOLUTE_OUTPUT_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">OUT_DIR</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">_concentrations.tsv&#39;</span><span class="p">)</span>
+<span class="n">RELATIVE_OUTPUT_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">OUT_DIR</span><span class="p">,</span> <span class="s1">&#39;relative_metabolite_concentrations.tsv&#39;</span><span class="p">)</span>
+
+<span class="c1"># Correct EcoCyc IDs to match the whole-cell model ID</span>
+<span class="n">ECOCYC_SUBSTITUTIONS</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">&#39;D-GLUCOSAMINE-6-P&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-13469&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;D-glucopyranose-6-phosphate&#39;</span><span class="p">:</span> <span class="s1">&#39;GLC-6-P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Isocitrate&#39;</span><span class="p">:</span> <span class="s1">&#39;THREO-DS-ISO-CITRATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;CPD-18719&#39;</span><span class="p">:</span> <span class="s1">&#39;FRUCTOSE-6P&#39;</span><span class="p">,</span>
+	<span class="p">}</span>
+
+<span class="c1"># Kochanowski mappings</span>
+<span class="c1">## Special media IDs used later (implemented in WCM)</span>
+<span class="n">GLC_MEDIA</span> <span class="o">=</span> <span class="s1">&#39;minimal&#39;</span>
+<span class="n">ACETATE_MEDIA</span> <span class="o">=</span> <span class="s1">&#39;minimal_acetate&#39;</span>
+<span class="n">SUCCINATE_MEDIA</span> <span class="o">=</span> <span class="s1">&#39;minimal_succinate&#39;</span>
+<span class="c1">## Map metabolite column to wcm IDs (not all could be matched)</span>
+<span class="n">KOCHANOWSKI_METABOLITES</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">&#39;Glycerol-P&#39;</span><span class="p">:</span> <span class="s1">&#39;GLYCEROL-3P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;F1P&#39;</span><span class="p">:</span> <span class="s1">&#39;FRU1P&#39;</span><span class="p">,</span>
+	<span class="c1"># &#39;Ga6P&#39;: &#39;&#39;,</span>
+	<span class="s1">&#39;G6P&#39;</span><span class="p">:</span> <span class="s1">&#39;GLC-6-P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;F6P&#39;</span><span class="p">:</span> <span class="s1">&#39;FRUCTOSE-6P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;FBP&#39;</span><span class="p">:</span> <span class="s1">&#39;FRUCTOSE-16-DIPHOSPHATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;DHAP&#39;</span><span class="p">:</span> <span class="s1">&#39;DIHYDROXY-ACETONE-PHOSPHATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;BPG&#39;</span><span class="p">:</span> <span class="s1">&#39;DPG&#39;</span><span class="p">,</span>
+	<span class="c1"># &#39;xPG&#39;: &#39;&#39;,</span>
+	<span class="s1">&#39;PEP&#39;</span><span class="p">:</span> <span class="s1">&#39;PHOSPHO-ENOL-PYRUVATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;6PG&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-2961&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Ru5P&#39;</span><span class="p">:</span> <span class="s1">&#39;RIBULOSE-5P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;R5P&#39;</span><span class="p">:</span> <span class="s1">&#39;RIBOSE-5P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Xu5P&#39;</span><span class="p">:</span> <span class="s1">&#39;XYLULOSE-5-PHOSPHATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;R1P&#39;</span><span class="p">:</span> <span class="s1">&#39;RIBOSE-1P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;S7P&#39;</span><span class="p">:</span> <span class="s1">&#39;D-SEDOHEPTULOSE-7-P&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Lactate&#39;</span><span class="p">:</span> <span class="s1">&#39;Lactate&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Acetyl-CoA&#39;</span><span class="p">:</span> <span class="s1">&#39;ACETYL-COA&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Citrate/Isocitrate&#39;</span><span class="p">:</span> <span class="s1">&#39;THREO-DS-ISO-CITRATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Aconitate&#39;</span><span class="p">:</span> <span class="s1">&#39;CIS-ACONITATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Alpha ketoglutarate&#39;</span><span class="p">:</span> <span class="s1">&#39;2-KETOGLUTARATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Succinate&#39;</span><span class="p">:</span> <span class="s1">&#39;SUC&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Fumarate&#39;</span><span class="p">:</span> <span class="s1">&#39;FUM&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Malate&#39;</span><span class="p">:</span> <span class="s1">&#39;MAL&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;AMP&#39;</span><span class="p">:</span> <span class="s1">&#39;AMP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;ADP&#39;</span><span class="p">:</span> <span class="s1">&#39;ADP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;ATP&#39;</span><span class="p">:</span> <span class="s1">&#39;ATP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;GMP&#39;</span><span class="p">:</span> <span class="s1">&#39;GMP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;GDP&#39;</span><span class="p">:</span> <span class="s1">&#39;GDP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;GTP&#39;</span><span class="p">:</span> <span class="s1">&#39;GTP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;IMP&#39;</span><span class="p">:</span> <span class="s1">&#39;IMP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;NAD&#39;</span><span class="p">:</span> <span class="s1">&#39;NAD&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;NADH&#39;</span><span class="p">:</span> <span class="s1">&#39;NADH&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;NADP&#39;</span><span class="p">:</span> <span class="s1">&#39;NADP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;NADPH&#39;</span><span class="p">:</span> <span class="s1">&#39;NADPH&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;GTTred&#39;</span><span class="p">:</span> <span class="s1">&#39;GLUTATHIONE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;GTTox&#39;</span><span class="p">:</span> <span class="s1">&#39;OXIDIZED-GLUTATHIONE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Asparagine&#39;</span><span class="p">:</span> <span class="s1">&#39;ASN&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Aspartate&#39;</span><span class="p">:</span> <span class="s1">&#39;L-ASPARTATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Arginine&#39;</span><span class="p">:</span> <span class="s1">&#39;ARG&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Glutamine&#39;</span><span class="p">:</span> <span class="s1">&#39;GLN&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Glutamate&#39;</span><span class="p">:</span> <span class="s1">&#39;GLT&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Phenylalanine&#39;</span><span class="p">:</span> <span class="s1">&#39;PHE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Tyrosine&#39;</span><span class="p">:</span> <span class="s1">&#39;TYR&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Panthothenate&#39;</span><span class="p">:</span> <span class="s1">&#39;PANTOTHENATE&#39;</span><span class="p">,</span>
+	<span class="c1"># &#39;UDP-hexose&#39;: &#39;&#39;,</span>
+	<span class="s1">&#39;cAMP&#39;</span><span class="p">:</span> <span class="s1">&#39;CAMP&#39;</span><span class="p">,</span>
+	<span class="p">}</span>
+<span class="n">SANDER_METABOLITES</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">&#39;Glutamic acid&#39;</span><span class="p">:</span> <span class="s1">&#39;GLT&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Glutamine&#39;</span><span class="p">:</span> <span class="s1">&#39;GLN&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Arginine&#39;</span><span class="p">:</span> <span class="s1">&#39;ARG&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Proline&#39;</span><span class="p">:</span> <span class="s1">&#39;PRO&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Aspartic acid&#39;</span><span class="p">:</span> <span class="s1">&#39;L-ASPARTATE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Asparagine&#39;</span><span class="p">:</span> <span class="s1">&#39;ASN&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Lysine&#39;</span><span class="p">:</span> <span class="s1">&#39;LYS&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Methionine&#39;</span><span class="p">:</span> <span class="s1">&#39;MET&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Threonine&#39;</span><span class="p">:</span> <span class="s1">&#39;THR&#39;</span><span class="p">,</span>
+	<span class="c1"># &#39;(Iso-)Leucine&#39;: &#39;&#39;,</span>
+	<span class="s1">&#39;Valine&#39;</span><span class="p">:</span> <span class="s1">&#39;VAL&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Alanine&#39;</span><span class="p">:</span> <span class="s1">&#39;L-ALPHA-ALANINE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Serine&#39;</span><span class="p">:</span> <span class="s1">&#39;SER&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Glycine&#39;</span><span class="p">:</span> <span class="s1">&#39;GLY&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Histidine&#39;</span><span class="p">:</span> <span class="s1">&#39;HIS&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Phenylalanine&#39;</span><span class="p">:</span> <span class="s1">&#39;PHE&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Tryptophan&#39;</span><span class="p">:</span> <span class="s1">&#39;TRP&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Tyrosine&#39;</span><span class="p">:</span> <span class="s1">&#39;TYR&#39;</span><span class="p">,</span>
+	<span class="p">}</span>
+<span class="c1">## Map media headers to wcm IDs (not all are currently valid media)</span>
+<span class="n">KOCHANOWSKI_MEDIA</span> <span class="o">=</span> <span class="p">{</span>
+	<span class="s1">&#39; M9 galactose 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_galactose&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 acetate 3.6g per L&#39;</span><span class="p">:</span> <span class="n">ACETATE_MEDIA</span><span class="p">,</span>
+	<span class="s1">&#39; M9 mannose 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_mannose&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 pyruvate 5g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_pyruvate&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 lactate 5g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_lactate&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 glycerol 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_glycerol&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 sorbitol 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_sorbitol&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 fructose 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_fructose&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 succinate 2g per L&#39;</span><span class="p">:</span> <span class="n">SUCCINATE_MEDIA</span><span class="p">,</span>
+	<span class="s1">&#39; M9 glcNAc 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_glcNAc&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 mannitol 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_mannitol&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 gluconate 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_gluconate&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 glucose 2g per L first experiment&#39;</span><span class="p">:</span> <span class="n">GLC_MEDIA</span><span class="p">,</span>  <span class="c1"># methods say 5 g/L</span>
+	<span class="s1">&#39; M9 G6P 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_g6p&#39;</span><span class="p">,</span>
+	<span class="s1">&#39; M9 glucose 2g per L plus CAA 2g per L&#39;</span><span class="p">:</span> <span class="s1">&#39;minimal_plus_cas_amino_acids&#39;</span><span class="p">,</span>
+	<span class="c1"># &#39; M9 glucose 0 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="c1"># &#39; M9 glucose 0.75 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="c1"># &#39; M9 glucose 1 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="c1"># &#39; M9 glucose 2 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="c1"># &#39; M9 glucose 4 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="c1"># &#39; M9 glucose 6 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="c1"># &#39; M9 glucose 8 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="c1"># &#39; M9 glucose 10 mueM Chloramphenicol&#39;: &#39;&#39;,</span>
+	<span class="p">}</span>
+
+
+<div class="viewcode-block" id="lempp_concentrations">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.lempp_concentrations">[docs]</a>
+<span class="k">def</span> <span class="nf">lempp_concentrations</span><span class="p">():</span>
+	<span class="c1"># type: () -&gt; Dict[str, float]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Load Lempp data for average metabolite concentrations at the first time point.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		met_conc: EcoCyc molecule ID to concentration (in M)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">met_conc</span> <span class="o">=</span> <span class="p">{}</span>
+
+	<span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">LEMPP_INPUT</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+		<span class="n">start_conc_col</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;intracellular concentrations (</span><span class="se">\xb5</span><span class="s1">M)&#39;</span><span class="p">)</span>
+		<span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>  <span class="c1"># discard line</span>
+		<span class="n">n_conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;t0&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)[</span><span class="n">start_conc_col</span><span class="p">:]])</span>
+		<span class="n">end_conc_col</span> <span class="o">=</span> <span class="n">start_conc_col</span> <span class="o">+</span> <span class="n">n_conc</span>
+		<span class="n">id_col</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;KEGG&#39;</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+			<span class="n">met_id</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">id_col</span><span class="p">]</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">start_conc_col</span><span class="p">:</span><span class="n">end_conc_col</span><span class="p">],</span> <span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+			<span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">_</span><span class="p">:</span>
+				<span class="c1"># Concentration data does not exist (&#39;-&#39;)</span>
+				<span class="k">continue</span>
+
+			<span class="c1"># Convert from uM to M concentration</span>
+			<span class="n">met_conc</span><span class="p">[</span><span class="n">met_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">conc</span> <span class="o">/</span> <span class="mf">1e6</span>
+
+	<span class="k">return</span> <span class="n">kegg_to_ecocyc</span><span class="p">(</span><span class="n">met_conc</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="park_concentrations">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.park_concentrations">[docs]</a>
+<span class="k">def</span> <span class="nf">park_concentrations</span><span class="p">():</span>
+	<span class="c1"># type: () -&gt; Dict[str, float]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Load Park data for reported metabolite concentrations.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		met_conc: EcoCyc molecule ID to concentration (in M)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">met_conc</span> <span class="o">=</span> <span class="p">{}</span>
+
+	<span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">PARK_INPUT</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+		<span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>  <span class="c1"># discard line</span>
+		<span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+		<span class="n">id_col</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;KEGG ID&#39;</span><span class="p">)</span>
+		<span class="n">conc_col</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;E. coli&#39;</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+			<span class="n">met_id</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">id_col</span><span class="p">]</span>
+			<span class="k">try</span><span class="p">:</span>
+				<span class="n">conc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">conc_col</span><span class="p">])</span>
+			<span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">_</span><span class="p">:</span>
+				<span class="c1"># Concentration data does not exist (&#39;-&#39;)</span>
+				<span class="k">continue</span>
+
+			<span class="n">met_conc</span><span class="p">[</span><span class="n">met_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">conc</span>
+
+	<span class="k">return</span> <span class="n">kegg_to_ecocyc</span><span class="p">(</span><span class="n">met_conc</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load_kochanowski">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.load_kochanowski">[docs]</a>
+<span class="k">def</span> <span class="nf">load_kochanowski</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+	<span class="c1"># type: (str) -&gt; Tuple[Dict[str, np.ndarray], np.ndarray]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Load Kochanowski data (absolute or relative).</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		filename: path to file to load</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		met_conc: WCM ID to concentration (absolute or relative)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">met_conc</span> <span class="o">=</span> <span class="p">{}</span>
+
+	<span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+		<span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>  <span class="c1"># discard line</span>
+		<span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>
+		<span class="n">valid_conditions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">h</span> <span class="ow">in</span> <span class="n">KOCHANOWSKI_MEDIA</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">headers</span><span class="p">])</span>
+		<span class="n">condition_headers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">KOCHANOWSKI_MEDIA</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">headers</span><span class="p">])[</span><span class="n">valid_conditions</span><span class="p">]</span>
+		<span class="n">met_col</span> <span class="o">=</span> <span class="mi">0</span>
+
+		<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+			<span class="n">met_id</span> <span class="o">=</span> <span class="n">KOCHANOWSKI_METABOLITES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">met_col</span><span class="p">])</span>
+			<span class="k">if</span> <span class="n">met_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="k">continue</span>
+
+			<span class="n">conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="nb">float</span><span class="p">)[</span><span class="n">valid_conditions</span><span class="p">]</span>
+			<span class="n">met_conc</span><span class="p">[</span><span class="n">met_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">conc</span>
+			<span class="n">conc</span><span class="p">[</span><span class="n">conc</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+	<span class="k">return</span> <span class="n">met_conc</span><span class="p">,</span> <span class="n">condition_headers</span></div>
+
+
+<div class="viewcode-block" id="kochanowski_concentrations">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.kochanowski_concentrations">[docs]</a>
+<span class="k">def</span> <span class="nf">kochanowski_concentrations</span><span class="p">():</span>
+	<span class="c1"># type: () -&gt; Dict[str, float]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Load absolute Kochanowski concentration data in the glucose condition.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		met_conc: WCM ID to concentration (in M)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">raw_data</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">load_kochanowski</span><span class="p">(</span><span class="n">KOCHANOWSKI_ABSOLUTE_INPUT</span><span class="p">)</span>
+	<span class="n">glc_col</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">headers</span> <span class="o">==</span> <span class="n">GLC_MEDIA</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+	<span class="n">met_conc</span> <span class="o">=</span> <span class="p">{}</span>
+	<span class="k">for</span> <span class="n">met</span><span class="p">,</span> <span class="n">conc</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+		<span class="n">conc_in_glc</span> <span class="o">=</span> <span class="n">conc</span><span class="p">[</span><span class="n">glc_col</span><span class="p">]</span>
+		<span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">conc_in_glc</span><span class="p">):</span>
+			<span class="n">met_conc</span><span class="p">[</span><span class="n">met</span><span class="p">]</span> <span class="o">=</span> <span class="n">conc_in_glc</span> <span class="o">/</span> <span class="mi">1000</span>  <span class="c1"># convert mM to M</span>
+
+	<span class="k">return</span> <span class="n">met_conc</span></div>
+
+
+<div class="viewcode-block" id="sander_concentrations">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.sander_concentrations">[docs]</a>
+<span class="k">def</span> <span class="nf">sander_concentrations</span><span class="p">():</span>
+	<span class="c1"># type: () -&gt; Dict[str, float]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Load Sander data for amino acid concentrations.</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		met_conc: WCM ID to concentration (in M)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">met_conc</span> <span class="o">=</span> <span class="p">{}</span>
+
+	<span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">SANDER_INPUT</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+		<span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>  <span class="c1"># discard line</span>
+		<span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>  <span class="c1"># discard line</span>
+		<span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+		<span class="n">id_col</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span>
+		<span class="n">conc_col</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;WT&#39;</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+			<span class="n">met_id</span> <span class="o">=</span> <span class="n">SANDER_METABOLITES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">id_col</span><span class="p">])</span>
+			<span class="k">if</span> <span class="n">met_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="k">continue</span>
+
+			<span class="n">met_conc</span><span class="p">[</span><span class="n">met_id</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">conc_col</span><span class="p">])</span> <span class="o">/</span> <span class="mi">1000</span>  <span class="c1"># convert mM to M</span>
+
+	<span class="k">return</span> <span class="n">met_conc</span></div>
+
+
+<div class="viewcode-block" id="kegg_to_ecocyc">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.kegg_to_ecocyc">[docs]</a>
+<span class="k">def</span> <span class="nf">kegg_to_ecocyc</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+	<span class="c1"># type: (Dict[str, Any]) -&gt; Dict[str, Any]</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Convert a dictionary with KEGG ID keys to a dictionary with EcoCyc ID keys.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		data: dictionary to convert KEGG molecule IDs to EcoCyc IDs</span>
+
+<span class="sd">	Returns:</span>
+<span class="sd">		new_data: new dictionary with EcoCyc IDs</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">kegg_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+	<span class="n">mapping</span> <span class="o">=</span> <span class="p">{}</span>
+	<span class="n">id_type</span> <span class="o">=</span> <span class="s1">&#39;Kegg:&#39;</span>
+	<span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;https://websvc.biocyc.org/ECOLI/foreignid?ids=&#39;</span>
+	<span class="n">ids</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;</span><span class="si">{}{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">id_type</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">kegg_ids</span><span class="p">])</span>
+
+	<span class="n">u</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span> <span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">url</span> <span class="o">+</span> <span class="n">ids</span><span class="p">))</span>  <span class="c1"># type &quot;addinfourl&quot;?</span>
+	<span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+
+	<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+			<span class="n">mol_id</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">id_type</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+			<span class="n">ecocyc_id</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+			<span class="n">mapping</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">ECOCYC_SUBSTITUTIONS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ecocyc_id</span><span class="p">,</span> <span class="n">ecocyc_id</span><span class="p">)</span>
+
+	<span class="n">new_data</span> <span class="o">=</span> <span class="p">{</span><span class="n">mapping</span><span class="p">[</span><span class="n">m</span><span class="p">]:</span> <span class="n">c</span> <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">mapping</span><span class="p">}</span>
+
+	<span class="k">return</span> <span class="n">new_data</span></div>
+
+
+<div class="viewcode-block" id="save_concentrations">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.save_concentrations">[docs]</a>
+<span class="k">def</span> <span class="nf">save_concentrations</span><span class="p">(</span><span class="n">conc</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+	<span class="c1"># type: (Dict[str, float], str) -&gt; None</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Save EcoCyc ID concentrations to a file.</span>
+
+<span class="sd">	Args:</span>
+<span class="sd">		conc: ID to concentration (in M)</span>
+<span class="sd">		label: column and filename dataset label (author)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">output</span> <span class="o">=</span> <span class="n">ABSOLUTE_OUTPUT_FILE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">label</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+	<span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">writer</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+		<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Metabolite&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> Concentration (units.mol/units.L)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">label</span><span class="p">)])</span>
+
+		<span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">conc</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">m</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{:.2e}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;e+0&#39;</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;e-0&#39;</span><span class="p">,</span> <span class="s1">&#39;e-&#39;</span><span class="p">)])</span></div>
+
+
+<div class="viewcode-block" id="save_kochanowski_relative_changes">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.html#reconstruction.ecoli.scripts.metabolite_concentrations.convert_to_flat.save_kochanowski_relative_changes">[docs]</a>
+<span class="k">def</span> <span class="nf">save_kochanowski_relative_changes</span><span class="p">():</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Convert relative Kochanowski concentration data to wcm IDs for all conditions.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+
+	<span class="n">met_conc</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">load_kochanowski</span><span class="p">(</span><span class="n">KOCHANOWSKI_RELATIVE_INPUT</span><span class="p">)</span>
+
+	<span class="c1"># Reorder output to put most interesting conditions first</span>
+	<span class="n">first_headers</span> <span class="o">=</span> <span class="p">[</span><span class="n">GLC_MEDIA</span><span class="p">,</span> <span class="n">ACETATE_MEDIA</span><span class="p">,</span> <span class="n">SUCCINATE_MEDIA</span><span class="p">]</span>
+	<span class="n">reordered_headers</span> <span class="o">=</span> <span class="n">first_headers</span> <span class="o">+</span> <span class="p">[</span><span class="n">h</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">headers</span> <span class="k">if</span> <span class="n">h</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">first_headers</span><span class="p">]</span>
+	<span class="n">reordered_indexing</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">headers</span> <span class="o">==</span> <span class="n">h</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">reordered_headers</span><span class="p">])</span>
+
+	<span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">RELATIVE_OUTPUT_FILE</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+		<span class="n">writer</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">quotechar</span><span class="o">=</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="n">lineterminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+		<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;# Created with </span><span class="si">{}</span><span class="s1"> on </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">),</span> <span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">())])</span>
+		<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Metabolite&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">reordered_headers</span><span class="p">)</span>
+
+		<span class="k">for</span> <span class="n">met</span><span class="p">,</span> <span class="n">changes</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">met_conc</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+			<span class="n">data</span> <span class="o">=</span> <span class="p">[</span>
+				<span class="n">change</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">change</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;NaN&#39;</span>
+				<span class="k">for</span> <span class="n">change</span> <span class="ow">in</span> <span class="n">changes</span><span class="p">[</span><span class="n">reordered_indexing</span><span class="p">]</span>
+			<span class="p">]</span>
+			<span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;&quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">met</span><span class="p">)]</span> <span class="o">+</span> <span class="n">data</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+	<span class="c1"># Lempp 2019</span>
+	<span class="n">lempp</span> <span class="o">=</span> <span class="n">lempp_concentrations</span><span class="p">()</span>
+	<span class="n">save_concentrations</span><span class="p">(</span><span class="n">lempp</span><span class="p">,</span> <span class="s1">&#39;Lempp&#39;</span><span class="p">)</span>
+
+	<span class="c1"># Park 2016</span>
+	<span class="n">park</span> <span class="o">=</span> <span class="n">park_concentrations</span><span class="p">()</span>
+	<span class="n">save_concentrations</span><span class="p">(</span><span class="n">park</span><span class="p">,</span> <span class="s1">&#39;Park&#39;</span><span class="p">)</span>
+
+	<span class="c1"># Kochanowski 2017</span>
+	<span class="n">kochanowski</span> <span class="o">=</span> <span class="n">kochanowski_concentrations</span><span class="p">()</span>
+	<span class="n">save_concentrations</span><span class="p">(</span><span class="n">kochanowski</span><span class="p">,</span> <span class="s1">&#39;Kochanowski&#39;</span><span class="p">)</span>
+	<span class="n">save_kochanowski_relative_changes</span><span class="p">()</span>
+
+	<span class="c1"># Sander 2019</span>
+	<span class="n">sander</span> <span class="o">=</span> <span class="n">sander_concentrations</span><span class="p">()</span>
+	<span class="n">save_concentrations</span><span class="p">(</span><span class="n">sander</span><span class="p">,</span> <span class="s1">&#39;Sander&#39;</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

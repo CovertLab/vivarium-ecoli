@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.plots.blame &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.plots.blame</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.plots.blame</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.colors</span> <span class="k">as</span> <span class="nn">colors</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.experiments.ecoli_master_sim</span> <span class="kn">import</span> <span class="n">EcoliSim</span><span class="p">,</span> <span class="n">CONFIG_DIR_PATH</span>
+<span class="kn">from</span> <span class="nn">ecoli.plots.blame_utils</span> <span class="kn">import</span> <span class="n">get_bulk_processes</span>
+
+<div class="viewcode-block" id="blame_plot">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame.html#ecoli.plots.blame.blame_plot">[docs]</a>
+<span class="k">def</span> <span class="nf">blame_plot</span><span class="p">(</span><span class="n">data</span><span class="p">,</span>
+               <span class="n">topology</span><span class="p">,</span>
+               <span class="n">bulk_ids</span><span class="p">,</span>
+               <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;out/ecoli_sim/blame.png&#39;</span><span class="p">,</span>
+               <span class="n">selected_molecules</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">selected_processes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">highlight_molecules</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">label_values</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">color_normalize</span><span class="o">=</span><span class="s2">&quot;n&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given data from a simulation with logged updates (e.g. by running from CLI with --log_updates flag set),</span>
+<span class="sd">    generates a heatmap where the columns are processes, rows are molecules, and</span>
+<span class="sd">    cell colors reflect the average rate of change in a molecule over the whole simulation</span>
+<span class="sd">    due to a particular process.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data: Data from a logged ecoli simulation.</span>
+<span class="sd">        topology: Topology of logged ecoli simulation (e.g. sim.ecoli_experiment.topology).</span>
+<span class="sd">        bulk_ids: Array of bulk IDs in correct order (can get from initial_state).</span>
+<span class="sd">        filename: The file to save the plot to. To skip writing to file, set this to None.</span>
+<span class="sd">        selected_molecules: if not None, restricts to the specified molecules.</span>
+<span class="sd">        selected_processes: if not None, restricts to the specified processes.</span>
+<span class="sd">        highlight_molecules: A collection of molecules to highlight in red (or None).</span>
+<span class="sd">        label_values: Whether to numerically label the heatmap cells with their values.</span>
+<span class="sd">        color_normalize: whether to normalize values within (p)rocesses, (m)olecules, or (n)either.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        matplotlib axes and figure.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="s1">&#39;log_update&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Missing log_update in data; did you run simulation without logged updates?&quot;</span><span class="p">)</span>
+
+    <span class="n">max_t</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">included_procs</span><span class="p">,</span> <span class="n">plot_data</span> <span class="o">=</span> <span class="n">extract_bulk</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">get_bulk_processes</span><span class="p">(</span><span class="n">topology</span><span class="p">),</span> <span class="n">bulk_ids</span><span class="p">)</span>
+    <span class="n">plot_data</span> <span class="o">=</span> <span class="n">plot_data</span> <span class="o">/</span> <span class="n">max_t</span>  <span class="c1"># convert counts to average rate</span>
+
+    <span class="c1"># restrict to selected molecules and processes</span>
+    <span class="k">if</span> <span class="n">selected_molecules</span><span class="p">:</span>
+        <span class="n">plot_data</span> <span class="o">=</span> <span class="n">plot_data</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">,</span> <span class="n">selected_molecules</span><span class="p">),</span> <span class="p">:]</span>
+
+    <span class="k">if</span> <span class="n">selected_processes</span><span class="p">:</span>
+        <span class="n">plot_data</span> <span class="o">=</span> <span class="n">plot_data</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">included_procs</span><span class="p">,</span> <span class="n">selected_processes</span><span class="p">)]</span>
+
+    <span class="c1"># exclude zero-change molecules</span>
+    <span class="n">nonzero_mols</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">plot_data</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
+    <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">bulk_ids</span><span class="p">[</span><span class="n">nonzero_mols</span><span class="p">]</span>
+    <span class="n">plot_data</span> <span class="o">=</span> <span class="n">plot_data</span><span class="p">[</span><span class="n">nonzero_mols</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="c1"># sort molecules by sum of absolute changes</span>
+    <span class="n">sorted_mol_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">plot_data</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">bulk_ids</span><span class="p">[</span><span class="n">sorted_mol_ids</span><span class="p">]</span>
+    <span class="n">plot_data</span> <span class="o">=</span> <span class="n">plot_data</span><span class="p">[</span><span class="n">sorted_mol_ids</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="n">n_molecules</span> <span class="o">=</span> <span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">n_processes</span> <span class="o">=</span> <span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>
+                            <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;height_ratios&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">n_processes</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                                         <span class="s1">&#39;width_ratios&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">n_molecules</span><span class="p">,</span> <span class="mi">1</span><span class="p">]})</span>
+
+    <span class="p">((</span><span class="n">main_ax</span><span class="p">,</span> <span class="n">molecules_total_ax</span><span class="p">),</span>
+     <span class="p">(</span><span class="n">process_total_ax</span><span class="p">,</span> <span class="n">total_total_ax</span><span class="p">))</span> <span class="o">=</span> <span class="n">axs</span>
+
+    <span class="c1"># Normalization within rows (molecules) or columns (processes)</span>
+    <span class="n">color_normalize</span> <span class="o">=</span> <span class="n">color_normalize</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">normalize_settings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;p&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s1">&#39;processes&#39;</span><span class="p">,</span> <span class="s2">&quot;cols&quot;</span><span class="p">),</span>
+                          <span class="s1">&#39;m&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s1">&#39;molecules&#39;</span><span class="p">,</span> <span class="s2">&quot;rows&quot;</span><span class="p">),</span>
+                          <span class="s1">&#39;n&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)}</span>
+    <span class="n">norm_str</span><span class="p">,</span> <span class="n">within</span> <span class="o">=</span> <span class="n">normalize_settings</span><span class="p">[</span><span class="n">color_normalize</span><span class="p">]</span>
+
+    <span class="n">title</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Average Change (#mol/sec) in Bulk due to each Process over </span><span class="si">{</span><span class="n">max_t</span><span class="si">}</span><span class="s2"> seconds</span><span class="se">\n</span><span class="s2">&quot;</span>
+             <span class="sa">f</span><span class="s2">&quot;(non-zero only, logarithmic color scale</span><span class="si">{</span><span class="sa">f</span><span class="s1">&#39; normalizing within </span><span class="si">{</span><span class="n">norm_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">norm_str</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">selected_molecules</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_molecules</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="mi">10</span><span class="p">,</span> <span class="p">(</span><span class="n">n_processes</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span> <span class="o">/</span> <span class="mi">5</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span>  <span class="c1"># Make margins larger</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_molecules</span> <span class="o">+</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="n">n_processes</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span> <span class="o">/</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="n">main_ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="o">-</span><span class="n">plot_data</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;seismic&#39;</span><span class="p">),</span>
+                   <span class="n">norm</span><span class="o">=</span><span class="n">DivergingNormalize</span><span class="p">(</span><span class="n">within</span><span class="o">=</span><span class="n">within</span><span class="p">))</span>
+
+    <span class="c1"># plot totals</span>
+    <span class="n">process_total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">molecules_total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">total_total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+
+    <span class="n">process_total_ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="o">-</span><span class="n">process_total</span><span class="p">,</span>
+                            <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;seismic&#39;</span><span class="p">),</span>
+                            <span class="n">norm</span><span class="o">=</span><span class="n">DivergingNormalize</span><span class="p">())</span>
+    <span class="n">molecules_total_ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="o">-</span><span class="n">molecules_total</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                              <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;seismic&#39;</span><span class="p">),</span>
+                              <span class="n">norm</span><span class="o">=</span><span class="n">DivergingNormalize</span><span class="p">())</span>
+
+    <span class="n">total_total_ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="o">-</span><span class="n">total_total</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;seismic&#39;</span><span class="p">),</span> <span class="n">norm</span><span class="o">=</span><span class="n">SignNormalize</span><span class="p">())</span>
+
+    <span class="c1"># show and rename ticks</span>
+    <span class="n">process_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">included_procs</span><span class="p">]</span>
+
+    <span class="n">main_ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="n">main_ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">main_ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">process_labels</span><span class="p">)</span>
+    <span class="n">main_ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">)</span>
+
+    <span class="n">molecules_total_ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">molecules_total_ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="n">molecules_total_ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">([</span><span class="s1">&#39;TOTAL&#39;</span><span class="p">])</span>
+    <span class="n">molecules_total_ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">)</span>
+
+    <span class="n">process_total_ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="n">process_total_ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">process_total_ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">process_labels</span><span class="p">)</span>
+    <span class="n">process_total_ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">([</span><span class="s1">&#39;TOTAL&#39;</span><span class="p">])</span>
+
+    <span class="n">total_total_ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">total_total_ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">total_total_ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">([</span><span class="s1">&#39;TOTAL&#39;</span><span class="p">])</span>
+    <span class="n">total_total_ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">([</span><span class="s1">&#39;TOTAL&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Put process ticks labels on correct sides</span>
+    <span class="n">reposition_ticks</span><span class="p">(</span><span class="n">main_ax</span><span class="p">,</span> <span class="s2">&quot;top&quot;</span><span class="p">,</span> <span class="s2">&quot;left&quot;</span><span class="p">)</span>
+    <span class="n">reposition_ticks</span><span class="p">(</span><span class="n">molecules_total_ax</span><span class="p">,</span> <span class="s2">&quot;top&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">)</span>
+    <span class="n">reposition_ticks</span><span class="p">(</span><span class="n">total_total_ax</span><span class="p">,</span> <span class="s2">&quot;bottom&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Highlight selected molecules</span>
+    <span class="k">if</span> <span class="n">highlight_molecules</span><span class="p">:</span>
+        <span class="n">highlight_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">,</span> <span class="n">highlight_molecules</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">highlight_idx</span><span class="p">:</span>
+            <span class="n">main_ax</span><span class="o">.</span><span class="n">get_yticklabels</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+            <span class="n">molecules_total_ax</span><span class="o">.</span><span class="n">get_yticklabels</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_color</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Label cells with numeric values</span>
+    <span class="k">if</span> <span class="n">label_values</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">plot_data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">main_ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">sign_str</span><span class="p">(</span><span class="n">plot_data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">])</span><span class="si">}{</span><span class="n">plot_data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">]</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">/s&#39;</span><span class="p">,</span>
+                                 <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">)</span>
+
+            <span class="n">val</span> <span class="o">=</span> <span class="n">molecules_total</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">val</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">molecules_total_ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">sign_str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}{</span><span class="n">val</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">/s&#39;</span><span class="p">,</span>
+                                        <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">plot_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">process_total</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">val</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">process_total_ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">sign_str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}{</span><span class="n">val</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">/s&#39;</span><span class="p">,</span>
+                                      <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">)</span>
+
+        <span class="n">total_total_ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">sign_str</span><span class="p">(</span><span class="n">total_total</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">])</span><span class="si">}{</span><span class="n">total_total</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s1">.2f</span><span class="si">}</span><span class="s1">/s&#39;</span><span class="p">,</span>
+                            <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;w&quot;</span><span class="p">)</span>
+
+    <span class="n">main_ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">filename</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">axs</span><span class="p">,</span> <span class="n">fig</span></div>
+
+
+
+<div class="viewcode-block" id="extract_bulk">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame.html#ecoli.plots.blame.extract_bulk">[docs]</a>
+<span class="k">def</span> <span class="nf">extract_bulk</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">bulk_processes</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns bulk updates in form of the array collected_data</span>
+<span class="sd">    with dimensions (n_bulk_mols x n_processes), where n_processes</span>
+<span class="sd">    is given by the keys that are shared by bulk_processes and</span>
+<span class="sd">    data[&#39;log_update&#39;]. Shared processes are also returned in order.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">included_procs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;log_update&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">bulk_processes</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">collected_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">included_procs</span><span class="p">)))</span>
+    <span class="c1"># Apply bulk updates to a fake bulk count array </span>
+    <span class="c1"># and retrieve final deltas for each process</span>
+    <span class="n">fake_bulk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bulk_ids</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">proc_idx</span><span class="p">,</span> <span class="n">process</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">included_procs</span><span class="p">):</span>
+        <span class="n">updates</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;log_update&#39;</span><span class="p">][</span><span class="n">process</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="n">updates</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">port</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bulk_processes</span><span class="p">[</span><span class="n">process</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="k">for</span> <span class="n">update</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">[</span><span class="n">port</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">bulk_update</span> <span class="ow">in</span> <span class="n">update</span><span class="p">:</span>
+                    <span class="n">fake_bulk</span><span class="p">[</span><span class="n">bulk_update</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">bulk_update</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">collected_data</span><span class="p">[:,</span> <span class="n">proc_idx</span><span class="p">]</span> <span class="o">+=</span> <span class="n">fake_bulk</span>
+                <span class="n">fake_bulk</span><span class="p">[:]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">included_procs</span><span class="p">,</span> <span class="n">collected_data</span></div>
+
+
+
+<div class="viewcode-block" id="SignNormalize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame.html#ecoli.plots.blame.SignNormalize">[docs]</a>
+<span class="k">class</span> <span class="nc">SignNormalize</span><span class="p">(</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">clip</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span></div>
+
+
+
+<div class="viewcode-block" id="DivergingNormalize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame.html#ecoli.plots.blame.DivergingNormalize">[docs]</a>
+<span class="k">class</span> <span class="nc">DivergingNormalize</span><span class="p">(</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">within</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform_log</span> <span class="o">=</span> <span class="n">transform_log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">within</span> <span class="o">=</span> <span class="n">within</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count_data</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">diverging_color_normalize</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+            <span class="c1"># rescale logarithmically</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform_log</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">])</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">])</span>
+
+            <span class="c1"># bring to [-1, 1]</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">data</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/=</span> <span class="o">-</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">data</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/=</span> <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+            <span class="c1"># scale to [0, 1]</span>
+            <span class="n">data</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">data</span> <span class="o">/=</span> <span class="mi">2</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">within</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">diverging_color_normalize</span><span class="p">(</span><span class="n">count_data</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">within</span> <span class="o">==</span> <span class="s2">&quot;rows&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="n">diverging_color_normalize</span><span class="p">(</span><span class="n">count_data</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">within</span> <span class="o">==</span> <span class="s2">&quot;cols&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">diverging_color_normalize</span><span class="p">(</span><span class="n">count_data</span><span class="p">[:,</span> <span class="n">col</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">count_data</span></div>
+
+
+
+<div class="viewcode-block" id="sign_str">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame.html#ecoli.plots.blame.sign_str">[docs]</a>
+<span class="k">def</span> <span class="nf">sign_str</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;-&#39;</span> <span class="k">if</span> <span class="n">val</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="s1">&#39;+&#39;</span></div>
+
+
+
+<div class="viewcode-block" id="reposition_ticks">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame.html#ecoli.plots.blame.reposition_ticks">[docs]</a>
+<span class="k">def</span> <span class="nf">reposition_ticks</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s2">&quot;bottom&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s2">&quot;top&quot;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">tick_top</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_label_position</span><span class="p">(</span><span class="s1">&#39;top&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">x</span> <span class="o">==</span> <span class="s2">&quot;bottom&quot;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">tick_bottom</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_label_position</span><span class="p">(</span><span class="s1">&#39;bottom&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> is not a valid place for x-ticks&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">y</span> <span class="o">==</span> <span class="s2">&quot;left&quot;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">tick_left</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_label_position</span><span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">y</span> <span class="o">==</span> <span class="s2">&quot;right&quot;</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">tick_right</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_label_position</span><span class="p">(</span><span class="s1">&#39;right&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">y</span><span class="si">}</span><span class="s2"> is not a valid place for y-ticks&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="idx_array_from">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.plots.blame.html#ecoli.plots.blame.idx_array_from">[docs]</a>
+<span class="k">def</span> <span class="nf">idx_array_from</span><span class="p">(</span><span class="n">dictionary</span><span class="p">):</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">idx</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">values</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">test_blame</span><span class="p">():</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">EcoliSim</span><span class="o">.</span><span class="n">from_file</span><span class="p">()</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">EcoliSim</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">CONFIG_DIR_PATH</span> <span class="o">+</span> <span class="s2">&quot;/test_configs/test_blame.json&quot;</span><span class="p">))</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">build_ecoli</span><span class="p">()</span>
+    <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">generated_initial_state</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">][</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">query</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">]}</span>
+
+    <span class="c1"># TODO: Adapt this code to work with new Numpy update format</span>
+    <span class="n">blame_plot</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">ecoli_experiment</span><span class="o">.</span><span class="n">topology</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">],</span> <span class="n">bulk_ids</span><span class="p">,</span>
+               <span class="s1">&#39;out/ecoli_sim/blame_test.png&#39;</span><span class="p">,</span>
+               <span class="n">highlight_molecules</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;PD00413[c]&#39;</span><span class="p">,</span> <span class="s1">&#39;PHOR-CPLX[c]&#39;</span><span class="p">])</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">test_blame</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

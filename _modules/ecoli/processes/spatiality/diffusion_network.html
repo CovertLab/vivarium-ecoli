@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.spatiality.diffusion_network &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.spatiality.diffusion_network</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.spatiality.diffusion_network</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">=================</span>
+<span class="sd">Diffusion Network</span>
+<span class="sd">=================</span>
+
+<span class="sd">``DiffusionNetwork`` models Brownian diffusion using a network of nodes</span>
+<span class="sd">and edges. Each node acts as a cellular compartment and each edge connects</span>
+<span class="sd">those compartments, indicating where diffusion can occur.</span>
+
+<span class="sd">This :term:`process class` models diffusion based off of Fick&#39;s law.</span>
+<span class="sd">The following equation is used:</span>
+
+<span class="sd">* Diffusion: :math:`\\frac{dc}{dt} = \\frac{DA}{V} * \\frac{dc}{dx}`</span>
+
+<span class="sd"> * :math:`D`: Diffusion constant</span>
+<span class="sd"> * :math:`A`: Cross-sectional area of edge</span>
+<span class="sd"> * :math:`V`: Volume of node</span>
+
+<span class="sd">This diffusion equation is solved using implicit Euler to derive a</span>
+<span class="sd">matrix, M, that updates the concentration, c(t), on each timestep.</span>
+
+<span class="sd">* Concentration update: :math:`c_{t+1} = M^{-1} * c_{t}`</span>
+
+<span class="sd">This process takes in molecular weights in order to solve for</span>
+<span class="sd">molecule hydrodynamic radii, which is it turn used to solve for</span>
+<span class="sd">diffusion constants. These calculations assume that all</span>
+<span class="sd">molecules are spherical proteins. For more information on how</span>
+<span class="sd">this is done, see ``calculate_rp_from_mw`` and</span>
+<span class="sd">``compute_diffusion_constants_from_rp``.  However, if a</span>
+<span class="sd">molecule radius is known, it can be passed in as ``radii``.</span>
+<span class="sd">Similarly, if the diffusion constant is known, it can be passed</span>
+<span class="sd">in as a property of an edge as ``diffusion_constants``.</span>
+
+<span class="sd">.. note::</span>
+<span class="sd"> This model treats all molecule classes as concentrations and is</span>
+<span class="sd"> a deterministic solution. This model should only be used when there</span>
+<span class="sd"> is a sufficient number of molecules such that they can be treated</span>
+<span class="sd"> deterministically.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">scipy.constants</span>
+
+<span class="kn">from</span> <span class="nn">iteround</span> <span class="kn">import</span> <span class="n">saferound</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.composition</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">simulate_process</span><span class="p">,</span>
+    <span class="n">PROCESS_OUT_DIR</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;diffusion_network&#39;</span>
+
+<div class="viewcode-block" id="DiffusionNetwork">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.DiffusionNetwork">[docs]</a>
+<span class="k">class</span> <span class="nc">DiffusionNetwork</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Models diffusion between a network of connected nodes.</span>
+
+<span class="sd">    :term:`Ports`:</span>
+<span class="sd">    </span>
+<span class="sd">    * **nodes**: Expects a :term:`store` which is a dict of node names</span>
+<span class="sd">      (the keys of the dict) to a dict, which has the key value</span>
+<span class="sd">      pairs for ``length``, ``volume``, and ``molecules``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parameters: A dictionary of configuration options.</span>
+<span class="sd">            The following configuration options may be provided:</span>
+
+<span class="sd">            * **nodes** (:py:class:`list`): A list of node names.</span>
+<span class="sd">            * **edges** (:py:class:`dict`): Maps edge</span>
+<span class="sd">              names (the keys of the dict) to a dict (the values of</span>
+<span class="sd">              the dict), which must include the key-value pairs of</span>
+<span class="sd">              ``nodes`` to a list of nodes each edge connects, and</span>
+<span class="sd">              ``cross_sectional_area`` to the area of that edge.</span>
+<span class="sd">              Additionally, known diffusion constants can be</span>
+<span class="sd">              included as ``diffusion_constants`` in units of</span>
+<span class="sd">              um^2/s, and edge-specific scaling of the diffusion</span>
+<span class="sd">              constants can be included as,</span>
+<span class="sd">              ``diffusion_scaling_constant``.</span>
+<span class="sd">            * **mw** (:py:class:`dict`): Maps from</span>
+<span class="sd">              names of molecules (the keys of the dict) to their</span>
+<span class="sd">              molecular weights in units of fg (the values of the dict).</span>
+<span class="sd">            * **mesh_size** (:py:class:`float`): Mesh size in units of nm.</span>
+<span class="sd">            * **time_step** (:py:class:`float`): The time step used in</span>
+<span class="sd">              units of s.</span>
+<span class="sd">            * **radii** (:py:class:`dict`): Maps from molecule names</span>
+<span class="sd">              of molecules (the keys of the dict) to their known</span>
+<span class="sd">              hydrodynamic radii in units of nm (the values of the dict).</span>
+<span class="sd">              This is an optional parameter.</span>
+<span class="sd">            * **temp** (:py:class:`float`): Temperature of experiment</span>
+<span class="sd">              in units of K. This is an optional parameter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;edges&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;mw&#39;</span><span class="p">:</span> <span class="p">{},</span>   <span class="c1"># in fg</span>
+        <span class="s1">&#39;mesh_size&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>    <span class="c1"># in nm</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>     <span class="c1"># in s</span>
+        <span class="s1">&#39;radii&#39;</span><span class="p">:</span> <span class="p">{},</span>        <span class="c1"># nm</span>
+        <span class="s1">&#39;temp&#39;</span><span class="p">:</span> <span class="mf">310.15</span><span class="p">,</span>     <span class="c1"># in K</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;edges&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mw&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mw&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mesh_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mesh_size&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">radii</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;radii&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;temp&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remainder</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">)))</span>
+
+        <span class="c1"># get molecule radii by molecular weights</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rp</span> <span class="o">=</span> <span class="n">calculate_rp_from_mw</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mw</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">radii</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rp</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">))</span> <span class="o">==</span> <span class="n">mol_id</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">r</span>
+
+        <span class="c1"># get diffusion constants per molecule</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diffusion_constants</span> <span class="o">=</span> <span class="n">compute_diffusion_constants_from_rp</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mesh_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">temp</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DiffusionNetwork.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.DiffusionNetwork.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dynamically constructs ports -- one port for each node in ``DiffusionNetwork.parameters[&#39;nodes&#39;]``.</span>
+<span class="sd">        Each node has variables ``volume``, ``length``, and a ``molecules`` dict with molecule names mapped</span>
+<span class="sd">        to their counts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node_id</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;*&#39;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                        <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;accumulate&#39;</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">},</span>
+            <span class="p">}</span> <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">]</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">schema</span></div>
+
+
+<div class="viewcode-block" id="DiffusionNetwork.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.DiffusionNetwork.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">])</span>
+
+        <span class="c1"># construct M matrix based off of graph, all edges assumed bidirectional</span>
+        <span class="k">for</span> <span class="n">edge_id</span><span class="p">,</span> <span class="n">edge</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">node_index_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">==</span> <span class="n">edge</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">node_index_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">==</span> <span class="n">edge</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">cross_sectional_area</span> <span class="o">=</span> <span class="n">edge</span><span class="p">[</span><span class="s1">&#39;cross_sectional_area&#39;</span><span class="p">]</span>
+            <span class="n">vol_1</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="n">edge</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]][</span><span class="s1">&#39;volume&#39;</span><span class="p">]</span>
+            <span class="n">vol_2</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="n">edge</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]][</span><span class="s1">&#39;volume&#39;</span><span class="p">]</span>
+            <span class="n">dx</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="n">edge</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">state</span><span class="p">[</span><span class="n">edge</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]][</span><span class="s1">&#39;length&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">diffusion_constants</span> <span class="o">=</span> <span class="n">array_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diffusion_constants</span><span class="p">[</span><span class="n">edge_id</span><span class="p">])</span>
+            <span class="n">alpha</span> <span class="o">=</span> <span class="n">diffusion_constants</span> <span class="o">*</span> <span class="p">(</span><span class="n">cross_sectional_area</span> <span class="o">/</span> <span class="n">dx</span><span class="p">)</span> <span class="o">*</span> <span class="n">timestep</span>
+            <span class="n">M</span><span class="p">[:,</span> <span class="n">node_index_1</span><span class="p">,</span> <span class="n">node_index_1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">alpha</span> <span class="o">/</span> <span class="n">vol_1</span>
+            <span class="n">M</span><span class="p">[:,</span> <span class="n">node_index_2</span><span class="p">,</span> <span class="n">node_index_2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">alpha</span> <span class="o">/</span> <span class="n">vol_2</span>
+            <span class="n">M</span><span class="p">[:,</span> <span class="n">node_index_1</span><span class="p">,</span> <span class="n">node_index_2</span><span class="p">]</span> <span class="o">-=</span> <span class="n">alpha</span> <span class="o">/</span> <span class="n">vol_1</span>
+            <span class="n">M</span><span class="p">[:,</span> <span class="n">node_index_2</span><span class="p">,</span> <span class="n">node_index_1</span><span class="p">]</span> <span class="o">-=</span> <span class="n">alpha</span> <span class="o">/</span> <span class="n">vol_2</span>
+
+        <span class="c1"># Calculates final concentration after one timestep</span>
+        <span class="n">c_initial</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">array_from</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">]),</span>
+                         <span class="n">array_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mw</span><span class="p">))</span> <span class="o">/</span> <span class="n">state</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]</span>
+             <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">state</span><span class="p">])</span>
+        <span class="n">c_final</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">c_initial</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+                              <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">M</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="c1"># Calculates final counts</span>
+        <span class="n">volumes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">state</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">state</span><span class="p">])</span>
+        <span class="n">count_initial</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">array_from</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="n">node</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])</span>
+                                    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">state</span><span class="p">])</span>
+        <span class="n">count_final_unrounded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">node</span> <span class="o">*</span> <span class="n">volumes</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                       <span class="n">array_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mw</span><span class="p">))</span>
+             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">c_final</span><span class="p">)])</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">remainder</span>
+        <span class="n">count_final</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">saferound</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span>
+                                  <span class="n">count_final_unrounded</span><span class="o">.</span><span class="n">T</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="c1"># Keeps track of remainder after rounding counts to integers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remainder</span> <span class="o">=</span> <span class="n">count_final_unrounded</span> <span class="o">-</span> <span class="n">count_final</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">count_final</span><span class="p">,</span> <span class="n">count_initial</span><span class="p">)</span>
+
+        <span class="c1"># Ensures conservation of molecules</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">count_initial</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">count_final</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))),</span> <span class="s1">&#39;Molecule count is not conserved&#39;</span>
+
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node_id</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="n">array_to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span><span class="p">,</span>
+                                      <span class="n">delta</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">==</span>
+                                                     <span class="n">node_id</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)),</span>
+            <span class="p">}</span> <span class="k">for</span> <span class="n">node_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">update</span></div>
+
+
+<div class="viewcode-block" id="DiffusionNetwork.calculate_request">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.DiffusionNetwork.calculate_request">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{}</span></div>
+</div>
+
+
+
+<span class="c1"># TODO(vivarium): change this to multiple tests and add asserts</span>
+<span class="k">def</span> <span class="nf">test_diffusion_network_process</span><span class="p">(</span><span class="n">out_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># initialize the process by passing parameters</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">1E6</span><span class="p">)</span>
+    <span class="n">molecule_ids</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">19.6</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)]</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">,</span> <span class="s1">&#39;nucleoid&#39;</span><span class="p">,</span> <span class="s1">&#39;cytosol_rear&#39;</span><span class="p">],</span>
+        <span class="s1">&#39;edges&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;1&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">,</span> <span class="s1">&#39;nucleoid&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;cross_sectional_area&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">0.3</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;mesh&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;2&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">,</span> <span class="s1">&#39;cytosol_rear&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;cross_sectional_area&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">0.3</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;mesh&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;3&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;nodes&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">,</span> <span class="s1">&#39;cytosol_rear&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;cross_sectional_area&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">0.3</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="p">},</span>
+
+        <span class="s1">&#39;mw&#39;</span><span class="p">:</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)):</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">19.6</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)},</span>
+        <span class="s1">&#39;mesh_size&#39;</span><span class="p">:</span> <span class="mi">50</span><span class="p">,</span>
+        <span class="s1">&#39;radii&#39;</span><span class="p">:</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)):</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">19.6</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)},</span>
+    <span class="p">}</span>
+
+    <span class="n">diffusion_network_process</span> <span class="o">=</span> <span class="n">DiffusionNetwork</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+    <span class="c1"># run the simulation</span>
+    <span class="n">sim_settings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;total_time&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="s1">&#39;initial_state&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;cytosol_front&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+                <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="n">mol_id</span><span class="p">:</span> <span class="n">n</span>
+                    <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">molecule_ids</span><span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;nucleoid&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="n">mol_id</span><span class="p">:</span> <span class="mi">0</span>
+                    <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">molecule_ids</span><span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;cytosol_rear&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;length&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+                <span class="s1">&#39;molecules&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="n">mol_id</span><span class="p">:</span> <span class="mi">0</span>
+                    <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">molecule_ids</span><span class="p">}</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">simulate_process</span><span class="p">(</span><span class="n">diffusion_network_process</span><span class="p">,</span> <span class="n">sim_settings</span><span class="p">)</span>
+    <span class="n">rp</span> <span class="o">=</span> <span class="n">diffusion_network_process</span><span class="o">.</span><span class="n">rp</span>
+    <span class="n">diffusion_constants</span> <span class="o">=</span> <span class="n">diffusion_network_process</span><span class="o">.</span><span class="n">diffusion_constants</span>
+
+    <span class="k">if</span> <span class="n">out_dir</span><span class="p">:</span>
+        <span class="c1"># plot the simulation output</span>
+        <span class="n">plot_output</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">sim_settings</span><span class="p">[</span><span class="s1">&#39;initial_state&#39;</span><span class="p">],</span> <span class="n">out_dir</span><span class="p">)</span>
+
+
+<span class="c1"># Plots the diffusion constants by molecule sizes for edges with and without mesh</span>
+<div class="viewcode-block" id="plot_diff_range">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.plot_diff_range">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_diff_range</span><span class="p">(</span><span class="n">diffusion_constants</span><span class="p">,</span> <span class="n">rp</span><span class="p">,</span> <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;out&#39;</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">rp</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">array_from</span><span class="p">(</span><span class="n">diffusion_constants</span><span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">]),</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;#d8b365&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">rp</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">array_from</span><span class="p">(</span><span class="n">diffusion_constants</span><span class="p">[</span><span class="s1">&#39;3&#39;</span><span class="p">]),</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;#5ab4ac&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Molecule size ($nm$)&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Diffusion constant ($\mu m^2/s$)&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Diffusion constants of molecules&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s1">&#39;with 50 nm mesh&#39;</span><span class="p">,</span> <span class="s1">&#39;without mesh&#39;</span><span class="p">])</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">out_dir</span> <span class="o">+</span> <span class="s1">&#39;/diffusion_constants.png&#39;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Plots the normalized concentrations for the largest and smallest molecules</span>
+<div class="viewcode-block" id="plot_output">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.plot_output">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_output</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">nodes</span><span class="p">,</span> <span class="n">out_dir</span><span class="o">=</span><span class="s1">&#39;out&#39;</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;#d8b365&#39;</span><span class="p">,</span> <span class="s1">&#39;#5ab4ac&#39;</span><span class="p">,</span> <span class="s1">&#39;#018571&#39;</span><span class="p">]</span>
+    <span class="n">large_total</span> <span class="o">=</span> <span class="n">array_from</span><span class="p">(</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">array_from</span><span class="p">(</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">array_from</span><span class="p">(</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_rear&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">small_total</span> <span class="o">=</span> <span class="n">array_from</span><span class="p">(</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">array_from</span><span class="p">(</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">array_from</span><span class="p">(</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_rear&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
+        <span class="n">array_from</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+        <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]),</span> <span class="n">large_total</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
+        <span class="n">array_from</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+        <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]),</span> <span class="n">large_total</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
+        <span class="n">array_from</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_rear&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+        <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;cytosol_rear&#39;</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]),</span> <span class="n">large_total</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
+        <span class="n">array_from</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;cytosol_front&#39;</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]),</span> <span class="n">small_total</span><span class="p">),</span>
+        <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
+        <span class="n">array_from</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;nucleoid&#39;</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]),</span> <span class="n">small_total</span><span class="p">),</span>
+        <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
+        <span class="n">array_from</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;cytosol_rear&#39;</span><span class="p">][</span><span class="s1">&#39;molecules&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">nodes</span><span class="p">[</span><span class="s1">&#39;cytosol_rear&#39;</span><span class="p">][</span><span class="s1">&#39;volume&#39;</span><span class="p">]),</span> <span class="n">small_total</span><span class="p">),</span>
+        <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">linestyle</span><span class="o">=</span><span class="s1">&#39;dashed&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;time (s)&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Molecule counts&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Diffusion over compartments&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s1">&#39;Cytosol front: large molecule&#39;</span><span class="p">,</span> <span class="s1">&#39;Nucleoid: large molecule&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Cytosol rear: large molecule&#39;</span><span class="p">,</span> <span class="s1">&#39;Cytosol front: small molecule&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Nucleoid: small molecule&#39;</span><span class="p">,</span> <span class="s1">&#39;Cytosol rear: small molecule&#39;</span><span class="p">])</span>
+    <span class="n">out_file</span> <span class="o">=</span> <span class="n">out_dir</span> <span class="o">+</span> <span class="s1">&#39;/diffusion_large_small.png&#39;</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># This function is modified from spatial_tool.py from WCM</span>
+<div class="viewcode-block" id="calculate_rp_from_mw">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.calculate_rp_from_mw">[docs]</a>
+<span class="k">def</span> <span class="nf">calculate_rp_from_mw</span><span class="p">(</span><span class="n">molecule_ids</span><span class="p">,</span> <span class="n">mw</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function compute the hydrodynamic radius of a macromolecules from</span>
+<span class="sd">    its molecular weight. It is important to note that the hydrodynamic</span>
+<span class="sd">    diameter is mainly used for computation of diffusion constant, and can</span>
+<span class="sd">    be different from the observed diameter under microscopes or the radius</span>
+<span class="sd">    of gyration, especially for loose polymers such as RNAs. This function</span>
+<span class="sd">    is not E coli specific.</span>
+
+<span class="sd">    References: Bioinformatics (2012). doi:10.1093/bioinformatics/bts537</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        molecule_ids: List of molecule ids.</span>
+<span class="sd">        mw: molecular weight of the macromolecules, units: fg.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        the hydrodynamic radius (in unit of nm) of the macromolecules</span>
+<span class="sd">        using the following formula:</span>
+
+<span class="sd">        * ``rp = 0.0515*MW^(0.392) nm`` (Hong &amp; Lei 2008) (protein)</span>
+
+<span class="sd">    These parameters are also possible for other macromolecule types,</span>
+<span class="sd">    however all molecules are currently assumed to be proteins.</span>
+
+<span class="sd">    * ``rp = 0.0566*MW^(0.38) nm`` (Werner 2011) (RNA)</span>
+<span class="sd">    * ``rp = 0.024*MW^(0.57) nm`` (Robertson et al 2006) (linear DNA)</span>
+<span class="sd">    * ``rp = 0.0125*MW^(0.59) nm`` (Robertson et al 2006) (circular DNA)</span>
+<span class="sd">    * ``rp = 0.0145*MW^(0.57) nm`` (Robertson et al 2006) (supercoiled DNA)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">dic_rp</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;protein&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0515</span><span class="p">,</span> <span class="mf">0.392</span><span class="p">),</span>
+              <span class="s1">&#39;RNA&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0566</span><span class="p">,</span> <span class="mf">0.38</span><span class="p">),</span>
+              <span class="s1">&#39;linear_DNA&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.024</span><span class="p">,</span> <span class="mf">0.57</span><span class="p">),</span>
+              <span class="s1">&#39;circular_DNA&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0125</span><span class="p">,</span> <span class="mf">0.59</span><span class="p">),</span>
+              <span class="s1">&#39;supercoiled_DNA&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0145</span><span class="p">,</span> <span class="mf">0.57</span><span class="p">),</span>
+              <span class="p">}</span>
+
+    <span class="n">r_p0</span><span class="p">,</span> <span class="n">rp_power</span> <span class="o">=</span> <span class="n">dic_rp</span><span class="p">[</span><span class="s1">&#39;protein&#39;</span><span class="p">]</span>
+    <span class="n">fg_to_kDa</span> <span class="o">=</span> <span class="mf">602217364.34</span>
+
+    <span class="n">mw_subset</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">mw</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">molecule_ids</span>
+    <span class="p">}</span>
+
+    <span class="n">r_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span>
+            <span class="n">r_p0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">array_from</span><span class="p">(</span><span class="n">mw_subset</span><span class="p">),</span> <span class="n">fg_to_kDa</span><span class="p">),</span> <span class="n">rp_power</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">r_p</span></div>
+
+
+
+<span class="c1"># This function is modified from spatial_tool.py from WCM</span>
+<div class="viewcode-block" id="compute_diffusion_constants_from_rp">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.compute_diffusion_constants_from_rp">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_diffusion_constants_from_rp</span><span class="p">(</span><span class="n">molecule_ids</span><span class="p">,</span> <span class="n">rp</span><span class="p">,</span> <span class="n">mesh_size</span><span class="p">,</span> <span class="n">edges</span><span class="p">,</span>
+                                       <span class="n">temp</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    .. WARNING:: </span>
+<span class="sd">        The default values of the parameters are E coli specific.</span>
+
+<span class="sd">    This function computes the hypothesized diffusion constant of</span>
+<span class="sd">    macromolecules within the nucleoid and the cytoplasm region.</span>
+<span class="sd">    In literature, there is no known differentiation between the diffusion</span>
+<span class="sd">    constant of a molecule in the nucleoid and in the cytoplasm up to the</span>
+<span class="sd">    best of our knowledge in 2020. However, there is a good reason why we</span>
+<span class="sd">    can assume that previously reported diffusion constant are in fact the</span>
+<span class="sd">    diffusion constant of a protein in the nucleoid region:</span>
+
+<span class="sd">    1. The image traces of a protein within a bacteria usually cross the</span>
+<span class="sd">       nucleoid regions.</span>
+<span class="sd">    2. The nucleoid region, compared to the cytoplasm, should be the main</span>
+<span class="sd">       limiting factor restricting the magnitude of diffusion constant.</span>
+<span class="sd">    3. The same theory of diffusion constant has been implemented to</span>
+<span class="sd">       mammalian cells, and the term &#39;rh&#39;, the average hydrodynamic</span>
+<span class="sd">       radius of the biggest crowders, are different in mammalian</span>
+<span class="sd">       cytoplasm, and it seems to reflect the hydrodynamic radius of the</span>
+<span class="sd">       actin filament (note: the hydrodynamic radius of actin filament</span>
+<span class="sd">       should be computed based on the average length of actin fiber,</span>
+<span class="sd">       and is not equal to the radius of the actin filament itself.)</span>
+<span class="sd">       (ref: Nano Lett. 2011, 11, 2157-2163).  As for E coli, the &#39;rh&#39;</span>
+<span class="sd">       term = 40nm, which may correspond to the 80nm DNA fiber. On the</span>
+<span class="sd">       other hand, for the diffusion constant of E coli in the true</span>
+<span class="sd">       cytoplasm, we will expect the value of &#39;rh&#39; term to be</span>
+<span class="sd">       approximately 10 nm, which correspond to the radius of active</span>
+<span class="sd">       ribosomes.</span>
+
+<span class="sd">    Using these terms for scaling a baseline diffusion constant (calculated</span>
+<span class="sd">    from Enstein-Stokes equation), a cytosol-specific diffusion calculation</span>
+<span class="sd">    can be obtained).</span>
+
+<span class="sd">    Ref: Kalwarczyk, T., Tabaka, M. &amp; Holyst, R.</span>
+<span class="sd">    Bioinformatics (2012). doi:10.1093/bioinformatics/bts537</span>
+
+<span class="sd">    This function computes the hypothesized diffusion constant of</span>
+<span class="sd">    macromolecules within the nucleoid region by scaling the hypothesized</span>
+<span class="sd">    cytoplasm diffusion constant. There is evidence that as molecules</span>
+<span class="sd">    grow in size, they become more excluded from E. coli&#39;s nucleoid because</span>
+<span class="sd">    the DNA polymers form a meshgrid with an estimated mesh size of 50</span>
+<span class="sd">    nm (ref: Xiang et al., bioRxiv (2020)). The equation implemented here</span>
+<span class="sd">    assumes that molecules move through the network by encountering openings</span>
+<span class="sd">    between the DNA meshgrid greater than the hydrodynamic radius.</span>
+
+<span class="sd">    Ref: Brian Amsden</span>
+<span class="sd">    Macromolecules (1999). doi:10.1021/ma980922a</span>
+
+<span class="sd">    .. code-block:: text</span>
+
+<span class="sd">        D_0 = K_B*T/(6*pi*eta_0*rp)</span>
+<span class="sd">        ln(D_0/D_cyto) = ln(eta/eta_0) = (xi^2/Rh^2 + xi^2/rp^2)^(-a/2)</span>
+<span class="sd">        D_0 = the diffusion constant of a macromolecule in pure solvent</span>
+<span class="sd">        eta_0 = the viscosity of pure solvent, in this case, water</span>
+<span class="sd">        eta = the size-dependent viscosity experienced by the macromolecule.</span>
+<span class="sd">        xi = average distance between the surface of proteins</span>
+<span class="sd">        rh = average hydrodynamic radius of the biggest crowders</span>
+<span class="sd">        a = some constant of the order of 1</span>
+<span class="sd">        rp = hydrodynamic radius of probed molecule</span>
+
+<span class="sd">    In this formula, since we allow the changes in temperature, we also</span>
+<span class="sd">    consider the viscosity changes of water under different temperature:</span>
+
+<span class="sd">    .. code-block:: text</span>
+
+<span class="sd">        eta_0 = A*10^(B/(T-C))</span>
+<span class="sd">        A = 2.414*10^(-5) Pa*sec</span>
+<span class="sd">        B = 247.8 K</span>
+<span class="sd">        C = 140 K</span>
+
+<span class="sd">    Ref: Dortmund Data Bank</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        molecule_ids: List of molecule ids.</span>
+<span class="sd">        rp: List of radii corresponding to each molecule id. unit: nm</span>
+<span class="sd">        mesh_size: Size of meshgrid openings. unit: nm</span>
+<span class="sd">        edges: Dictionary of edges.</span>
+<span class="sd">        temp: The temperature of interest. unit: K.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        the diffusion constant of the macromolecule in units ``um**2/sec``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">temp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="mf">310.15</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.51</span><span class="p">,</span> <span class="mf">0.53</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+    <span class="c1"># unpack constants required for the calculation</span>
+    <span class="n">xi</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">rh_cyto</span> <span class="o">=</span> <span class="n">parameters</span>  <span class="c1"># unit: nm, 1, nm</span>
+
+    <span class="n">ro</span> <span class="o">=</span> <span class="n">mesh_size</span><span class="o">/</span><span class="mi">2</span>
+    <span class="n">rh</span> <span class="o">=</span> <span class="n">rh_cyto</span>
+    <span class="n">diffusion_constants</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">K_B</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">Boltzmann</span>  <span class="c1"># Boltzmann constant, unit: J/K</span>
+
+    <span class="c1"># calculate viscosity of water based on temperature</span>
+    <span class="n">a_visc</span> <span class="o">=</span> <span class="mf">2.414</span><span class="o">*</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># unit: Pa*sec</span>
+    <span class="n">b_visc</span> <span class="o">=</span> <span class="mf">247.8</span>  <span class="c1"># unit: K</span>
+    <span class="n">c_visc</span> <span class="o">=</span> <span class="mi">140</span>  <span class="c1"># unit: K</span>
+    <span class="n">eta_0</span> <span class="o">=</span> <span class="n">a_visc</span><span class="o">*</span><span class="mi">10</span><span class="o">**</span><span class="p">(</span><span class="n">b_visc</span><span class="o">/</span><span class="p">(</span><span class="n">temp</span> <span class="o">-</span> <span class="n">c_visc</span><span class="p">))</span>  <span class="c1"># unit: Pa*sec</span>
+
+    <span class="c1"># conversions</span>
+    <span class="n">m2_to_um2</span> <span class="o">=</span> <span class="mf">1E12</span>
+    <span class="n">nm_to_m</span> <span class="o">=</span> <span class="mf">1E-9</span>
+
+    <span class="c1"># compute dc (diffusion constant)</span>
+    <span class="n">dc_0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">K_B</span><span class="o">*</span><span class="n">temp</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="mi">6</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">eta_0</span><span class="o">*</span><span class="n">nm_to_m</span><span class="p">,</span> <span class="n">rp</span><span class="p">)),</span> <span class="n">m2_to_um2</span><span class="p">)</span>
+    <span class="n">dc_cyto</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">dc_0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
+        <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">xi</span><span class="o">**</span><span class="mi">2</span><span class="o">/</span><span class="n">rh</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">xi</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">rp</span><span class="p">))),</span> <span class="p">(</span><span class="o">-</span><span class="n">a</span><span class="o">/</span><span class="mi">2</span><span class="p">))))</span>
+
+    <span class="c1"># compute impact from mesh when nucleoid is a node</span>
+    <span class="n">dc_nuc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span>
+        <span class="n">dc_cyto</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">((</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">rp</span><span class="p">,</span> <span class="n">ro</span><span class="p">)))))</span>
+
+    <span class="k">for</span> <span class="n">edge_id</span><span class="p">,</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">edges</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">scaling_factor</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">mesh</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="s1">&#39;mesh&#39;</span> <span class="ow">in</span> <span class="n">edge</span><span class="p">:</span>
+            <span class="n">mesh</span> <span class="o">=</span> <span class="n">edge</span><span class="p">[</span><span class="s1">&#39;mesh&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;diffusion_scaling_constant&#39;</span> <span class="ow">in</span> <span class="n">edge</span><span class="p">:</span>
+            <span class="n">scaling_factor</span> <span class="o">=</span> <span class="n">edge</span><span class="p">[</span><span class="s1">&#39;diffusion_scaling_constant&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">mesh</span><span class="p">:</span>
+            <span class="n">diffusion_constants</span><span class="p">[</span><span class="n">edge_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">array_to</span><span class="p">(</span>
+                <span class="n">molecule_ids</span><span class="p">,</span> <span class="n">dc_nuc</span> <span class="o">*</span> <span class="n">scaling_factor</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">diffusion_constants</span><span class="p">[</span><span class="n">edge_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">array_to</span><span class="p">(</span>
+                <span class="n">molecule_ids</span><span class="p">,</span> <span class="n">dc_cyto</span> <span class="o">*</span> <span class="n">scaling_factor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;diffusion_constants&#39;</span> <span class="ow">in</span> <span class="n">edge</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">dc</span> <span class="ow">in</span> <span class="n">edge</span><span class="p">[</span><span class="s1">&#39;diffusion_constants&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">diffusion_constants</span><span class="p">[</span><span class="n">edge_id</span><span class="p">][</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">dc</span>
+
+    <span class="k">return</span> <span class="n">diffusion_constants</span></div>
+
+
+
+<span class="c1"># Helper function</span>
+<div class="viewcode-block" id="array_from">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.array_from">[docs]</a>
+<span class="k">def</span> <span class="nf">array_from</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span></div>
+
+
+
+<span class="c1"># Helper function</span>
+<div class="viewcode-block" id="array_to">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.spatiality.diffusion_network.html#ecoli.processes.spatiality.diffusion_network.array_to">[docs]</a>
+<span class="k">def</span> <span class="nf">array_to</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">array</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">array</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">keys</span><span class="p">)}</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="c1"># make an output directory to save plots</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">PROCESS_OUT_DIR</span><span class="p">,</span> <span class="n">NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">out_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+
+    <span class="n">test_diffusion_network_process</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

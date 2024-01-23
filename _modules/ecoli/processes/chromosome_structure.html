@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.chromosome_structure &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.chromosome_structure</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.chromosome_structure</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">====================</span>
+<span class="sd">Chromosome Structure</span>
+<span class="sd">====================</span>
+
+<span class="sd">- Resolve collisions between molecules and replication forks on the chromosome.</span>
+<span class="sd">- Remove and replicate promoters and motifs that are traversed by replisomes.</span>
+<span class="sd">- Reset the boundaries and linking numbers of chromosomal segments.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Step</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="p">(</span><span class="n">create_unique_indexes</span><span class="p">,</span> <span class="n">listener_schema</span><span class="p">,</span>
+    <span class="n">numpy_schema</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.polymerize</span> <span class="kn">import</span> <span class="n">buildSequences</span>
+
+<span class="c1"># Register default topology for this process, associating it with process name</span>
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-chromosome-structure&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;bulk&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">,),</span>
+    <span class="s2">&quot;listeners&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;active_replisomes&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;active_replisome&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;oriCs&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;oriC&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;chromosome_domains&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;active_RNAPs&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;active_RNAP&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;RNAs&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;RNA&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;active_ribosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;active_ribosome&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;full_chromosomes&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;promoters&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;promoter&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;DnaA_boxes&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;DnaA_box&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;genes&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,</span> <span class="s2">&quot;gene&quot;</span><span class="p">),</span>
+    <span class="c1"># TODO(vivarium): Only include if superhelical density flag is passed</span>
+    <span class="c1"># &quot;chromosomal_segments&quot;: (&quot;unique&quot;, &quot;chromosomal_segment&quot;)</span>
+    <span class="s2">&quot;global_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;global_time&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;next_update_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;next_update_time&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_structure&quot;</span><span class="p">),</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ChromosomeStructure">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_structure.html#ecoli.processes.chromosome_structure.ChromosomeStructure">[docs]</a>
+<span class="k">class</span> <span class="nc">ChromosomeStructure</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Chromosome Structure Process &quot;&quot;&quot;</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="c1"># Load parameters</span>
+            <span class="s1">&#39;RNA_sequences&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;protein_sequences&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;n_TUs&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;n_TFs&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;n_amino_acids&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;n_fragment_bases&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;replichore_lengths&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s1">&#39;relaxed_DNA_base_pairs_per_turn&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;terC_index&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+
+            <span class="s1">&#39;calculate_superhelical_densities&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+
+            <span class="c1"># Get placeholder value for chromosome domains without children</span>
+            <span class="s1">&#39;no_child_place_holder&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+
+            <span class="c1"># Load bulk molecule views</span>
+            <span class="s1">&#39;inactive_RNAPs&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;fragmentBases&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;ppi&#39;</span><span class="p">:</span> <span class="s1">&#39;ppi&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;active_tfs&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;ribosome_30S_subunit&#39;</span><span class="p">:</span> <span class="s1">&#39;30S&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;ribosome_50S_subunit&#39;</span><span class="p">:</span> <span class="s1">&#39;50S&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;amino_acids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;water&#39;</span><span class="p">:</span> <span class="s1">&#39;water&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;seed&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span>
+        <span class="p">}</span>
+
+    <span class="c1"># Constructor</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rna_sequences</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;rna_sequences&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protein_sequences</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;protein_sequences&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_TUs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_TUs&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_TFs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_TFs&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_amino_acids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_amino_acids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_fragment_bases&#39;</span><span class="p">]</span>
+        <span class="n">replichore_lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;replichore_lengths&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_coordinates</span> <span class="o">=</span> <span class="o">-</span><span class="n">replichore_lengths</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_coordinates</span> <span class="o">=</span> <span class="n">replichore_lengths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">relaxed_DNA_base_pairs_per_turn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;relaxed_DNA_base_pairs_per_turn&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">terC_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;terC_index&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_mature_rnas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_mature_rnas&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mature_rna_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_end_positions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;mature_rna_end_positions&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_nt_counts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;mature_rna_nt_counts&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unprocessed_rna_index_mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;unprocessed_rna_index_mapping&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Load sim options</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">calculate_superhelical_densities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;calculate_superhelical_densities&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Get placeholder value for chromosome domains without children</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_child_place_holder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;no_child_place_holder&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAPs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;inactive_RNAPs&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fragmentBases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;fragmentBases&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ppi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ppi&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">active_tfs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;active_tfs&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_30S_subunit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ribosome_30S_subunit&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_50S_subunit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ribosome_50S_subunit&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">amino_acids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;amino_acids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">water</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;water&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAPs_idx</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">emit_unique</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_segment_index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">promoter_index</span> <span class="o">=</span> <span class="mi">60000</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">DnaA_box_index</span> <span class="o">=</span> <span class="mi">60000</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span>
+            <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">])</span>
+
+<div class="viewcode-block" id="ChromosomeStructure.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_structure.html#ecoli.processes.chromosome_structure.ChromosomeStructure.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ports</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;rnap_data&#39;</span><span class="p">:</span> <span class="n">listener_schema</span><span class="p">({</span>
+                    <span class="s1">&#39;n_total_collisions&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;n_headon_collisions&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;n_codirectional_collisions&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s1">&#39;headon_collision_coordinates&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;codirectional_collision_coordinates&#39;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s1">&#39;n_removed_ribosomes&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})},</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">),</span>
+
+            <span class="c1"># Unique molecules</span>
+            <span class="s1">&#39;active_replisomes&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;oriCs&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;oriCs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;chromosome_domains&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;chromosome_domains&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;active_RNAPs&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;RNAs&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;RNAs&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;active_ribosome&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_ribosome&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;full_chromosomes&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;full_chromosomes&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;promoters&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;promoters&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;DnaA_boxes&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;DnaA_boxes&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;genes&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;genes&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;global_time&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]},</span>
+            <span class="s1">&#39;next_update_time&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;_divider&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="c1"># TODO: Work on this functionality</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_superhelical_densities</span><span class="p">:</span>
+            <span class="n">ports</span><span class="p">[</span><span class="s1">&#39;chromosomal_segments&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;*&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;boundary_molecule_indexes&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)},</span>
+                    <span class="s1">&#39;boundary_coordinates&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)},</span>
+                    <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+                    <span class="s1">&#39;linking_number&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}}}</span>
+
+        <span class="k">return</span> <span class="n">ports</span></div>
+
+    
+<div class="viewcode-block" id="ChromosomeStructure.update_condition">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_structure.html#ecoli.processes.chromosome_structure.ChromosomeStructure.update_condition">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        See :py:meth:`~ecoli.processes.partition.Requester.update_condition`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> updated at t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> instead of t=&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">. Decrease the &quot;</span>
+                    <span class="s2">&quot;timestep for the global clock process for more &quot;</span>
+                    <span class="s2">&quot;accurate timekeeping.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="ChromosomeStructure.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_structure.html#ecoli.processes.chromosome_structure.ChromosomeStructure.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="c1"># At t=0, convert all strings to indices</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAPs_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fragmentBasesIdx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fragmentBases</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">active_tfs_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">active_tfs</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_30S_subunit_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_30S_subunit</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_50S_subunit_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_50S_subunit</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">amino_acids_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">amino_acids</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">water_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">water</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ppi</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAPs_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAPs</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_ids</span><span class="p">,</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Read unique molecule attributes</span>
+        <span class="p">(</span><span class="n">replisome_domain_indexes</span><span class="p">,</span> <span class="n">replisome_coordinates</span><span class="p">,</span>
+            <span class="n">replisome_unique_indexes</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_replisomes&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;coordinates&#39;</span><span class="p">,</span> <span class="s1">&#39;unique_index&#39;</span><span class="p">])</span>
+        <span class="p">(</span><span class="n">all_chromosome_domain_indexes</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+            <span class="n">states</span><span class="p">[</span><span class="s1">&#39;chromosome_domains&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;child_domains&#39;</span><span class="p">])</span>
+        <span class="p">(</span><span class="n">RNAP_domain_indexes</span><span class="p">,</span> <span class="n">RNAP_coordinates</span><span class="p">,</span> <span class="n">RNAP_is_forward</span><span class="p">,</span>
+            <span class="n">RNAP_unique_indexes</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;coordinates&#39;</span><span class="p">,</span> <span class="s1">&#39;is_forward&#39;</span><span class="p">,</span> <span class="s1">&#39;unique_index&#39;</span><span class="p">])</span>
+        <span class="n">origin_domain_indexes</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;oriCs&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">])</span>
+        <span class="n">mother_domain_indexes</span><span class="p">,</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;full_chromosomes&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">])</span>
+        <span class="p">(</span><span class="n">RNA_TU_indexes</span><span class="p">,</span> <span class="n">transcript_lengths</span><span class="p">,</span> <span class="n">RNA_RNAP_indexes</span><span class="p">,</span>
+            <span class="n">RNA_unique_indexes</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;transcript_length&#39;</span><span class="p">,</span> <span class="s1">&#39;RNAP_index&#39;</span><span class="p">,</span> <span class="s1">&#39;unique_index&#39;</span><span class="p">])</span>
+        <span class="p">(</span><span class="n">ribosome_protein_indexes</span><span class="p">,</span> <span class="n">ribosome_peptide_lengths</span><span class="p">,</span>
+            <span class="n">ribosome_mRNA_indexes</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;active_ribosome&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;protein_index&#39;</span><span class="p">,</span> <span class="s1">&#39;peptide_length&#39;</span><span class="p">,</span> <span class="s1">&#39;mRNA_index&#39;</span><span class="p">])</span>
+        <span class="p">(</span><span class="n">promoter_TU_indexes</span><span class="p">,</span> <span class="n">promoter_domain_indexes</span><span class="p">,</span> <span class="n">promoter_coordinates</span><span class="p">,</span>
+            <span class="n">promoter_bound_TFs</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;TU_index&#39;</span><span class="p">,</span> <span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;coordinates&#39;</span><span class="p">,</span> <span class="s1">&#39;bound_TF&#39;</span><span class="p">])</span>
+        <span class="p">(</span><span class="n">gene_cistron_indexes</span><span class="p">,</span> <span class="n">gene_domain_indexes</span><span class="p">,</span>
+            <span class="n">gene_coordinates</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;genes&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;cistron_index&#39;</span><span class="p">,</span> <span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;coordinates&#39;</span><span class="p">])</span>
+        <span class="p">(</span><span class="n">DnaA_box_domain_indexes</span><span class="p">,</span> <span class="n">DnaA_box_coordinates</span><span class="p">,</span>
+            <span class="n">DnaA_box_bound</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;DnaA_boxes&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;coordinates&#39;</span><span class="p">,</span> <span class="s1">&#39;DnaA_bound&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Build dictionary of replisome coordinates with domain indexes as keys</span>
+        <span class="n">replisome_coordinates_from_domains</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">domain_index</span><span class="p">:</span> <span class="n">replisome_coordinates</span><span class="p">[</span>
+                <span class="n">replisome_domain_indexes</span> <span class="o">==</span> <span class="n">domain_index</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">domain_index</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">replisome_domain_indexes</span><span class="p">)</span>
+            <span class="p">}</span>
+
+
+        <span class="k">def</span> <span class="nf">get_removed_molecules_mask</span><span class="p">(</span><span class="n">domain_indexes</span><span class="p">,</span> <span class="n">coordinates</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Computes the boolean mask of unique molecules that should be</span>
+<span class="sd">            removed based on the progression of the replication forks.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">domain_indexes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+
+            <span class="c1"># Loop through all domains</span>
+            <span class="k">for</span> <span class="n">domain_index</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">domain_indexes</span><span class="p">):</span>
+                <span class="c1"># Domain has active replisomes</span>
+                <span class="k">if</span> <span class="n">domain_index</span> <span class="ow">in</span> <span class="n">replisome_coordinates_from_domains</span><span class="p">:</span>
+                    <span class="n">domain_replisome_coordinates</span> <span class="o">=</span> \
+                        <span class="n">replisome_coordinates_from_domains</span><span class="p">[</span><span class="n">domain_index</span><span class="p">]</span>
+
+                    <span class="c1"># Get mask for molecules on this domain that are out of range</span>
+                    <span class="n">domain_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="o">.</span><span class="n">reduce</span><span class="p">((</span>
+                        <span class="n">domain_indexes</span> <span class="o">==</span> <span class="n">domain_index</span><span class="p">,</span>
+                        <span class="n">coordinates</span> <span class="o">&gt;</span> <span class="n">domain_replisome_coordinates</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+                        <span class="n">coordinates</span> <span class="o">&lt;</span> <span class="n">domain_replisome_coordinates</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+                <span class="c1"># Domain has no active replisomes</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Domain has child domains (has finished replicating)</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">child_domains</span><span class="p">[</span><span class="n">all_chromosome_domain_indexes</span> <span class="o">==</span>
+                        <span class="n">domain_index</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">no_child_place_holder</span>
+                    <span class="p">):</span>
+                        <span class="c1"># Remove all molecules on this domain</span>
+                        <span class="n">domain_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">domain_indexes</span> <span class="o">==</span> <span class="n">domain_index</span><span class="p">)</span>
+                    <span class="c1"># Domain has not started replication</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                <span class="n">mask</span><span class="p">[</span><span class="n">domain_mask</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">return</span> <span class="n">mask</span>
+
+
+        <span class="c1"># Build mask for molecules that should be removed</span>
+        <span class="n">removed_RNAPs_mask</span> <span class="o">=</span> <span class="n">get_removed_molecules_mask</span><span class="p">(</span>
+            <span class="n">RNAP_domain_indexes</span><span class="p">,</span> <span class="n">RNAP_coordinates</span><span class="p">)</span>
+        <span class="n">removed_promoters_mask</span> <span class="o">=</span> <span class="n">get_removed_molecules_mask</span><span class="p">(</span>
+            <span class="n">promoter_domain_indexes</span><span class="p">,</span> <span class="n">promoter_coordinates</span><span class="p">)</span>
+        <span class="n">removed_genes_mask</span> <span class="o">=</span> <span class="n">get_removed_molecules_mask</span><span class="p">(</span>
+            <span class="n">gene_domain_indexes</span><span class="p">,</span> <span class="n">gene_coordinates</span><span class="p">)</span>
+        <span class="n">removed_DnaA_boxes_mask</span> <span class="o">=</span> <span class="n">get_removed_molecules_mask</span><span class="p">(</span>
+            <span class="n">DnaA_box_domain_indexes</span><span class="p">,</span> <span class="n">DnaA_box_coordinates</span><span class="p">)</span>
+
+        <span class="c1"># Get attribute arrays of remaining RNAPs</span>
+        <span class="n">remaining_RNAPs_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">removed_RNAPs_mask</span><span class="p">)</span>
+        <span class="n">remaining_RNAP_domain_indexes</span> <span class="o">=</span> <span class="n">RNAP_domain_indexes</span><span class="p">[</span>
+            <span class="n">remaining_RNAPs_mask</span><span class="p">]</span>
+        <span class="n">remaining_RNAP_coordinates</span> <span class="o">=</span> <span class="n">RNAP_coordinates</span><span class="p">[</span><span class="n">remaining_RNAPs_mask</span><span class="p">]</span>
+        <span class="n">remaining_RNAP_unique_indexes</span> <span class="o">=</span> <span class="n">RNAP_unique_indexes</span><span class="p">[</span>
+            <span class="n">remaining_RNAPs_mask</span><span class="p">]</span>
+
+        <span class="c1"># Build masks for head-on and co-directional collisions between RNAPs</span>
+        <span class="c1"># and replication forks</span>
+        <span class="n">RNAP_headon_collision_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">removed_RNAPs_mask</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span><span class="n">RNAP_is_forward</span><span class="p">,</span> <span class="n">RNAP_coordinates</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">RNAP_codirectional_collision_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+            <span class="n">removed_RNAPs_mask</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">RNAP_headon_collision_mask</span><span class="p">))</span>
+
+        <span class="n">n_total_collisions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">removed_RNAPs_mask</span><span class="p">)</span>
+        <span class="n">n_headon_collisions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">RNAP_headon_collision_mask</span><span class="p">)</span>
+        <span class="n">n_codirectional_collisions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
+            <span class="n">RNAP_codirectional_collision_mask</span><span class="p">)</span>
+
+        <span class="c1"># Write values to listeners</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;rnap_data&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;n_total_collisions&#39;</span><span class="p">:</span> <span class="n">n_total_collisions</span><span class="p">,</span>
+                    <span class="s1">&#39;n_headon_collisions&#39;</span><span class="p">:</span> <span class="n">n_headon_collisions</span><span class="p">,</span>
+                    <span class="s1">&#39;n_codirectional_collisions&#39;</span><span class="p">:</span> <span class="n">n_codirectional_collisions</span><span class="p">,</span>
+                    <span class="s1">&#39;headon_collision_coordinates&#39;</span><span class="p">:</span> <span class="n">RNAP_coordinates</span><span class="p">[</span>
+                        <span class="n">RNAP_headon_collision_mask</span><span class="p">],</span>
+                    <span class="s1">&#39;codirectional_collision_coordinates&#39;</span><span class="p">:</span> <span class="n">RNAP_coordinates</span><span class="p">[</span>
+                        <span class="n">RNAP_codirectional_collision_mask</span><span class="p">]</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;active_replisomes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;oriCs&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;chromosome_domains&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;active_RNAPs&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;RNAs&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;active_ribosome&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;full_chromosomes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;promoters&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;genes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;DnaA_boxes&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_superhelical_densities</span><span class="p">:</span>
+            <span class="c1"># Get attributes of existing segments</span>
+            <span class="p">(</span><span class="n">boundary_molecule_indexes</span><span class="p">,</span> <span class="n">boundary_coordinates</span><span class="p">,</span>
+                <span class="n">segment_domain_indexes</span><span class="p">,</span> <span class="n">linking_numbers</span><span class="p">)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+                <span class="n">states</span><span class="p">[</span><span class="s1">&#39;chromosomal_segments&#39;</span><span class="p">],</span>
+                <span class="p">[</span><span class="s1">&#39;boundary_molecule_indexes&#39;</span><span class="p">,</span> <span class="s1">&#39;boundary_coordinates&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;domain_index&#39;</span><span class="p">,</span> <span class="s1">&#39;linking_number&#39;</span><span class="p">])</span>
+
+            <span class="c1"># Initialize new attributes of chromosomal segments</span>
+            <span class="n">all_new_boundary_molecule_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+                <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">all_new_boundary_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">all_new_segment_domain_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="n">all_new_linking_numbers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">domain_index</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">all_chromosome_domain_indexes</span><span class="p">):</span>
+                <span class="c1"># Skip domains that have completed replication</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">domain_index</span> <span class="o">&lt;</span> <span class="n">mother_domain_indexes</span><span class="p">):</span>
+                    <span class="k">continue</span>
+
+                <span class="n">domain_spans_oriC</span> <span class="o">=</span> <span class="p">(</span><span class="n">domain_index</span> <span class="ow">in</span> <span class="n">origin_domain_indexes</span><span class="p">)</span>
+                <span class="n">domain_spans_terC</span> <span class="o">=</span> <span class="p">(</span><span class="n">domain_index</span> <span class="ow">in</span> <span class="n">mother_domain_indexes</span><span class="p">)</span>
+
+                <span class="c1"># Get masks for segments and RNAPs in this domain</span>
+                <span class="n">segments_domain_mask</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">segment_domain_indexes</span> <span class="o">==</span> <span class="n">domain_index</span><span class="p">)</span>
+                <span class="n">RNAP_domain_mask</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">remaining_RNAP_domain_indexes</span> <span class="o">==</span> <span class="n">domain_index</span><span class="p">)</span>
+
+                <span class="c1"># Parse attributes of segments in this domain</span>
+                <span class="n">boundary_molecule_indexes_this_domain</span> <span class="o">=</span> \
+                    <span class="n">boundary_molecule_indexes</span><span class="p">[</span><span class="n">segments_domain_mask</span><span class="p">,</span> <span class="p">:]</span>
+                <span class="n">boundary_coordinates_this_domain</span> <span class="o">=</span> \
+                    <span class="n">boundary_coordinates</span><span class="p">[</span><span class="n">segments_domain_mask</span><span class="p">,</span> <span class="p">:]</span>
+                <span class="n">linking_numbers_this_domain</span> <span class="o">=</span> \
+                    <span class="n">linking_numbers</span><span class="p">[</span><span class="n">segments_domain_mask</span><span class="p">]</span>
+
+                <span class="c1"># Parse attributes of remaining RNAPs in this domain</span>
+                <span class="n">new_molecule_coordinates_this_domain</span> <span class="o">=</span> \
+                    <span class="n">remaining_RNAP_coordinates</span><span class="p">[</span><span class="n">RNAP_domain_mask</span><span class="p">]</span>
+                <span class="n">new_molecule_indexes_this_domain</span> <span class="o">=</span> \
+                    <span class="n">remaining_RNAP_unique_indexes</span><span class="p">[</span><span class="n">RNAP_domain_mask</span><span class="p">]</span>
+
+                <span class="c1"># Append coordinates and indexes of replisomes on this domain,</span>
+                <span class="c1"># if any</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">domain_spans_oriC</span><span class="p">:</span>
+                    <span class="n">replisome_domain_mask</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">replisome_domain_indexes</span> <span class="o">==</span> <span class="n">domain_index</span><span class="p">)</span>
+
+                    <span class="n">new_molecule_coordinates_this_domain</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span>
+                        <span class="n">new_molecule_coordinates_this_domain</span><span class="p">,</span>
+                        <span class="n">replisome_coordinates</span><span class="p">[</span><span class="n">replisome_domain_mask</span><span class="p">]</span>
+                        <span class="p">))</span>
+                    <span class="n">new_molecule_indexes_this_domain</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span>
+                        <span class="n">new_molecule_indexes_this_domain</span><span class="p">,</span>
+                        <span class="n">replisome_unique_indexes</span><span class="p">[</span><span class="n">replisome_domain_mask</span><span class="p">]</span>
+                        <span class="p">))</span>
+
+                <span class="c1"># Append coordinates and indexes of parent domain replisomes,</span>
+                <span class="c1"># if any</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">domain_spans_terC</span><span class="p">:</span>
+                    <span class="n">parent_domain_index</span> <span class="o">=</span> <span class="n">all_chromosome_domain_indexes</span><span class="p">[</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">child_domains</span> <span class="o">==</span> <span class="n">domain_index</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span>
+                    <span class="n">replisome_parent_domain_mask</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">replisome_domain_indexes</span> <span class="o">==</span> <span class="n">parent_domain_index</span><span class="p">)</span>
+
+                    <span class="n">new_molecule_coordinates_this_domain</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span>
+                        <span class="n">new_molecule_coordinates_this_domain</span><span class="p">,</span>
+                        <span class="n">replisome_coordinates</span><span class="p">[</span><span class="n">replisome_parent_domain_mask</span><span class="p">]</span>
+                        <span class="p">))</span>
+                    <span class="n">new_molecule_indexes_this_domain</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span>
+                        <span class="n">new_molecule_indexes_this_domain</span><span class="p">,</span>
+                        <span class="n">replisome_unique_indexes</span><span class="p">[</span><span class="n">replisome_parent_domain_mask</span><span class="p">]</span>
+                        <span class="p">))</span>
+
+                <span class="c1"># If there are no molecules left on this domain, continue</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_molecule_indexes_this_domain</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># Calculate attributes of new segments</span>
+                <span class="n">new_segment_attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_new_segment_attributes</span><span class="p">(</span>
+                    <span class="n">boundary_molecule_indexes_this_domain</span><span class="p">,</span>
+                    <span class="n">boundary_coordinates_this_domain</span><span class="p">,</span>
+                    <span class="n">linking_numbers_this_domain</span><span class="p">,</span>
+                    <span class="n">new_molecule_indexes_this_domain</span><span class="p">,</span>
+                    <span class="n">new_molecule_coordinates_this_domain</span><span class="p">,</span>
+                    <span class="n">domain_spans_oriC</span><span class="p">,</span> <span class="n">domain_spans_terC</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># Append to existing array of new segment attributes</span>
+                <span class="n">all_new_boundary_molecule_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span>
+                    <span class="n">all_new_boundary_molecule_indexes</span><span class="p">,</span>
+                    <span class="n">new_segment_attrs</span><span class="p">[</span><span class="s2">&quot;boundary_molecule_indexes&quot;</span><span class="p">]))</span>
+                <span class="n">all_new_boundary_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span>
+                    <span class="n">all_new_boundary_coordinates</span><span class="p">,</span>
+                    <span class="n">new_segment_attrs</span><span class="p">[</span><span class="s2">&quot;boundary_coordinates&quot;</span><span class="p">]))</span>
+                <span class="n">all_new_segment_domain_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span>
+                    <span class="n">all_new_segment_domain_indexes</span><span class="p">,</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">new_segment_attrs</span><span class="p">[</span><span class="s2">&quot;linking_numbers&quot;</span><span class="p">]),</span>
+                        <span class="n">domain_index</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)))</span>
+                <span class="n">all_new_linking_numbers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span>
+                    <span class="n">all_new_linking_numbers</span><span class="p">,</span>
+                    <span class="n">new_segment_attrs</span><span class="p">[</span><span class="s2">&quot;linking_numbers&quot;</span><span class="p">]))</span>
+
+            <span class="c1"># Delete all existing chromosomal segments</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">boundary_molecule_indexes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;chromosomal_segments&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                    <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">boundary_molecule_indexes</span><span class="p">))})</span>
+
+            <span class="c1"># Add new chromosomal segments</span>
+            <span class="n">n_segments</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_new_linking_numbers</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="s1">&#39;chromosomal_segments&#39;</span> <span class="ow">in</span> <span class="n">states</span> <span class="ow">and</span> <span class="n">states</span><span class="p">[</span>
+                <span class="s1">&#39;chromosomal_segments&#39;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_segment_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span>
+                    <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;chromosomal_segments&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())]))</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;chromosomal_segments&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_segment_index</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_segment_index</span> <span class="o">+</span> <span class="n">n_segments</span><span class="p">),</span>
+                <span class="s1">&#39;boundary_molecule_indexes&#39;</span><span class="p">:</span> <span class="n">all_new_boundary_molecule_indexes</span><span class="p">,</span>
+                <span class="s1">&#39;boundary_coordinates&#39;</span><span class="p">:</span> <span class="n">all_new_boundary_coordinates</span><span class="p">,</span>
+                <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">all_new_segment_domain_indexes</span><span class="p">,</span>
+                <span class="s1">&#39;linking_number&#39;</span><span class="p">:</span> <span class="n">all_new_linking_numbers</span><span class="p">}})</span>
+
+        <span class="c1"># Get mask for RNAs that are transcribed from removed RNAPs</span>
+        <span class="n">removed_RNAs_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span>
+            <span class="n">RNA_RNAP_indexes</span><span class="p">,</span> <span class="n">RNAP_unique_indexes</span><span class="p">[</span><span class="n">removed_RNAPs_mask</span><span class="p">])</span>
+
+        <span class="c1"># Remove RNAPs and RNAs that have collided with replisomes</span>
+        <span class="k">if</span> <span class="n">n_total_collisions</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">removed_RNAPs_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_RNAPs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                    <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">removed_RNAPs_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]})</span>
+            <span class="k">if</span> <span class="n">removed_RNAs_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;RNAs&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                    <span class="n">removed_RNAs_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]})</span>
+
+            <span class="c1"># Increment counts of inactive RNAPs</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">inactive_RNAPs_idx</span><span class="p">,</span> <span class="n">n_total_collisions</span><span class="p">))</span>
+
+            <span class="c1"># Get sequences of incomplete transcripts</span>
+            <span class="n">incomplete_sequence_lengths</span> <span class="o">=</span> <span class="n">transcript_lengths</span><span class="p">[</span>
+                <span class="n">removed_RNAs_mask</span><span class="p">]</span>
+            <span class="n">n_initiated_sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
+                <span class="n">incomplete_sequence_lengths</span><span class="p">)</span>
+            <span class="n">n_ppi_added</span> <span class="o">=</span> <span class="n">n_initiated_sequences</span>
+
+            <span class="k">if</span> <span class="n">n_initiated_sequences</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">incomplete_rna_indexes</span> <span class="o">=</span> <span class="n">RNA_TU_indexes</span><span class="p">[</span><span class="n">removed_RNAs_mask</span><span class="p">]</span>
+
+                <span class="n">incomplete_sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">rna_sequences</span><span class="p">,</span>
+                    <span class="n">incomplete_rna_indexes</span><span class="p">,</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_total_collisions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_total_collisions</span><span class="p">,</span>
+                        <span class="n">incomplete_sequence_lengths</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+                <span class="n">mature_rna_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_mature_rnas</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+                <span class="n">base_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">ri</span><span class="p">,</span> <span class="n">sl</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">incomplete_rna_indexes</span><span class="p">,</span>
+                    <span class="n">incomplete_sequence_lengths</span><span class="p">,</span> <span class="n">incomplete_sequences</span>
+                <span class="p">):</span>
+                    <span class="c1"># Check if incomplete RNA is an unprocessed RNA</span>
+                    <span class="k">if</span> <span class="n">ri</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">unprocessed_rna_index_mapping</span><span class="p">:</span>
+                        <span class="c1"># Find mature RNA molecules that would need to be added</span>
+                        <span class="c1"># given the length of the incomplete RNA</span>
+                        <span class="n">mature_rna_end_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_end_positions</span><span class="p">[</span>
+                            <span class="p">:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unprocessed_rna_index_mapping</span><span class="p">[</span><span class="n">ri</span><span class="p">]]</span>
+                        <span class="n">mature_rnas_produced</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span>
+                            <span class="n">mature_rna_end_pos</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">mature_rna_end_pos</span> <span class="o">&lt;</span> <span class="n">sl</span><span class="p">)</span>
+
+                        <span class="c1"># Increment counts of mature RNAs</span>
+                        <span class="n">mature_rna_counts</span> <span class="o">+=</span> <span class="n">mature_rnas_produced</span>
+
+                        <span class="c1"># Increment counts of fragment NTPs, but exclude bases</span>
+                        <span class="c1"># that are part of the mature RNAs generated</span>
+                        <span class="n">base_counts</span> <span class="o">+=</span> <span class="p">(</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">seq</span><span class="p">[:</span><span class="n">sl</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span><span class="p">)</span>
+                            <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_nt_counts</span><span class="p">[</span>
+                                <span class="n">mature_rnas_produced</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+                        <span class="c1"># Exclude ppi molecules that are part of mature RNAs</span>
+                        <span class="n">n_ppi_added</span> <span class="o">-=</span> <span class="n">mature_rnas_produced</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">base_counts</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+                            <span class="n">seq</span><span class="p">[:</span><span class="n">sl</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span><span class="p">)</span>
+                    <span class="n">base_counts</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">seq</span><span class="p">[:</span><span class="n">sl</span><span class="p">],</span>
+                        <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_fragment_bases</span><span class="p">)</span>
+
+                <span class="c1"># Increment counts of mature RNAs, fragment NTPs and phosphates</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">mature_rna_idx</span><span class="p">,</span> <span class="n">mature_rna_counts</span><span class="p">))</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">fragmentBasesIdx</span><span class="p">,</span> <span class="n">base_counts</span><span class="p">))</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">ppi_idx</span><span class="p">,</span> <span class="n">n_ppi_added</span><span class="p">))</span>
+
+        <span class="c1"># Get mask for ribosomes that are bound to nonexisting mRNAs</span>
+        <span class="n">remaining_RNA_unique_indexes</span> <span class="o">=</span> <span class="n">RNA_unique_indexes</span><span class="p">[</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">removed_RNAs_mask</span><span class="p">)]</span>
+        <span class="n">removed_ribosomes_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span>
+            <span class="n">ribosome_mRNA_indexes</span><span class="p">,</span> <span class="n">remaining_RNA_unique_indexes</span><span class="p">))</span>
+        <span class="n">n_removed_ribosomes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">removed_ribosomes_mask</span><span class="p">)</span>
+
+        <span class="c1"># Remove ribosomes that are bound to missing RNA molecules. This</span>
+        <span class="c1"># includes both RNAs removed by this function and RNAs removed</span>
+        <span class="c1"># by other processes (e.g. RNA degradation).</span>
+        <span class="k">if</span> <span class="n">n_removed_ribosomes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;active_ribosome&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">removed_ribosomes_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]})</span>
+
+            <span class="c1"># Increment counts of inactive ribosomal subunits</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome_30S_subunit_idx</span><span class="p">,</span> <span class="n">n_removed_ribosomes</span><span class="p">),</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome_50S_subunit_idx</span><span class="p">,</span> <span class="n">n_removed_ribosomes</span><span class="p">)])</span>
+
+            <span class="c1"># Get amino acid sequences of incomplete polypeptides</span>
+            <span class="n">incomplete_sequence_lengths</span> <span class="o">=</span> <span class="n">ribosome_peptide_lengths</span><span class="p">[</span>
+                <span class="n">removed_ribosomes_mask</span><span class="p">]</span>
+            <span class="n">n_initiated_sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
+                <span class="n">incomplete_sequence_lengths</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">n_initiated_sequences</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">incomplete_sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">protein_sequences</span><span class="p">,</span>
+                    <span class="n">ribosome_protein_indexes</span><span class="p">[</span><span class="n">removed_ribosomes_mask</span><span class="p">],</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_removed_ribosomes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_removed_ribosomes</span><span class="p">,</span>
+                        <span class="n">incomplete_sequence_lengths</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+                <span class="n">amino_acid_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">n_amino_acids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">sl</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">incomplete_sequence_lengths</span><span class="p">,</span>
+                    <span class="n">incomplete_sequences</span>
+                <span class="p">):</span>
+                    <span class="n">amino_acid_counts</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span>
+                        <span class="n">seq</span><span class="p">[:</span><span class="n">sl</span><span class="p">],</span> <span class="n">minlength</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_amino_acids</span><span class="p">)</span>
+
+                <span class="c1"># Increment counts of free amino acids and decrease counts of</span>
+                <span class="c1"># free water molecules</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">amino_acids_idx</span><span class="p">,</span>
+                    <span class="n">amino_acid_counts</span><span class="p">))</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">water_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">n_initiated_sequences</span>
+                    <span class="o">-</span> <span class="n">incomplete_sequence_lengths</span><span class="o">.</span><span class="n">sum</span><span class="p">())))</span>
+
+        <span class="c1"># Write to listener</span>
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;rnap_data&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;n_removed_ribosomes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">n_removed_ribosomes</span>
+
+
+        <span class="k">def</span> <span class="nf">get_replicated_motif_attributes</span><span class="p">(</span><span class="n">old_coordinates</span><span class="p">,</span> <span class="n">old_domain_indexes</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Computes the attributes of replicated motifs on the chromosome,</span>
+<span class="sd">            given the old coordinates and domain indexes of the original motifs.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># Coordinates are simply repeated</span>
+            <span class="n">new_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">old_coordinates</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+            <span class="c1"># Domain indexes are set to the child indexes of the original index</span>
+            <span class="n">new_domain_indexes</span> <span class="o">=</span> <span class="n">child_domains</span><span class="p">[</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">all_chromosome_domain_indexes</span> <span class="o">==</span> <span class="n">idx</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">old_domain_indexes</span><span class="p">]),</span>
+                <span class="p">:]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+            <span class="k">return</span> <span class="n">new_coordinates</span><span class="p">,</span> <span class="n">new_domain_indexes</span>
+
+
+        <span class="c1">#######################</span>
+        <span class="c1"># Replicate promoters #</span>
+        <span class="c1">#######################</span>
+        <span class="n">n_new_promoters</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">removed_promoters_mask</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_new_promoters</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Delete original promoters</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">removed_promoters_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]})</span>
+
+            <span class="c1"># Add freed active tfs</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">active_tfs_idx</span><span class="p">,</span>
+                <span class="n">promoter_bound_TFs</span><span class="p">[</span><span class="n">removed_promoters_mask</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)))</span>
+
+            <span class="c1"># Set up attributes for the replicated promoters</span>
+            <span class="n">promoter_TU_indexes_new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span>
+                <span class="n">promoter_TU_indexes</span><span class="p">[</span><span class="n">removed_promoters_mask</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">promoter_coordinates_new</span><span class="p">,</span>
+                <span class="n">promoter_domain_indexes_new</span><span class="p">)</span> <span class="o">=</span> <span class="n">get_replicated_motif_attributes</span><span class="p">(</span>
+                    <span class="n">promoter_coordinates</span><span class="p">[</span><span class="n">removed_promoters_mask</span><span class="p">],</span>
+                    <span class="n">promoter_domain_indexes</span><span class="p">[</span><span class="n">removed_promoters_mask</span><span class="p">])</span>
+
+            <span class="c1"># Add new promoters with new domain indexes</span>
+            <span class="n">promoter_indices</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+                <span class="n">n_new_promoters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;promoters&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">promoter_indices</span><span class="p">,</span>
+                <span class="s1">&#39;TU_index&#39;</span><span class="p">:</span> <span class="n">promoter_TU_indexes_new</span><span class="p">,</span>
+                <span class="s1">&#39;coordinates&#39;</span><span class="p">:</span> <span class="n">promoter_coordinates_new</span><span class="p">,</span>
+                <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">promoter_domain_indexes_new</span><span class="p">,</span>
+                <span class="s1">&#39;bound_TF&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_new_promoters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_TFs</span><span class="p">),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)}})</span>
+            
+        <span class="c1"># Replicate genes</span>
+        <span class="n">n_new_genes</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">removed_genes_mask</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_new_genes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Delete original genes</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;genes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">removed_genes_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]})</span>
+
+            <span class="c1"># Set up attributes for the replicated genes</span>
+            <span class="n">gene_cistron_indexes_new</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">gene_cistron_indexes</span><span class="p">[</span><span class="n">removed_genes_mask</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">gene_coordinates_new</span><span class="p">,</span> <span class="n">gene_domain_indexes_new</span> <span class="o">=</span> <span class="n">get_replicated_motif_attributes</span><span class="p">(</span>
+                <span class="n">gene_coordinates</span><span class="p">[</span><span class="n">removed_genes_mask</span><span class="p">],</span>
+                <span class="n">gene_domain_indexes</span><span class="p">[</span><span class="n">removed_genes_mask</span><span class="p">])</span>
+
+            <span class="c1"># Add new genes with new domain indexes</span>
+            <span class="n">gene_indices</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+                <span class="n">n_new_genes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;genes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">gene_indices</span><span class="p">,</span>
+                <span class="s1">&#39;cistron_index&#39;</span><span class="p">:</span> <span class="n">gene_cistron_indexes_new</span><span class="p">,</span>
+                <span class="s1">&#39;coordinates&#39;</span><span class="p">:</span> <span class="n">gene_coordinates_new</span><span class="p">,</span>
+                <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">gene_domain_indexes_new</span><span class="p">}})</span>
+
+        <span class="c1">########################</span>
+        <span class="c1"># Replicate DnaA boxes #</span>
+        <span class="c1">########################</span>
+        <span class="n">n_new_DnaA_boxes</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">removed_DnaA_boxes_mask</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_new_DnaA_boxes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Delete original DnaA boxes</span>
+            <span class="k">if</span> <span class="n">removed_DnaA_boxes_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">update</span><span class="p">[</span><span class="s1">&#39;DnaA_boxes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                    <span class="s1">&#39;delete&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">removed_DnaA_boxes_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]})</span>
+
+            <span class="c1"># Set up attributes for the replicated boxes</span>
+            <span class="p">(</span><span class="n">DnaA_box_coordinates_new</span><span class="p">,</span>
+                <span class="n">DnaA_box_domain_indexes_new</span><span class="p">)</span> <span class="o">=</span> <span class="n">get_replicated_motif_attributes</span><span class="p">(</span>
+                    <span class="n">DnaA_box_coordinates</span><span class="p">[</span><span class="n">removed_DnaA_boxes_mask</span><span class="p">],</span>
+                    <span class="n">DnaA_box_domain_indexes</span><span class="p">[</span><span class="n">removed_DnaA_boxes_mask</span><span class="p">])</span>
+
+            <span class="c1"># Add new DnaA boxes with new domain indexes</span>
+            <span class="n">DnaA_box_indices</span> <span class="o">=</span> <span class="n">create_unique_indexes</span><span class="p">(</span>
+                <span class="n">n_new_DnaA_boxes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
+            <span class="n">dict_dna</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;unique_index&#39;</span><span class="p">:</span> <span class="n">DnaA_box_indices</span><span class="p">,</span>
+                                <span class="s1">&#39;coordinates&#39;</span><span class="p">:</span> <span class="n">DnaA_box_coordinates_new</span><span class="p">,</span>
+                                <span class="s1">&#39;domain_index&#39;</span><span class="p">:</span> <span class="n">DnaA_box_domain_indexes_new</span><span class="p">,</span>
+                                <span class="s1">&#39;DnaA_bound&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_new_DnaA_boxes</span><span class="p">,</span>
+                                    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)}}</span>
+            <span class="n">update</span><span class="p">[</span><span class="s1">&#39;DnaA_boxes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dict_dna</span><span class="p">)</span>
+
+        <span class="n">update</span><span class="p">[</span><span class="s1">&#39;next_update_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">update</span></div>
+
+
+
+<div class="viewcode-block" id="ChromosomeStructure._compute_new_segment_attributes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.processes.chromosome_structure.html#ecoli.processes.chromosome_structure.ChromosomeStructure._compute_new_segment_attributes">[docs]</a>
+    <span class="k">def</span> <span class="nf">_compute_new_segment_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+        <span class="n">old_boundary_molecule_indexes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> 
+        <span class="n">old_boundary_coordinates</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> 
+        <span class="n">old_linking_numbers</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">new_molecule_indexes</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> 
+        <span class="n">new_molecule_coordinates</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">spans_oriC</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> 
+        <span class="n">spans_terC</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the updated attributes of chromosomal segments belonging to</span>
+<span class="sd">        a specific chromosomal domain, given the previous and current</span>
+<span class="sd">        coordinates of molecules bound to the chromosome.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            old_boundary_molecule_indexes: (N, 2) array of unique</span>
+<span class="sd">                indexes of molecules that formed the boundaries of each</span>
+<span class="sd">                chromosomal segment in the previous timestep.</span>
+<span class="sd">            old_boundary_coordinates: (N, 2) array of chromosomal</span>
+<span class="sd">                coordinates of molecules that formed the boundaries of each</span>
+<span class="sd">                chromosomal segment in the previous timestep.</span>
+<span class="sd">            old_linking_numbers: (N,) array of linking numbers of each</span>
+<span class="sd">                chromosomal segment in the previous timestep.</span>
+<span class="sd">            new_molecule_indexes: (N,) array of unique indexes of all</span>
+<span class="sd">                molecules bound to the domain at the current timestep.</span>
+<span class="sd">            new_molecule_coordinates: (N,) array of chromosomal</span>
+<span class="sd">                coordinates of all molecules bound to the domain at the current</span>
+<span class="sd">                timestep.</span>
+<span class="sd">            spans_oriC: True if the domain spans the origin.</span>
+<span class="sd">            spans_terC: True if the domain spans the terminus.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of the following format::</span>
+<span class="sd">                </span>
+<span class="sd">                {</span>
+<span class="sd">                    &#39;boundary_molecule_indexes&#39;: (M, 2) array of unique</span>
+<span class="sd">                        indexes of molecules that form the boundaries of new</span>
+<span class="sd">                        chromosomal segments,</span>
+<span class="sd">                    &#39;boundary_coordinates&#39;: (M, 2) array of chromosomal </span>
+<span class="sd">                        coordinates of molecules that form the boundaries of </span>
+<span class="sd">                        new chromosomal segments,</span>
+<span class="sd">                    &#39;linking_numbers&#39;: (M,) array of linking numbers of new </span>
+<span class="sd">                        chromosomal segments</span>
+<span class="sd">                }</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Sort old segment arrays by coordinates of left boundary</span>
+        <span class="n">old_coordinates_argsort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">old_boundary_coordinates</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">old_boundary_coordinates_sorted</span> <span class="o">=</span> <span class="n">old_boundary_coordinates</span><span class="p">[</span>
+            <span class="n">old_coordinates_argsort</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">old_boundary_molecule_indexes_sorted</span> <span class="o">=</span> <span class="n">old_boundary_molecule_indexes</span><span class="p">[</span>
+            <span class="n">old_coordinates_argsort</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">old_linking_numbers_sorted</span> <span class="o">=</span> <span class="n">old_linking_numbers</span><span class="p">[</span>
+            <span class="n">old_coordinates_argsort</span><span class="p">]</span>
+
+        <span class="c1"># Sort new segment arrays by molecular coordinates</span>
+        <span class="n">new_coordinates_argsort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">new_molecule_coordinates</span><span class="p">)</span>
+        <span class="n">new_molecule_coordinates_sorted</span> <span class="o">=</span> <span class="n">new_molecule_coordinates</span><span class="p">[</span>
+            <span class="n">new_coordinates_argsort</span><span class="p">]</span>
+        <span class="n">new_molecule_indexes_sorted</span> <span class="o">=</span> <span class="n">new_molecule_indexes</span><span class="p">[</span>
+            <span class="n">new_coordinates_argsort</span><span class="p">]</span>
+
+        <span class="c1"># Domain does not span the origin</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">spans_oriC</span><span class="p">:</span>
+            <span class="c1"># A fragment spans oriC if two boundaries have opposite signs,</span>
+            <span class="c1"># or both are equal to zero</span>
+            <span class="n">oriC_fragment_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span>
+                    <span class="n">old_boundary_coordinates_sorted</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="n">old_boundary_coordinates_sorted</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                    <span class="p">)))</span>
+
+            <span class="c1"># if oriC fragment did not exist in the domain in the previous</span>
+            <span class="c1"># timestep, add a dummy fragment that covers the origin with</span>
+            <span class="c1"># linking number zero. This is done to generalize the</span>
+            <span class="c1"># implementation of this method.</span>
+            <span class="k">if</span> <span class="n">oriC_fragment_counts</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Index of first segment where left boundary is nonnegative</span>
+                <span class="n">oriC_fragment_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span>
+                    <span class="n">old_boundary_coordinates_sorted</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+
+                <span class="c1"># Get indexes of boundary molecules for this dummy segment</span>
+                <span class="n">oriC_fragment_boundary_molecule_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                    <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[</span>
+                        <span class="n">oriC_fragment_index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                    <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[</span>
+                        <span class="n">oriC_fragment_index</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+                    <span class="p">])</span>
+
+                <span class="c1"># Insert dummy segment to array</span>
+                <span class="n">old_boundary_molecule_indexes_sorted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+                    <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">,</span>
+                    <span class="n">oriC_fragment_index</span><span class="p">,</span>
+                    <span class="n">oriC_fragment_boundary_molecule_indexes</span><span class="p">,</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">old_linking_numbers_sorted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+                    <span class="n">old_linking_numbers_sorted</span><span class="p">,</span>
+                    <span class="n">oriC_fragment_index</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># There should not be more than one fragment that spans oriC</span>
+                <span class="k">assert</span> <span class="n">oriC_fragment_counts</span> <span class="o">==</span> <span class="mi">1</span>
+
+        <span class="c1"># Domain spans the terminus</span>
+        <span class="k">if</span> <span class="n">spans_terC</span><span class="p">:</span>
+            <span class="c1"># If the domain spans the terminus, dummy molecules are added to</span>
+            <span class="c1"># each end of the chromosome s.t. the segment that spans terC is</span>
+            <span class="c1"># split to two segments and we can maintain a linear representation</span>
+            <span class="c1"># for the circular chromosome. These two segments are later</span>
+            <span class="c1"># adjusted to have the same superhelical densities.</span>
+            <span class="n">new_molecule_coordinates_sorted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+                <span class="n">new_molecule_coordinates_sorted</span><span class="p">,</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_molecule_coordinates_sorted</span><span class="p">)],</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">min_coordinates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_coordinates</span><span class="p">]</span>
+                <span class="p">)</span>
+
+            <span class="n">new_molecule_indexes_sorted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+                <span class="n">new_molecule_indexes_sorted</span><span class="p">,</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_molecule_indexes_sorted</span><span class="p">)],</span> <span class="bp">self</span><span class="o">.</span><span class="n">terC_index</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Add dummy molecule to old segments if they do not already exist</span>
+            <span class="k">if</span> <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">terC_index</span><span class="p">:</span>
+                <span class="n">old_boundary_molecule_indexes_sorted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">terC_index</span><span class="p">,</span> 
+                        <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]]),</span>
+                    <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">,</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">terC_index</span><span class="p">])</span>
+                    <span class="p">))</span>
+                <span class="n">old_linking_numbers_sorted</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+                    <span class="n">old_linking_numbers_sorted</span><span class="p">,</span>
+                    <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">old_linking_numbers_sorted</span><span class="p">)],</span> <span class="mi">0</span>
+                    <span class="p">)</span>
+
+        <span class="c1"># Recalculate linking numbers of each segment after accounting for</span>
+        <span class="c1"># boundary molecules that were removed in the current timestep</span>
+        <span class="n">linking_numbers_after_removal</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">right_boundaries_retained</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span>
+            <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">new_molecule_indexes_sorted</span><span class="p">)</span>
+
+        <span class="c1"># Add up linking numbers of each segment until each retained boundary</span>
+        <span class="n">ln_this_fragment</span> <span class="o">=</span> <span class="mf">0.</span>
+        <span class="k">for</span> <span class="n">retained</span><span class="p">,</span> <span class="n">ln</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">right_boundaries_retained</span><span class="p">,</span>
+            <span class="n">old_linking_numbers_sorted</span>
+        <span class="p">):</span>
+            <span class="n">ln_this_fragment</span> <span class="o">+=</span> <span class="n">ln</span>
+
+            <span class="k">if</span> <span class="n">retained</span><span class="p">:</span>
+                <span class="n">linking_numbers_after_removal</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ln_this_fragment</span><span class="p">)</span>
+                <span class="n">ln_this_fragment</span> <span class="o">=</span> <span class="mf">0.</span>
+
+        <span class="c1"># Number of segments should be equal to number of retained boundaries</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">linking_numbers_after_removal</span><span class="p">)</span> <span class="o">==</span> \
+            <span class="n">right_boundaries_retained</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># Redistribute linking numbers of the two terC segments such that the</span>
+        <span class="c1"># segments have same superhelical densities</span>
+        <span class="k">if</span> <span class="n">spans_terC</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">right_boundaries_retained</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Get molecule indexes of the boundaries of the two terC segments</span>
+            <span class="c1"># left and right of terC</span>
+            <span class="n">retained_boundary_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">right_boundaries_retained</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">left_segment_boundary_index</span> <span class="o">=</span> <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[</span>
+                <span class="n">retained_boundary_indexes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">right_segment_boundary_index</span> <span class="o">=</span> <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">[</span>
+                <span class="n">retained_boundary_indexes</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">]</span>
+
+            <span class="c1"># Get mapping from molecule index to chromosomal coordinates</span>
+            <span class="n">molecule_index_to_coordinates</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">index</span><span class="p">:</span> <span class="n">coordinates</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">coordinates</span>
+                <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">new_molecule_indexes_sorted</span><span class="p">,</span>
+                <span class="n">new_molecule_coordinates_sorted</span><span class="p">)</span>
+            <span class="p">}</span>
+
+            <span class="c1"># Distribute linking number between two segments proportional to</span>
+            <span class="c1"># the length of each segment</span>
+            <span class="n">left_segment_length</span> <span class="o">=</span> <span class="n">molecule_index_to_coordinates</span><span class="p">[</span>
+                <span class="n">left_segment_boundary_index</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_coordinates</span>
+            <span class="n">right_segment_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_coordinates</span> \
+                <span class="o">-</span> <span class="n">molecule_index_to_coordinates</span><span class="p">[</span><span class="n">right_segment_boundary_index</span><span class="p">]</span>
+            <span class="n">full_segment_length</span> <span class="o">=</span> <span class="n">left_segment_length</span> <span class="o">+</span> <span class="n">right_segment_length</span>
+            <span class="n">full_linking_number</span> <span class="o">=</span> <span class="n">linking_numbers_after_removal</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> \
+                <span class="o">+</span> <span class="n">linking_numbers_after_removal</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="n">linking_numbers_after_removal</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_linking_number</span> \
+                <span class="o">*</span> <span class="n">left_segment_length</span><span class="o">/</span><span class="n">full_segment_length</span>
+            <span class="n">linking_numbers_after_removal</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_linking_number</span> \
+                <span class="o">*</span> <span class="n">right_segment_length</span><span class="o">/</span><span class="n">full_segment_length</span>
+
+        <span class="c1"># Get mask for molecules that already existed in the previous timestep</span>
+        <span class="n">existing_molecules_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span>
+            <span class="n">new_molecule_indexes_sorted</span><span class="p">,</span> <span class="n">old_boundary_molecule_indexes_sorted</span><span class="p">)</span>
+
+        <span class="c1"># Get numbers and lengths of new segments that each segment will be</span>
+        <span class="c1"># split into</span>
+        <span class="n">segment_split_sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">existing_molecules_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">segment_lengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">new_molecule_coordinates_sorted</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">segment_split_sizes</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">linking_numbers_after_removal</span><span class="p">)</span>
+
+        <span class="c1"># Calculate linking numbers of each segment after accounting for new</span>
+        <span class="c1"># boundaries that were added</span>
+        <span class="n">new_linking_numbers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">ln</span><span class="p">,</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">linking_numbers_after_removal</span><span class="p">,</span>
+            <span class="n">segment_split_sizes</span>
+        <span class="p">):</span>
+            <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">new_linking_numbers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ln</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Split linking number proportional to length of segment</span>
+                <span class="n">total_length</span> <span class="o">=</span> <span class="n">segment_lengths</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="n">size</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="n">new_linking_numbers</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="n">ln</span><span class="o">*</span><span class="n">segment_lengths</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="n">size</span><span class="p">]</span><span class="o">/</span><span class="n">total_length</span><span class="p">)</span>
+                    <span class="p">)</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="n">size</span>
+
+        <span class="c1"># Handle edge case where a domain was just initialized, and two</span>
+        <span class="c1"># replisomes are bound to the origin</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_linking_numbers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">new_linking_numbers</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Build Mx2 array for boundary indexes and coordinates</span>
+        <span class="n">new_boundary_molecule_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span>
+            <span class="n">new_molecule_indexes_sorted</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span>
+            <span class="n">new_molecule_indexes_sorted</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="p">))</span>
+        <span class="n">new_boundary_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span>
+            <span class="n">new_molecule_coordinates_sorted</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">],</span>
+            <span class="n">new_molecule_coordinates_sorted</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+            <span class="p">))</span>
+        <span class="n">new_linking_numbers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">new_linking_numbers</span><span class="p">)</span>
+
+        <span class="c1"># If domain does not span oriC, remove new segment that spans origin</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">spans_oriC</span><span class="p">:</span>
+            <span class="n">oriC_fragment_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_xor</span><span class="p">(</span>
+                <span class="n">new_boundary_coordinates</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">new_boundary_coordinates</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="p">))</span>
+
+            <span class="k">assert</span> <span class="n">oriC_fragment_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span>
+
+            <span class="n">new_boundary_molecule_indexes</span> <span class="o">=</span> <span class="n">new_boundary_molecule_indexes</span><span class="p">[</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">oriC_fragment_mask</span><span class="p">),</span> <span class="p">:]</span>
+            <span class="n">new_boundary_coordinates</span> <span class="o">=</span> <span class="n">new_boundary_coordinates</span><span class="p">[</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">oriC_fragment_mask</span><span class="p">),</span> <span class="p">:]</span>
+            <span class="n">new_linking_numbers</span> <span class="o">=</span> <span class="n">new_linking_numbers</span><span class="p">[</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">oriC_fragment_mask</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;boundary_molecule_indexes&quot;</span><span class="p">:</span> <span class="n">new_boundary_molecule_indexes</span><span class="p">,</span>
+            <span class="s2">&quot;boundary_coordinates&quot;</span><span class="p">:</span> <span class="n">new_boundary_coordinates</span><span class="p">,</span>
+            <span class="s2">&quot;linking_numbers&quot;</span><span class="p">:</span> <span class="n">new_linking_numbers</span>
+            <span class="p">}</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import simulation output &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Import simulation output</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/notebooks/fbagd/generate_flow_data_class.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[80]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+<span class="kn">import</span> <span class="nn">cvxpy</span> <span class="k">as</span> <span class="nn">cp</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="kn">import</span> <span class="n">logsumexp</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s1">&#39;darkgrid&#39;</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;talk&#39;</span><span class="p">)</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/vivarium-ecoli&#39;</span><span class="p">))</span>
+
+<span class="kn">from</span> <span class="nn">convex_kinetics_new</span> <span class="kn">import</span> <span class="n">ConvexKineticsNew</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.metabolism_redux</span> <span class="kn">import</span> <span class="n">NetworkFlowModel</span><span class="p">,</span> <span class="n">FlowResult</span><span class="p">,</span> <span class="n">BAD_RXNS</span><span class="p">,</span> <span class="n">FREE_RXNS</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+The autoreload extension is already loaded. To reload it, use:
+  %reload_ext autoreload
+</pre></div></div>
+</div>
+<section id="Import-simulation-output">
+<h1>Import simulation output<a class="headerlink" href="#Import-simulation-output" title="Link to this heading"></a></h1>
+<p>Before running this, run a sim in ecoli/experiments/metabolism_redux_sim.py with -n 2 to generate a simulation output. This is necessary to replicate the simulation environment. Use the default .json config.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[81]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="o">=</span> <span class="s1">&#39;10&#39;</span>
+<span class="n">date</span> <span class="o">=</span> <span class="s1">&#39;2023-04-21&#39;</span>
+<span class="n">experiment</span> <span class="o">=</span> <span class="s1">&#39;fba-redux&#39;</span>
+<span class="n">entry</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">experiment</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">date</span><span class="si">}</span><span class="s1">&#39;</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;out/fbagd/</span><span class="si">{</span><span class="n">entry</span><span class="si">}</span><span class="s1">/&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[82]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;output.npy&#39;</span><span class="p">,</span><span class="n">allow_pickle</span><span class="o">=</span><span class="s1">&#39;TRUE&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+<span class="c1"># output = np.load(r&quot;out/geneRxnVerifData/output_glc.npy&quot;, allow_pickle=True, encoding=&#39;ASCII&#39;).tolist()</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>
+<span class="n">fba</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;fba_results&#39;</span><span class="p">]</span>
+<span class="n">mass</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span>
+<span class="n">bulk</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[83]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;agent_steps.pkl&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span>
+<span class="n">agent</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[84]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;ecoli-metabolism-redux&#39;</span>
+
+<span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;ecoli-metabolism-redux&#39;</span><span class="p">:</span>
+    <span class="n">metabolism</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism-redux&#39;</span><span class="p">]</span>
+    <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">metabolism</span><span class="o">.</span><span class="n">stoichiometry</span>
+    <span class="n">stoichiometric_matrix_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;reaction id&quot;</span><span class="p">]:</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">stoichiometry</span><span class="p">}</span>
+<span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">:</span>
+    <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">stoichiometry</span>
+    <span class="n">maintenance_reaction</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">maintenance_reaction</span>
+    <span class="n">stoichiometry</span><span class="p">[</span><span class="s2">&quot;maintenance_reaction&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">maintenance_reaction</span>
+
+
+<span class="c1"># for rxn in BAD_RXNS:</span>
+<span class="c1">#     stoichiometric_matrix_dict.pop(rxn, None)</span>
+</pre></div>
+</div>
+</div>
+<p>Pandas automatically understands dicts of dicts as matrices.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[85]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_fluxes&quot;</span><span class="p">])</span>
+<span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">sim_fluxes</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># plot the top 10 fluxes from sim_fluxes as a bar plot.</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sim_fluxes</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">),</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+
+<span class="c1"># shorten all xtick names to 10 characters</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">)],</span> <span class="p">[</span><span class="n">i</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sim_fluxes</span><span class="o">.</span><span class="n">index</span><span class="p">[:</span><span class="mi">10</span><span class="p">]],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span> <span class="s1">&#39;right&#39;</span><span class="p">)</span>
+<span class="c1"># make xticks aligned to right left of bar</span>
+
+
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Flux counts&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Top 10 Fluxes&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_fbagd_generate_flow_data_class_7_0.png" src="../../_images/notebooks_fbagd_generate_flow_data_class_7_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[86]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_catalysts</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;reaction_catalyst_counts&quot;</span><span class="p">])</span>
+<span class="n">sim_catalysts</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_catalysts</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">sim_catalysts</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[86]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>4</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>RXN0-1741-MALTOSE//MALTOSE.17.</th>
+      <td>40249</td>
+    </tr>
+    <tr>
+      <th>RXN-15315</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN0-445-CHITOBIOSE//CHITOBIOSE.23.</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>RXN0-0-N-ACETYLNEURAMINATE//N-ACETYLNEURAMINATE.41.</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>RXN0-0-N-ACETYLNEURAMINATE//CPD0-1123.31.</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN-100</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17726-CPD-3561/WATER//GALACTOSE/CPD-10723.36.</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17726-CPD-3561/WATER//GALACTOSE/BETA-D-FRUCTOSE.42.</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17726</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17786 (reverse)</th>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+<p>7503 rows × 1 columns</p>
+</div></div>
+</div>
+</section>
+<section id="Test-changing-nutrient-composition">
+<h1>Test changing nutrient composition<a class="headerlink" href="#Test-changing-nutrient-composition" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[87]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">uptake</span> <span class="o">=</span> <span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;unconstrained_molecules&quot;</span><span class="p">][</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">uptake_c</span> <span class="o">=</span> <span class="n">fba</span><span class="p">[</span><span class="s2">&quot;constrained_molecules&quot;</span><span class="p">]</span>
+
+<span class="n">uptake</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake_c</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">uptake</span><span class="p">)</span>
+
+<span class="c1"># addition = set([&quot;CPD0-1074[c]&quot;])</span>
+<span class="n">addition</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+        <span class="s2">&quot;FRU[p]&quot;</span><span class="p">,</span>
+        <span class="c1"># &quot;NITRATE[p]&quot;</span>
+        <span class="c1"># &#39;THIAMINE[p]&#39;,</span>
+        <span class="c1"># &#39;HYDROGEN-MOLECULE[p]&#39;,</span>
+        <span class="c1"># &#39;FUM[p]&#39;</span>
+<span class="p">])</span>
+<span class="n">removals</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+                  <span class="s2">&quot;GLC[p]&quot;</span><span class="p">,</span>
+               <span class="c1">#      # &#39;AMMONIUM[c]&#39;,</span>
+               <span class="c1">#      # &#39;WATER[p]&#39;</span>
+               <span class="c1">#       # &#39;Pi[p]&#39;,</span>
+               <span class="c1">#       # &#39;SULFATE[p]&#39;</span>
+               <span class="c1"># &#39;OXYGEN-MOLECULE[p]&#39;</span>
+<span class="p">])</span>
+
+
+<span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">|</span> <span class="n">addition</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">-</span> <span class="n">removals</span>
+<span class="n">uptake</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[87]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;AMMONIUM[c]&#39;,
+ &#39;CA+2[p]&#39;,
+ &#39;CARBON-DIOXIDE[p]&#39;,
+ &#39;CL-[p]&#39;,
+ &#39;CO+2[p]&#39;,
+ &#39;FE+2[p]&#39;,
+ &#39;FRU[p]&#39;,
+ &#39;K+[p]&#39;,
+ &#39;L-SELENOCYSTEINE[c]&#39;,
+ &#39;MG+2[p]&#39;,
+ &#39;MN+2[p]&#39;,
+ &#39;NA+[p]&#39;,
+ &#39;NI+2[p]&#39;,
+ &#39;OXYGEN-MOLECULE[p]&#39;,
+ &#39;Pi[p]&#39;,
+ &#39;SULFATE[p]&#39;,
+ &#39;WATER[p]&#39;,
+ &#39;ZN+2[p]&#39;}
+</pre></div></div>
+</div>
+</section>
+<section id="Use-NetworkFlowModel-class-to-run-model">
+<h1>Use NetworkFlowModel class to run model<a class="headerlink" href="#Use-NetworkFlowModel-class-to-run-model" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[88]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">homeostatic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_homeostatic_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">maintenance</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;maintenance_target&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;maintenance_reaction&#39;</span><span class="p">]</span>
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">homeostatic</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[88]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+2-3-DIHYDROXYBENZOATE[c]     73.0
+2-KETOGLUTARATE[c]          186.0
+2-PG[c]                      49.0
+2K-4CH3-PENTANOATE[c]        73.0
+4-AMINO-BUTYRATE[c]         160.0
+                            ...
+MN+2[p]                      52.0
+NA+[p]                       52.0
+OXYGEN-MOLECULE[p]           51.0
+CA+2[p]                      52.0
+Pi[p]                        52.0
+Name: 4, Length: 171, dtype: float64
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[89]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">NetworkFlowModel</span><span class="p">(</span><span class="n">reactions</span><span class="o">=</span><span class="n">stoichiometric_matrix_dict</span><span class="p">,</span>
+                         <span class="n">homeostatic_metabolites</span><span class="o">=</span><span class="n">metabolism</span><span class="o">.</span><span class="n">homeostatic_objective</span><span class="p">,</span>
+                         <span class="n">free_reactions</span><span class="o">=</span><span class="n">FREE_RXNS</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[90]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">set_up_exchanges</span><span class="p">(</span><span class="n">exchanges</span><span class="o">=</span><span class="n">metabolism</span><span class="o">.</span><span class="n">exchange_molecules</span><span class="p">,</span> <span class="n">uptakes</span><span class="o">=</span><span class="n">metabolism</span><span class="o">.</span><span class="n">allowed_exchange_uptake</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[91]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span><span class="p">:</span> <span class="n">FlowResult</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">homeostatic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">homeostatic</span><span class="p">),</span>
+                                   <span class="n">maintenance_target</span><span class="o">=</span><span class="n">maintenance</span><span class="p">,</span>
+                                   <span class="n">kinetic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">kinetic</span><span class="p">),</span>
+                                   <span class="n">reaction_catalyst_counts</span><span class="o">=</span><span class="n">sim_catalysts</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()[</span><span class="mi">4</span><span class="p">],</span>
+                                   <span class="n">objective_weights</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;secretion&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;efficiency&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="s1">&#39;kinetics&#39;</span><span class="p">:</span> <span class="mf">0.000001</span><span class="p">},</span>
+                                   <span class="n">upper_flux_bound</span><span class="o">=</span><span class="mi">100000000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[92]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span><span class="p">:</span> <span class="n">FlowResult</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">homeostatic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">homeostatic</span><span class="p">),</span>
+                                   <span class="n">maintenance_target</span><span class="o">=</span><span class="n">maintenance</span><span class="p">,</span>
+                                   <span class="n">kinetic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">kinetic</span><span class="p">),</span>
+                                   <span class="n">reaction_catalyst_counts</span><span class="o">=</span><span class="n">sim_catalysts</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()[</span><span class="mi">4</span><span class="p">],</span>
+                                   <span class="n">water_transport_reaction</span><span class="o">=</span><span class="s1">&#39;TRANS-RXN-145&#39;</span><span class="p">,</span>
+                                   <span class="n">objective_weights</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;secretion&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;efficiency&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="s1">&#39;kinetics&#39;</span><span class="p">:</span> <span class="mf">0.000001</span><span class="p">},</span>
+                                   <span class="n">upper_flux_bound</span><span class="o">=</span><span class="mi">100000000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">TypeError</span>                                 Traceback (most recent call last)
+<span class="ansi-green-fg">/var/folders/dx/0239zgvj0tgf46b5h8l7v_fc0000gn/T/ipykernel_3500/1371764301.py</span> in <span class="ansi-cyan-fg">&lt;module&gt;</span>
+<span class="ansi-green-fg">----&gt; 1</span><span class="ansi-red-fg"> solution: FlowResult = model.solve(homeostatic_targets=dict(homeostatic),
+</span><span class="ansi-green-intense-fg ansi-bold">      2</span>                                    maintenance_target<span class="ansi-blue-fg">=</span>maintenance<span class="ansi-blue-fg">,</span>
+<span class="ansi-green-intense-fg ansi-bold">      3</span>                                    kinetic_targets<span class="ansi-blue-fg">=</span>dict<span class="ansi-blue-fg">(</span>kinetic<span class="ansi-blue-fg">)</span><span class="ansi-blue-fg">,</span>
+<span class="ansi-green-intense-fg ansi-bold">      4</span>                                    reaction_catalyst_counts<span class="ansi-blue-fg">=</span>sim_catalysts<span class="ansi-blue-fg">.</span>to_dict<span class="ansi-blue-fg">(</span><span class="ansi-blue-fg">)</span><span class="ansi-blue-fg">[</span><span class="ansi-cyan-fg">4</span><span class="ansi-blue-fg">]</span><span class="ansi-blue-fg">,</span>
+<span class="ansi-green-intense-fg ansi-bold">      5</span>                                    water_transport_reaction<span class="ansi-blue-fg">=</span><span class="ansi-blue-fg">&#39;TRANS-RXN-145&#39;</span><span class="ansi-blue-fg">,</span>
+
+<span class="ansi-red-fg">TypeError</span>: solve() got an unexpected keyword argument &#39;water_transport_reaction&#39;
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">exchanges</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">velocities</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">Sd</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;FUMHYDR-RXN__FUMARASE-A&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">Sd</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;FUMHYDR-RXN__FUMARASE-A (reverse)&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">stoichiometry</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">rxn</span><span class="p">[</span><span class="s1">&#39;reaction id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;TRANS-RXN-145&#39;</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">rxn</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Filter-S-matrix-to-only-include-nonzero-fluxes.">
+<h1>Filter S matrix to only include nonzero fluxes.<a class="headerlink" href="#Filter-S-matrix-to-only-include-nonzero-fluxes." title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># only include nonzero fluxes in solution.velocities</span>
+<span class="n">nonzero_velocities</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">solution</span><span class="o">.</span><span class="n">velocities</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[93]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use nonzero_velocities to filter S matrix</span>
+<span class="n">S_matrix</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">Sd</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="n">nonzero_velocities</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+
+<span class="c1"># remove rows of S_used that sum to zero.</span>
+<span class="n">S_matrix</span> <span class="o">=</span> <span class="n">S_matrix</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">S_matrix</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[94]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nonzero_velocities</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[94]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;1.5.1.20-RXN-5-METHYL-THF/NAD//METHYLENE-THF/NADH/PROTON.44. (reverse)&#39;: 19029.999999999993,
+ &#39;1.8.4.8-RXN-3-5-ADP/SO3/Oxidized-CcmG-Proteins/PROTON//PAPS/Reduced-CcmG-Proteins.70. (reverse)&#39;: 33248.99999999999,
+ &#39;1TRANSKETO-RXN-D-SEDOHEPTULOSE-7-P/GAP//CPD-15318/XYLULOSE-5-PHOSPHATE.56. (reverse)&#39;: 29081.500000000015,
+ &#39;2-DEHYDROPANTOATE-REDUCT-RXN (reverse)&#39;: 1124.0000000000025,
+ &#39;2-ISOPROPYLMALATESYN-RXN&#39;: 56298.00000000001,
+ &#39;2.3.1.157-RXN&#39;: 16348.0,
+ &#39;2.3.1.180-RXN&#39;: 72176.0,
+ &#39;2.5.1.19-RXN&#39;: 50278.0,
+ &#39;2.5.1.64-RXN&#39;: 105.99999999999999,
+ &#39;2.7.1.148-RXN&#39;: 44595.0,
+ &#39;2.7.7.60-RXN&#39;: 44595.0,
+ &#39;2.8.1.6-RXN&#39;: 11.0,
+ &#39;2OXOGLUTARATEDEH-RXN&#39;: 339106.13333333476,
+ &#39;2PGADEHYDRAT-RXN&#39;: 1591203.4000000055,
+ &#39;2TRANSKETO-RXN (reverse)&#39;: 29171.50000000002,
+ &#39;3-CH3-2-OXOBUTANOATE-OH-CH3-XFER-RXN-METHYLENE-THF/2-KETO-ISOVALERATE/WATER//2-DEHYDROPANTOATE/THF.62.&#39;: 1124.0000000000025,
+ &#39;3-DEHYDROQUINATE-DEHYDRATASE-RXN&#39;: 50286.0,
+ &#39;3-DEHYDROQUINATE-SYNTHASE-RXN&#39;: 50286.000000000015,
+ &#39;3-HYDROXYDECANOYL-ACP-DEHYDR-RXN-POLYMER-INST-OH-ACYL-ACP-C0-H0//POLYMER-INST-TRANS-D2-ENOYL-ACP-C0-H0/WATER.76.&#39;: 72175.99999999999,
+ &#39;3-HYDROXYDECANOYL-ACP-DEHYDR-RXN-POLYMER-INST-OH-ACYL-ACP-C12-H24//2-Hexadecenoyl-ACPs/WATER.60.&#39;: 60638.00000000001,
+ &#39;3-HYDROXYDECANOYL-ACP-DEHYDR-RXN-POLYMER-INST-OH-ACYL-ACP-C4-H8//POLYMER-INST-TRANS-D2-ENOYL-ACP-C4-H8/WATER.76.&#39;: 72175.99999999999,
+ &#39;3-OXOACYL-ACP-REDUCT-RXN-Beta-hydroxydecanoyl-ACPs/NADP//POLYMER-INST-B-KETOACYL-ACP-C6-H12/NADPH/PROTON.80. (reverse)&#39;: 72176.00000000003,
+ &#39;3-OXOACYL-ACP-REDUCT-RXN-POLYMER-INST-OH-ACYL-ACP-C0-H0/NADP//Acetoacetyl-ACPs/NADPH/PROTON.67. (reverse)&#39;: 72175.99999999999,
+ &#39;3-OXOACYL-ACP-REDUCT-RXN-POLYMER-INST-OH-ACYL-ACP-C12-H24/NADP//3-oxo-palmitoyl-ACPs/NADPH/PROTON.73. (reverse)&#39;: 60638.00000000001,
+ &#39;3-OXOACYL-ACP-REDUCT-RXN-POLYMER-INST-OH-ACYL-ACP-C4-H8/NADP//3-Oxo-octanoyl-ACPs/NADPH/PROTON.70. (reverse)&#39;: 72175.99999999999,
+ &#39;3-OXOACYL-ACP-SYNTH-RXN-MALONYL-ACP/POLYMER-INST-Saturated-Fatty-Acyl-ACPs-C4-H8/PROTON//ACP/POLYMER-INST-B-KETOACYL-ACP-C6-H12/CARBON-DIOXIDE.119.&#39;: 72176.00000000003,
+ &#39;3.2.2.10-RXN-CMP/WATER//RIBOSE-5P/CYTOSINE.30.&#39;: 4.999999999999999,
+ &#39;325-BISPHOSPHATE-NUCLEOTIDASE-RXN&#39;: 22692.999999999993,
+ &#39;325-BISPHOSPHATE-NUCLEOTIDASE-RXN__EG10043-MONOMER&#39;: 10556.0,
+ &#39;3PGAREARR-RXN (reverse)&#39;: 1591252.4000000057,
+ &#39;5.1.3.20-RXN&#39;: 7692.0,
+ &#39;5.4.2.10-RXN-CPD-13469//GLUCOSAMINE-1P.26.&#39;: 16347.999999999998,
+ &#39;6PFRUCTPHOS-RXN__6PFK-1-CPX&#39;: 433873.08333334164,
+ &#39;6PGLUCONOLACT-RXN&#39;: 1149154.2333333285,
+ &#39;ACETOLACTREDUCTOISOM-RXN (reverse)&#39;: 111910.0,
+ &#39;ACETOLACTSYN-RXN&#39;: 24455.999999999996,
+ &#39;ACETOLACTSYN-RXN__ACETOLACTSYNI-CPLX&#39;: 87454.00000000001,
+ &#39;ACETOOHBUTREDUCTOISOM-RXN (reverse)&#39;: 39207.0,
+ &#39;ACETOOHBUTSYN-RXN&#39;: 39207.0,
+ &#39;ACETYL-COA-ACETYLTRANSFER-RXN&#39;: 11.000000000000002,
+ &#39;ACETYLGLUTKIN-RXN&#39;: 46375.99999999999,
+ &#39;ACETYLORNDEACET-RXN&#39;: 46353.0,
+ &#39;ACETYLORNTRANSAM-RXN (reverse)&#39;: 46376.0,
+ &#39;ACONITATEDEHYDR-RXN&#39;: 6.999999999999999,
+ &#39;ACSERLY-RXN&#39;: 33248.999999999985,
+ &#39;ADCLY-RXN&#39;: 100.99999999999099,
+ &#39;ADENINE-DEAMINASE-RXN&#39;: 1.0000000000000002,
+ &#39;ADENOSYLHOMOCYSTEINE-NUCLEOSIDASE-RXN&#39;: 172.00000000000003,
+ &#39;ADENPRIBOSYLTRAN-RXN (reverse)&#39;: 1907.0,
+ &#39;ADENYL-KIN-RXN&#39;: 275017.00000000396,
+ &#39;ADENYLOSUCCINATE-SYNTHASE-RXN&#39;: 36151.000000002336,
+ &#39;ADENYLYLSULFKIN-RXN&#39;: 33248.99999999999,
+ &#39;ADOMET-DMK-METHYLTRANSFER-RXN&#39;: 53.0,
+ &#39;ADPREDUCT-RXN-DADP/Oxidized-CcmG-Proteins/WATER//ADP/Reduced-CcmG-Proteins.61. (reverse)&#39;: 4.000000000000001,
+ &#39;AICARSYN-RXN&#39;: 43802.00000000232,
+ &#39;AICARTRANSFORM-RXN-10-FORMYL-THF/AICAR//THF/PHOSPHORIBOSYL-FORMAMIDO-CARBOXAMIDE.62.&#39;: 57044.00000000233,
+ &#39;AIRS-RXN&#39;: 43851.00000000233,
+ &#39;ALANINE-AMINOTRANSFERASE-RXN (reverse)&#39;: 81309.0,
+ &#39;ALARACECAT-RXN__CPLX0-8202&#39;: 7045.0,
+ &#39;AMPSYN-RXN&#39;: 36151.000000002336,
+ &#39;ANTHRANSYN-RXN&#39;: 6469.0,
+ &#39;ARGSUCCINLYA-RXN&#39;: 36237.0,
+ &#39;ARGSUCCINSYN-RXN&#39;: 36330.0,
+ &#39;ASNSYNA-RXN&#39;: 28364.0,
+ &#39;ASNSYNA-RXN__ASNSYNB-CPLX&#39;: 1527.0000000000002,
+ &#39;ASPAMINOTRANS-RXN&#39;: 573564.1333333326,
+ &#39;ASPARTASE-RXN (reverse)&#39;: 872128.133333337,
+ &#39;ASPARTATE-SEMIALDEHYDE-DEHYDROGENASE-RXN (reverse)&#39;: 67263.99999999999,
+ &#39;ASPARTATEKIN-RXN__ASPKINIHOMOSERDEHYDROGI-CPLX&#39;: 67263.99999999999,
+ &#39;ASPCARBTRANS-RXN&#39;: 42247.00000000002,
+ &#39;ASPDECARBOX-RXN&#39;: 1124.0000000000025,
+ &#39;ATPPHOSPHORIBOSYLTRANS-RXN (reverse)&#39;: 13242.0,
+ &#39;ATPSYN-RXN (reverse)&#39;: 9936132.466666691,
+ &#39;BIOTIN-CARBOXYL-RXN&#39;: 491822.0000000001,
+ &#39;BRANCHED-CHAINAMINOTRANSFERILEU-RXN (reverse)&#39;: 39207.0,
+ &#39;BRANCHED-CHAINAMINOTRANSFERLEU-RXN (reverse)&#39;: 56224.99999999999,
+ &#39;BRANCHED-CHAINAMINOTRANSFERVAL-RXN (reverse)&#39;: 54487.99999999999,
+ &#39;CARDIOLIPSYN-RXN-CPD-8260//CPD-12824/GLYCEROL.29.&#39;: 1472.0000000000002,
+ &#39;CATAL-RXN__CPLX0-1683&#39;: 24.499999999999996,
+ &#39;CDPDIGLYSYN-RXN-CTP/CPD0-1422/PROTON//CPD-12815/PPI.36.&#39;: 30319.000000000007,
+ &#39;CDPKIN-RXN&#39;: 87615.99999999999,
+ &#39;CHORISMATE-SYNTHASE-RXN&#39;: 50278.0,
+ &#39;CHORISMATEMUT-RXN__CHORISMUTPREPHENDEHYDRAT-CPLX&#39;: 43286.99999999999,
+ &#39;CHORPYRLY-RXN&#39;: 27.0,
+ &#39;CITSYN-RXN&#39;: 927630.1333333327,
+ &#39;CPM-KDOSYNTH-RXN&#39;: 3846.0,
+ &#39;CYSTATHIONINE-BETA-LYASE-RXN&#39;: 19052.999999999993,
+ &#39;D-PPENTOMUT-RXN (reverse)&#39;: 2.000000000000001,
+ &#39;DAHPSYN-RXN__AROG-CPLX&#39;: 50286.000000000015,
+ &#39;DALADALALIG-RXN__DALADALALIGA-MONOMER&#39;: 249.00000000000034,
+ &#39;DALADALALIG-RXN__DALADALALIGB-CPLX&#39;: 3769.0,
+ &#39;DAPASYN-RXN&#39;: 11.000000000000002,
+ &#39;DARAB5PISOM-RXN__CPLX0-1262 (reverse)&#39;: 3845.9999999999995,
+ &#39;DEOXYADENPHOSPHOR-RXN (reverse)&#39;: 2.0000000000000004,
+ &#39;DEOXYRIBOSE-P-ALD-RXN (reverse)&#39;: 162.0,
+ &#39;DEPHOSPHOCOAKIN-RXN&#39;: 1099.0000000000025,
+ &#39;DETHIOBIOTIN-SYN-RXN&#39;: 11.0,
+ &#39;DHBDEHYD-RXN&#39;: 234.99999999999997,
+ &#39;DIAMINOPIMDECARB-RXN&#39;: 44064.99999999999,
+ &#39;DIAMINOPIMEPIM-RXN&#39;: 48028.99999999999,
+ &#39;DIHYDRODIPICSYN-RXN&#39;: 48086.0,
+ &#39;DIHYDROFOLATESYNTH-RXN&#39;: 100.99999999999099,
+ &#39;DIHYDRONEOPTERIN-MONO-P-DEPHOS-RXN&#39;: 100.99999999999099,
+ &#39;DIHYDROOROT-RXN (reverse)&#39;: 41936.00000000002,
+ &#39;DIHYDROOROTATE-DEHYDROGENASE-RXN-DI-H-OROTATE/UBIQUINONE-8//OROTATE/CPD-9956.44.&#39;: 40912.00000000002,
+ &#39;DIHYDROXYISOVALDEHYDRAT-RXN&#39;: 111910.0,
+ &#39;DIHYDROXYMETVALDEHYDRAT-RXN&#39;: 39207.0,
+ &#39;DIMETHUROPORDEHYDROG-RXN&#39;: 54.00000000000001,
+ &#39;DIOHBUTANONEPSYN-RXN&#39;: 258.0,
+ &#39;DMK-RXN&#39;: 105.99999999999999,
+ &#39;DTDPKIN-RXN&#39;: 2430.9999999999995,
+ &#39;DTMPKI-RXN&#39;: 2629.9999999999995,
+ &#39;DXPREDISOM-RXN (reverse)&#39;: 44595.0,
+ &#39;DXS-RXN&#39;: 44693.00000000001,
+ &#39;ENOYL-ACP-REDUCT-NADPH-RXN-Butanoyl-ACPs/NADP//NADPH/POLYMER-INST-TRANS-D2-ENOYL-ACP-C0-H0/PROTON.71. (reverse)&#39;: 72175.99999999999,
+ &#39;ENOYL-ACP-REDUCT-NADPH-RXN-Decanoyl-ACPs/NADP//NADPH/Trans-D2-decenoyl-ACPs/PROTON.56. (reverse)&#39;: 72176.00000000003,
+ &#39;ENOYL-ACP-REDUCT-NADPH-RXN-Dodecanoyl-ACPs/NADP//NADPH/Dodec-2-enoyl-ACPs/PROTON.54. (reverse)&#39;: 72176.00000000004,
+ &#39;ENOYL-ACP-REDUCT-NADPH-RXN-Hexanoyl-ACPs/NADP//NADPH/Hex-2-enoyl-ACPs/PROTON.50. (reverse)&#39;: 72175.99999999999,
+ &#39;ENOYL-ACP-REDUCT-NADPH-RXN-Myristoyl-ACPs/NADP//NADPH/Tetradec-2-enoyl-ACPs/PROTON.56. (reverse)&#39;: 62561.000000000015,
+ &#39;ENOYL-ACP-REDUCT-NADPH-RXN-POLYMER-INST-Saturated-Fatty-Acyl-ACPs-C4-H8/NADP//NADPH/POLYMER-INST-TRANS-D2-ENOYL-ACP-C4-H8/PROTON.102. (reverse)&#39;: 72176.00000000003,
+ &#39;ENOYL-ACP-REDUCT-NADPH-RXN-Palmitoyl-ACPs/NADP//NADPH/2-Hexadecenoyl-ACPs/PROTON.54. (reverse)&#39;: 60638.00000000001,
+ &#39;ENTMULTI-RXN&#39;: 53.99999999999999,
+ &#39;ERYTH4PDEHYDROG-RXN&#39;: 48.99999999999999,
+ &#39;ERYTHRON4PDEHYDROG-RXN&#39;: 48.99999999999999,
+ &#39;F16ALDOLASE-RXN__FRUCBISALD-CLASSII&#39;: 430519.0833333416,
+ &#39;FADSYN-RXN&#39;: 91.0,
+ &#39;FERREDOXIN--NAD+-REDUCTASE-RXN (reverse)&#39;: 10.999999999999998,
+ &#39;FGAMSYN-RXN&#39;: 43851.00000000233,
+ &#39;FPPSYN-RXN&#39;: 4083.0000000000005,
+ &#39;GAPOXNPHOSPHN-RXN&#39;: 1813846.4000000102,
+ &#39;GART-RXN-10-FORMYL-THF/5-PHOSPHO-RIBOSYL-GLYCINEAMIDE//THF/5-P-RIBOSYL-N-FORMYLGLYCINEAMIDE/PROTON.90.&#39;: 43851.00000000233,
+ &#39;GDPKIN-RXN&#39;: 65073.00000000232,
+ &#39;GDPREDUCT-RXN-DGDP/Oxidized-CcmG-Proteins/WATER//GDP/Reduced-CcmG-Proteins.61. (reverse)&#39;: 26.999999999999993,
+ &#39;GLU6PDEHYDROG-RXN&#39;: 1149154.2333333283,
+ &#39;GLUC1PADENYLTRANS-RXN&#39;: 34755.0,
+ &#39;GLUC1PURIDYLTRANS-RXN&#39;: 9306.0,
+ &#39;GLUCOKIN-RXN-GLC/ATP//GLC-6-P/ADP/PROTON.28.&#39;: 193530.4166666646,
+ &#39;GLUCOSAMINE-6-P-DEAMIN-RXN (reverse)&#39;: 16953.0,
+ &#39;GLURS-RXN-GLT-tRNAs/GLT/ATP/PROTON//Charged-GLT-tRNAs/AMP/PPI.52.&#39;: 856.0000000000003,
+ &#39;GLUTAMINESYN-RXN&#39;: 122749.00000000464,
+ &#39;GLUTATHIONE-SYN-RXN&#39;: 7608.000000000001,
+ &#39;GLUTCYSLIG-RXN&#39;: 7608.000000000001,
+ &#39;GLUTDECARBOX-RXN__GLUTDECARBOXB-CPLX&#39;: 160.0,
+ &#39;GLUTDEHYD-RXN (reverse)&#39;: 261799.86666666975,
+ &#39;GLUTKIN-RXN&#39;: 25563.999999999996,
+ &#39;GLUTRACE-RXN&#39;: 3963.9999999999995,
+ &#39;GLUTRNAREDUCT-RXN (reverse)&#39;: 856.0000000000003,
+ &#39;GLUTSEMIALDEHYDROG-RXN (reverse)&#39;: 25563.999999999996,
+ &#39;GLYC3PDEHYDROGBIOSYN-RXN-GLYCEROL-3P/NADP//DIHYDROXY-ACETONE-PHOSPHATE/NADPH/PROTON.59. (reverse)&#39;: 37181.000000000015,
+ &#39;GLYCEROL-KIN-RXN&#39;: 1472.0000000000002,
+ &#39;GLYCOLALD-DEHYDROG-RXN&#39;: 100.99999999999096,
+ &#39;GLYOHMETRANS-RXN-SER/THF//GLY/METHYLENE-THF/WATER.33.&#39;: 123730.00000000464,
+ &#39;GLYRIBONUCSYN-RXN&#39;: 43851.00000000233,
+ &#39;GMKALT-RXN (reverse)&#39;: 26.999999999999996,
+ &#39;GMP-SYN-NH3-RXN&#39;: 20486.999999999996,
+ &#39;GPPSYN-RXN&#39;: 4083.0000000000005,
+ &#39;GSAAMINOTRANS-RXN&#39;: 856.0000000000003,
+ &#39;GTP-CYCLOHYDRO-I-RXN&#39;: 100.99999999999099,
+ &#39;GTP-CYCLOHYDRO-II-RXN&#39;: 129.0,
+ &#39;GUANYL-KIN-RXN&#39;: 29168.999999999993,
+ &#39;H2NEOPTERINALDOL-RXN&#39;: 100.99999999999099,
+ &#39;H2NEOPTERINP3PYROPHOSPHOHYDRO-RXN&#39;: 100.99999999999099,
+ &#39;H2PTERIDINEPYROPHOSPHOKIN-RXN&#39;: 100.99999999999099,
+ &#39;H2PTEROATESYNTH-RXN&#39;: 100.99999999999099,
+ &#39;HISTAMINOTRANS-RXN (reverse)&#39;: 13241.999999999998,
+ &#39;HISTCYCLOHYD-RXN&#39;: 13241.999999999996,
+ &#39;HISTIDPHOS-RXN[CCO-CYTOSOL]-L-HISTIDINOL-P/WATER//HISTIDINOL/Pi.49.&#39;: 13241.999999999998,
+ &#39;HISTPRATPHYD-RXN&#39;: 13241.999999999998,
+ &#39;HOMOCYSMETB12-RXN-HOMO-CYS/5-METHYL-THF//MET/THF.31.&#39;: 19029.999999999993,
+ &#39;HOMOSERDEHYDROG-RXN-HOMO-SER/NADP//L-ASPARTATE-SEMIALDEHYDE/NADPH/PROTON.53. (reverse)&#39;: 19177.999999999993,
+ &#39;HOMSUCTRAN-RXN&#39;: 19052.99999999999,
+ &#39;IGPSYN-RXN&#39;: 6467.0,
+ &#39;IMIDPHOSDEHYD-RXN&#39;: 13242.0,
+ &#39;IMP-DEHYDROG-RXN&#39;: 20486.999999999996,
+ &#39;IMPCYCLOHYDROLASE-RXN (reverse)&#39;: 57044.000000002336,
+ &#39;INOPHOSPHOR-RXN (reverse)&#39;: 1.0000000000000002,
+ &#39;INORGPYROPHOSPHAT-RXN[CCO-CYTOSOL]-PPI/WATER//Pi/PROTON.34.&#39;: 526622.0000000013,
+ &#39;ISOCHORMAT-RXN&#39;: 234.99999999999997,
+ &#39;ISOCHORSYN-RXN__ENTC-MONOMER&#39;: 239.99999999999997,
+ &#39;ISOCHORSYN-RXN__MENF-CPLX&#39;: 101.0,
+ &#39;ISOCIT-CLEAV-RXN&#39;: 417599.9999999976,
+ &#39;ISOCITDEH-RXN&#39;: 508915.13333333493,
+ &#39;ISPH2-RXN (reverse)&#39;: 40512.0,
+ &#39;KDO-8PPHOSPHAT-RXN&#39;: 3846.0,
+ &#39;KDO-8PSYNTH-RXN&#39;: 3846.0,
+ &#39;KDOTRANS-RXN&#39;: 1923.0,
+ &#39;KDOTRANS2-RXN&#39;: 1923.0,
+ &#39;KDPGALDOL-RXN&#39;: 1009498.7333333264,
+ &#39;LAUROYLACYLTRAN-RXN&#39;: 1923.0,
+ &#39;LIPIDADISACCHARIDESYNTH-RXN&#39;: 1923.0,
+ &#39;LIPIDXSYNTHESIS-RXN&#39;: 1923.0,
+ &#39;LUMAZINESYN-RXN&#39;: 258.0,
+ &#39;MALATE-DEH-RXN&#39;: 354065.99999999994,
+ &#39;MALONYL-COA-ACP-TRANSACYL-RXN&#39;: 491804.00000000006,
+ &#39;MALSYN-RXN&#39;: 355110.0,
+ &#39;METHENYLTHFCYCLOHYDRO-RXN-5-10-METHENYL-THF/WATER//10-FORMYL-THF/PROTON.46.&#39;: 100895.00000000464,
+ &#39;METHYLENETHFDEHYDROG-NADP-RXN-METHYLENE-THF/NADP//5-10-METHENYL-THF/NADPH.44.&#39;: 100895.00000000464,
+ &#39;METHYLMALONYL-COA-MUT-RXN (reverse)&#39;: 3.0,
+ &#39;METHYLTHIOADENOSINE-NUCLEOSIDASE-RXN&#39;: 1620.9999999999998,
+ &#39;MYRISTOYLACYLTRAN-RXN&#39;: 1923.0,
+ &#39;N-ACETYLGLUTPREDUCT-RXN (reverse)&#39;: 46375.99999999999,
+ &#39;N-ACETYLTRANSFER-RXN&#39;: 46376.0,
+ &#39;NACGLCTRANS-RXN&#39;: 3964.0,
+ &#39;NAD-KIN-RXN&#39;: 136.9999999996169,
+ &#39;NAD-SYNTH-NH3-RXN&#39;: 1394.9999999996346,
+ &#39;NADH-DEHYDROG-A-RXN-NADH/UBIQUINONE-8/PROTON//NAD/CPD-9956/PROTON.46.&#39;: 4744567.66666668,
+ &#39;NAG1P-URIDYLTRANS-RXN&#39;: 16305.000000000002,
+ &#39;NAPHTHOATE-SYN-RXN&#39;: 105.99999999999999,
+ &#39;NICONUCADENYLYLTRAN-RXN&#39;: 1394.9999999996346,
+ &#39;NUCLEOSIDE-DIPHOSPHATASE-RXN-DADP/WATER//DAMP/Pi/PROTON.27.&#39;: 4.000000000000001,
+ &#39;NUCLEOSIDE-DIPHOSPHATASE-RXN-DUDP/WATER//DUMP/Pi/PROTON.27.&#39;: 2629.9999999999995,
+ &#39;O-SUCCHOMOSERLYASE-RXN&#39;: 19052.999999999993,
+ &#39;O-SUCCINYLBENZOATE-COA-LIG-RXN&#39;: 105.99999999999999,
+ &#39;O-SUCCINYLBENZOATE-COA-SYN-RXN&#39;: 105.99999999999999,
+ &#39;OHMETHYLBILANESYN-RXN&#39;: 107.00000000000003,
+ &#39;ORNCARBAMTRANSFER-RXN&#39;: 36731.0,
+ &#39;ORNDECARBOX-RXN&#39;: 9617.0,
+ &#39;OROPRIBTRANS-RXN (reverse)&#39;: 38033.00000000002,
+ &#39;OROTPDECARB-RXN&#39;: 38033.00000000002,
+ &#39;P-PANTOCYSDECARB-RXN&#39;: 1099.0000000000025,
+ &#39;P-PANTOCYSLIG-RXN&#39;: 1099.0000000000025,
+ &#39;PABASYN-RXN&#39;: 100.99999999999098,
+ &#39;PANTEPADENYLYLTRAN-RXN&#39;: 1099.0000000000025,
+ &#39;PANTOATE-BETA-ALANINE-LIG-RXN&#39;: 1124.0000000000025,
+ &#39;PANTOTHENATE-KIN-RXN&#39;: 1099.0000000000025,
+ &#39;PDXJ-RXN&#39;: 48.99999999999999,
+ &#39;PGLUCISOM-RXN-GLC-6-P//FRUCTOSE-6P.21.&#39;: 480744.5833333417,
+ &#39;PGLUCONDEHYDRAT-RXN&#39;: 1009498.7333333263,
+ &#39;PGLYCDEHYDROG-RXN&#39;: 221776.0000000046,
+ &#39;PGPPHOSPHA-RXN-CPD-12821/WATER//CPD-8260/Pi.29.&#39;: 8242.0,
+ &#39;PHOSACETYLTRANS-RXN__PHOSACETYLTRANS-CPLX&#39;: 563.0000000000001,
+ &#39;PHOSGLYPHOS-RXN (reverse)&#39;: 1813838.40000001,
+ &#39;PHOSNACMURPENTATRANS-RXN&#39;: 3964.0000000000005,
+ &#39;PHOSPHAGLYPSYN-RXN-CPD-12815/GLYCEROL-3P//CMP/CPD-12821/PROTON.44.&#39;: 8242.0,
+ &#39;PHOSPHASERDECARB-RXN-CPD-12817/PROTON//CPD-12819/CARBON-DIOXIDE.43.&#39;: 22077.0,
+ &#39;PHOSPHASERSYN-RXN-CPD-12815/SER//CMP/CPD-12817/PROTON.36.&#39;: 22077.0,
+ &#39;PHOSPHOGLUCMUT-RXN (reverse)&#39;: 44061.0,
+ &#39;PNPOXI-RXN&#39;: 48.99999999999999,
+ &#39;PORPHOBILSYNTH-RXN&#39;: 428.00000000000017,
+ &#39;PRAISOM-RXN&#39;: 6467.0,
+ &#39;PREPHENATEDEHYDRAT-RXN&#39;: 23551.0,
+ &#39;PREPHENATEDEHYDROG-RXN&#39;: 19736.0,
+ &#39;PRIBFAICARPISOM-RXN&#39;: 13241.999999999996,
+ &#39;PRODISULFREDUCT-A-RXN-GLUTATHIONE/Oxidized-NrdH-Proteins//OXIDIZED-GLUTATHIONE/Reduced-NrdH-Proteins.79.&#39;: 709.0,
+ &#39;PROTOHEMEFERROCHELAT-RXN[CCO-CYTOSOL]-PROTOHEME/PROTON//PROTOPORPHYRIN_IX/FE+2.54. (reverse)&#39;: 53.000000000000014,
+ &#39;PRPPAMIDOTRANS-RXN (reverse)&#39;: 43851.00000000233,
+ &#39;PRPPSYN-RXN-CPD-15318/ATP//PRPP/AMP/PROTON.31.&#39;: 105031.000000002,
+ &#39;PRTRANS-RXN (reverse)&#39;: 6467.0,
+ &#39;PSERTRANSAM-RXN (reverse)&#39;: 221034.00000000457,
+ &#39;PSERTRANSAMPYR-RXN (reverse)&#39;: 48.99999999999999,
+ &#39;PYFLAVOXRE-RXN&#39;: 44595.0,
+ &#39;PYRIMSYN1-RXN&#39;: 49.00000000000001,
+ &#39;PYRIMSYN3-RXN&#39;: 49.00000000000001,
+ &#39;PYRROLINECARBREDUCT-RXN-PRO/NADP//L-DELTA1-PYRROLINE_5-CARBOXYLATE/NADPH/PROTON.56. (reverse)&#39;: 25564.0,
+ &#39;PYRUFLAVREDUCT-RXN&#39;: 44644.0,
+ &#39;PYRUVDEH-RXN&#39;: 1910739.1333333324,
+ &#39;QUINOLINATE-SYNTHA-RXN&#39;: 1400.9999999996353,
+ &#39;QUINOPRIBOTRANS-RXN (reverse)&#39;: 1394.999999999635,
+ &#39;R15-RXN-MET/2-KETOGLUTARATE//CPD-479/GLT.33. (reverse)&#39;: 62590.99999999766,
+ &#39;R15-RXN-MET/GLYOX//CPD-479/GLY.23.&#39;: 62590.99999999765,
+ &#39;RIB5PISOM-RXN (reverse)&#39;: 203.99999999999997,
+ &#39;RIB5PISOM-RXN-CPD-15318//RIBULOSE-5P.23. (reverse)&#39;: 134112.50000000198,
+ &#39;RIBOFLAVIN-SYN-RXN&#39;: 129.0,
+ &#39;RIBOFLAVINKIN-RXN&#39;: 119.0,
+ &#39;RIBOFLAVINSYNDEAM-RXN&#39;: 129.0,
+ &#39;RIBOFLAVINSYNREDUC-RXN (reverse)&#39;: 129.0,
+ &#39;RIBONUCLEOSIDE-DIP-REDUCTI-RXN-Oxidized-CcmG-Proteins/DUDP/WATER//Reduced-CcmG-Proteins/UDP.61. (reverse)&#39;: 1921.0,
+ &#39;RIBOPHOSPHAT-RXN&#39;: 129.0,
+ &#39;RIBOSYLHOMOCYSTEINASE-RXN&#39;: 172.00000000000003,
+ &#39;RXN-10814 (reverse)&#39;: 23503.999999999996,
+ &#39;RXN-11302&#39;: 991.0,
+ &#39;RXN-11319&#39;: 49.00000000000001,
+ &#39;RXN-11474&#39;: 11.000000000000002,
+ &#39;RXN-11475&#39;: 11.000000000000002,
+ &#39;RXN-11476 (reverse)&#39;: 11.000000000000002,
+ &#39;RXN-11477&#39;: 11.000000000000002,
+ &#39;RXN-11478 (reverse)&#39;: 11.000000000000002,
+ &#39;RXN-11479&#39;: 11.000000000000002,
+ &#39;RXN-11480 (reverse)&#39;: 11.000000000000002,
+ &#39;RXN-11481&#39;: 11.000000000000002,
+ &#39;RXN-11482 (reverse)&#39;: 11.000000000000002,
+ &#39;RXN-11483&#39;: 11.000000000000002,
+ &#39;RXN-11484&#39;: 11.000000000000002,
+ &#39;RXN-11832&#39;: 87632.0,
+ &#39;RXN-12002&#39;: 50063.000000000015,
+ &#39;RXN-12588&#39;: 11.0,
+ &#39;RXN-12611&#39;: 49.0,
+ &#39;RXN-13158&#39;: 56298.0,
+ &#39;RXN-13163 (reverse)&#39;: 56297.99999999999,
+ &#39;RXN-13179&#39;: 48.99999999999999,
+ &#39;RXN-13202&#39;: 78978.00000000001,
+ &#39;RXN-13403&#39;: 54.00000000000001,
+ &#39;RXN-14014-DELTA1-PIPERIDEINE-2-6-DICARBOXYLATE/NADP/WATER//CPD-14443/NADPH/PROTON.72. (reverse)&#39;: 48086.0,
+ &#39;RXN-14025[CCO-CYTOSOL]-UMP/WATER//URIDINE/Pi.35.&#39;: 1099.9999999999998,
+ &#39;RXN-14026[CCO-CYTOSOL]-CMP/WATER//CYTIDINE/Pi.36.&#39;: 2.0,
+ &#39;RXN-14047&#39;: 926658.1333333327,
+ &#39;RXN-14325&#39;: 14868.000000000013,
+ &#39;RXN-15216&#39;: 172.00000000000003,
+ &#39;RXN-15878 (reverse)&#39;: 44595.0,
+ &#39;RXN-15943 (reverse)&#39;: 172.00000000000003,
+ &#39;RXN-16804&#39;: 3846.0,
+ &#39;RXN-17018&#39;: 30319.000000000007,
+ &#39;RXN-17900&#39;: 13241.999999999998,
+ &#39;RXN-19329 (reverse)&#39;: 2730.999999999991,
+ &#39;RXN-19737&#39;: 1923.0,
+ &#39;RXN-21483-PROTOPORPHYRINOGEN/UBIQUINONE-8//PROTOPORPHYRIN_IX/CPD-9956.60.&#39;: 53.00000000000002,
+ &#39;RXN-21817-CPD-9956/PROTON/OXYGEN-MOLECULE//UBIQUINONE-8/PROTON/WATER.59.&#39;: 2771736.4000000055,
+ &#39;RXN-6161&#39;: 79232.99999999999,
+ &#39;RXN-7609[CCO-CYTOSOL]-GMP/WATER//GUANOSINE/Pi.37.__G7742-MONOMER&#39;: 3.0000000000000004,
+ &#39;RXN-8001&#39;: 13235.999999999998,
+ &#39;RXN-8992&#39;: 105.99999999999999,
+ &#39;RXN-8999&#39;: 3977.0,
+ &#39;RXN-9310&#39;: 105.99999999999999,
+ &#39;RXN-9311&#39;: 105.99999999999999,
+ &#39;RXN-9516&#39;: 72175.99999999999,
+ &#39;RXN-9518 (reverse)&#39;: 72175.99999999999,
+ &#39;RXN-9520&#39;: 72175.99999999999,
+ &#39;RXN-9523&#39;: 72175.99999999999,
+ &#39;RXN-9531&#39;: 72176.00000000003,
+ &#39;RXN-9532 (reverse)&#39;: 72176.00000000003,
+ &#39;RXN-9533&#39;: 72176.00000000003,
+ &#39;RXN-9535&#39;: 69775.00000000003,
+ &#39;RXN-9535__FABB-CPLX&#39;: 477.99999999999994,
+ &#39;RXN-9536 (reverse)&#39;: 70253.00000000001,
+ &#39;RXN-9537&#39;: 62561.00000000002,
+ &#39;RXN-9539&#39;: 60638.00000000002,
+ &#39;RXN-9655&#39;: 72176.00000000004,
+ &#39;RXN-9772&#39;: 1400.999999999635,
+ &#39;RXN-9787&#39;: 49.0,
+ &#39;RXN-9788&#39;: 49.0,
+ &#39;RXN-9789&#39;: 49.0,
+ &#39;RXN-9952&#39;: 138540.50000000198,
+ &#39;RXN0-12&#39;: 89.00000000000001,
+ &#39;RXN0-1461&#39;: 53.00000000000002,
+ &#39;RXN0-16&#39;: 180.00000000000003,
+ &#39;RXN0-2421&#39;: 1859.0000000000002,
+ &#39;RXN0-2501&#39;: 679.0000000000001,
+ &#39;RXN0-300 (reverse)&#39;: 742.0,
+ &#39;RXN0-302&#39;: 44595.0,
+ &#39;RXN0-310&#39;: 3.0000000000000004,
+ &#39;RXN0-4301&#39;: 7692.0,
+ &#39;RXN0-4341&#39;: 7692.0,
+ &#39;RXN0-4342&#39;: 7692.0,
+ &#39;RXN0-4361&#39;: 7692.0,
+ &#39;RXN0-5038&#39;: 1.0000000000000002,
+ &#39;RXN0-5055&#39;: 491822.0000000001,
+ &#39;RXN0-5061&#39;: 1923.0,
+ &#39;RXN0-5114[CCO-CYTOSOL]-3-P-SERINE/WATER//SER/Pi.38.&#39;: 221034.0000000046,
+ &#39;RXN0-5118&#39;: 1923.0,
+ &#39;RXN0-5120&#39;: 1923.0,
+ &#39;RXN0-5121&#39;: 1923.0,
+ &#39;RXN0-5122&#39;: 1923.0,
+ &#39;RXN0-5123&#39;: 1923.0,
+ &#39;RXN0-5124&#39;: 1923.0,
+ &#39;RXN0-5125&#39;: 1923.0,
+ &#39;RXN0-5126&#39;: 1923.0,
+ &#39;RXN0-5127&#39;: 1923.0,
+ &#39;RXN0-5185[CCO-CYTOSOL]-CPD-2961/WATER//GLUCONATE/Pi.42.&#39;: 22.0,
+ &#39;RXN0-5199&#39;: 2.0,
+ &#39;RXN0-5224 (reverse)&#39;: 614602.0000000023,
+ &#39;RXN0-5405&#39;: 1982.0,
+ &#39;RXN0-5461&#39;: 172.00000000000003,
+ &#39;RXN0-6541&#39;: 21189.50000000001,
+ &#39;RXN0-6550&#39;: 119.99999999999999,
+ &#39;RXN0-6562&#39;: 741.9999999999999,
+ &#39;RXN0-6705&#39;: 30319.000000000004,
+ &#39;RXN0-7166&#39;: 1482763.4000000057,
+ &#39;RXN0-722 (reverse)&#39;: 709.0000000000001,
+ &#39;RXN0-7229-GLYCOLLATE/UBIQUINONE-8//GLYOX/CPD-9956.40.&#39;: 100.99999999999096,
+ &#39;RXN0-723&#39;: 18.0,
+ &#39;RXN0-7352&#39;: 49.0,
+ &#39;RXN0-742&#39;: 43802.00000000232,
+ &#39;RXN0-743&#39;: 43802.00000000232,
+ &#39;RXN0-745&#39;: 8.000000000000002,
+ &#39;RXN0-746&#39;: 8.000000000000002,
+ &#39;RXN0-884 (reverse)&#39;: 4083.0,
+ &#39;S-ADENMETSYN-RXN&#39;: 2021.0000000000005,
+ &#39;SAICARSYN-RXN&#39;: 43802.00000000232,
+ &#39;SAMDECARB-RXN&#39;: 1620.9999999999998,
+ &#39;SEDOBISALDOL-RXN&#39;: 21189.500000000015,
+ &#39;SERINE-O-ACETTRAN-RXN__CYSSYNMULTI-CPLX&#39;: 33248.99999999999,
+ &#39;SHIKIMATE-5-DEHYDROGENASE-RXN (reverse)&#39;: 50286.00000000001,
+ &#39;SHIKIMATE-KINASE-RXN&#39;: 50278.0,
+ &#39;SIROHEME-FERROCHELAT-RXN&#39;: 54.00000000000001,
+ &#39;SPERMIDINESYN-RXN&#39;: 1620.9999999999998,
+ &#39;SPONTPRO-RXN (reverse)&#39;: 25563.999999999996,
+ &#39;SUCCCOASYN-RXN (reverse)&#39;: 271841.13333333476,
+ &#39;SUCCDIAMINOPIMDESUCC-RXN&#39;: 48086.0,
+ &#39;SUCCINATE-DEHYDROGENASE-UBIQUINONE-RXN-SUC/UBIQUINONE-8//FUM/CPD-9956.31.&#39;: 757733.1333333319,
+ &#39;SUCCINYLDIAMINOPIMTRANS-RXN (reverse)&#39;: 48086.0,
+ &#39;SULFATE-ADENYLYLTRANS-RXN&#39;: 33251.99999999999,
+ &#39;SULFITE-REDUCT-RXN (reverse)&#39;: 33248.99999999999,
+ &#39;TETHYDPICSUCC-RXN&#39;: 48086.0,
+ &#39;TETRAACYLDISACC4KIN-RXN&#39;: 1923.0,
+ &#39;THI-P-KIN-RXN&#39;: 48.99999999999999,
+ &#39;THIAZOLSYN2-RXN&#39;: 49.0,
+ &#39;THIOREDOXIN-REDUCT-NADPH-RXN-Reduced-CcmG-Proteins/NADP//Oxidized-CcmG-Proteins/NADPH/PROTON.64. (reverse)&#39;: 35200.999999999985,
+ &#39;THREDEHYD-RXN&#39;: 39207.0,
+ &#39;THREONINE-ALDOLASE-RXN (reverse)&#39;: 79070.99999999999,
+ &#39;THYMIDYLATESYN-RXN-METHYLENE-THF/DUMP//TMP/DIHYDROFOLATE.38.&#39;: 2629.9999999999995,
+ &#39;TRANS-RXN-1&#39;: 502.999999999991,
+ &#39;TRANS-RXN-114&#39;: 176383.000000008,
+ &#39;TRANS-RXN-141&#39;: 2263.0,
+ &#39;TRANS-RXN-141A&#39;: 6.999999999999999,
+ &#39;TRANS-RXN-141B&#39;: 84.00000000000001,
+ &#39;TRANS-RXN-145&#39;: 15675400.099999968,
+ &#39;TRANS-RXN-157-PTSH-PHOSPHORYLATED/GLC//D-glucopyranose-6-phosphate/PTSH-MONOMER.66.&#39;: 1193215.2333333287,
+ &#39;TRANS-RXN-157-PTSH-PHOSPHORYLATED/GLC//GLC-6-P/PTSH-MONOMER.46.&#39;: 289548.1666666771,
+ &#39;TRANS-RXN-3&#39;: 50933.0,
+ &#39;TRANS-RXN-62A&#39;: 991.0000000000001,
+ &#39;TRANS-RXN0-286&#39;: 3964.0,
+ &#39;TRANS-RXN0-459&#39;: 11.000000000000002,
+ &#39;TRANS-RXN0-461&#39;: 1620.9999999999998,
+ &#39;TRANS-RXN0-474&#39;: 2771813.9000000055,
+ &#39;TRANS-RXN0-497&#39;: 1358.0,
+ &#39;TRANS-RXN0-500&#39;: 49.00000000000001,
+ &#39;TRANS-RXN0-545[CCO-PM-BAC-NEG]-CARBON-DIOXIDE//CARBON-DIOXIDE.47. (reverse)&#39;: 3364641.9000000004,
+ &#39;TRANS-RXN0-556[CCO-PM-BAC-NEG]-CARBON-MONOXIDE//CARBON-MONOXIDE.49. (reverse)&#39;: 49.00000000000001,
+ &#39;TRANS-RXN0-571 (reverse)&#39;: 83447.99999999999,
+ &#39;TRANS-RXN0-574-GLC//GLC.9.&#39;: 193530.41666666453,
+ &#39;TRANS-RXN0-586&#39;: 33251.999999999985,
+ &#39;TRIOSEPISOMERIZATION-RXN (reverse)&#39;: 412306.583333342,
+ &#39;TRYPSYN-RXN&#39;: 6466.999999999999,
+ &#39;TYROSINE-AMINOTRANSFERASE-RXN (reverse)&#39;: 19736.0,
+ &#39;UDP-NACMUR-ALA-LIG-RXN&#39;: 3964.0000000000005,
+ &#39;UDP-NACMURALA-GLU-LIG-RXN&#39;: 3964.0000000000005,
+ &#39;UDP-NACMURALGLDAPAALIG-RXN&#39;: 3964.0000000000005,
+ &#39;UDP-NACMURALGLDAPLIG-RXN&#39;: 3964.0000000000005,
+ &#39;UDPACYLGLCNACDEACETYL-RXN&#39;: 3846.0,
+ &#39;UDPGLUCEPIM-RXN&#39;: 1922.9999999999995,
+ &#39;UDPHYDROXYMYRGLUCOSAMNACETYLTRANS-RXN&#39;: 3846.0,
+ &#39;UDPKIN-RXN&#39;: 62432.00000000001,
+ &#39;UDPNACETYLGLUCOSAMACYLTRANS-RXN&#39;: 3846.0,
+ &#39;UDPNACETYLGLUCOSAMENOLPYRTRANS-RXN&#39;: 3964.0000000000005,
+ &#39;UDPNACETYLMURAMATEDEHYDROG-RXN (reverse)&#39;: 3964.0000000000005,
+ &#39;UGD-RXN&#39;: 298.0,
+ &#39;UNDECAPRENYL-DIPHOSPHATASE-RXN[CCO-CYTOSOL]-UNDECAPRENYL-DIPHOSPHATE/WATER//CPD-9646/Pi/PROTON.64.&#39;: 3390.0,
+ &#39;UNDECAPRENYL-DIPHOSPHATASE-RXN[CCO-CYTOSOL]-UNDECAPRENYL-DIPHOSPHATE/WATER//CPD-9646/Pi/PROTON.64.__PGPPHOSPHAB-MONOMER&#39;: 574.0,
+ &#39;UROGENDECARBOX-RXN&#39;: 53.00000000000002,
+ &#39;UROGENIIISYN-RXN&#39;: 107.00000000000003,
+ &#39;glycogen-monomer-extension&#39;: 34752.0,
+ &#39;maintenance_reaction&#39;: 9067240.0}
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">S_matrix</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>1.5.1.20-RXN-5-METHYL-THF/NAD//METHYLENE-THF/NADH/PROTON.44. (reverse)</th>
+      <th>1.8.4.8-RXN-3-5-ADP/SO3/Oxidized-CcmG-Proteins/PROTON//PAPS/Reduced-CcmG-Proteins.70. (reverse)</th>
+      <th>1TRANSKETO-RXN-D-SEDOHEPTULOSE-7-P/GAP//CPD-15318/XYLULOSE-5-PHOSPHATE.56. (reverse)</th>
+      <th>2-DEHYDROPANTOATE-REDUCT-RXN (reverse)</th>
+      <th>2-ISOPROPYLMALATESYN-RXN</th>
+      <th>2.3.1.157-RXN</th>
+      <th>2.3.1.180-RXN</th>
+      <th>2.5.1.19-RXN</th>
+      <th>2.5.1.64-RXN</th>
+      <th>2.7.1.148-RXN</th>
+      <th>...</th>
+      <th>UDPNACETYLGLUCOSAMACYLTRANS-RXN</th>
+      <th>UDPNACETYLGLUCOSAMENOLPYRTRANS-RXN</th>
+      <th>UDPNACETYLMURAMATEDEHYDROG-RXN (reverse)</th>
+      <th>UGD-RXN</th>
+      <th>UNDECAPRENYL-DIPHOSPHATASE-RXN[CCO-CYTOSOL]-UNDECAPRENYL-DIPHOSPHATE/WATER//CPD-9646/Pi/PROTON.64.</th>
+      <th>UNDECAPRENYL-DIPHOSPHATASE-RXN[CCO-CYTOSOL]-UNDECAPRENYL-DIPHOSPHATE/WATER//CPD-9646/Pi/PROTON.64.__PGPPHOSPHAB-MONOMER</th>
+      <th>UROGENDECARBOX-RXN</th>
+      <th>UROGENIIISYN-RXN</th>
+      <th>glycogen-monomer-extension</th>
+      <th>maintenance_reaction</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>ACP[c]</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>NAD[c]</th>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>-2</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>NADH[c]</th>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>2</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>PROTON[c]</th>
+      <td>-1</td>
+      <td>2</td>
+      <td>0</td>
+      <td>-1</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>-1</td>
+      <td>1</td>
+      <td>...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>-1</td>
+      <td>3</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-4</td>
+      <td>0</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>GLUCONATE[c]</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>UDP-AA-GLUTAMATE[c]</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>UDP-OHMYR-ACETYLGLUCOSAMINE[c]</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>UDP-OHMYR-GLUCOSAMINE[c]</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>UDP-ACETYL-CARBOXYVINYL-GLUCOSAMINE[c]</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>0</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>glycogen-monomer[c]</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>1</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+<p>473 rows × 442 columns</p>
+</div></div>
+</div>
+</section>
+<section id="Normalize-velocities-to-enzyme-counts">
+<h1>Normalize velocities to enzyme counts<a class="headerlink" href="#Normalize-velocities-to-enzyme-counts" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[96]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">nonzero_velocities</span><span class="p">[</span><span class="s1">&#39;1.5.1.20-RXN-5-METHYL-THF/NAD//METHYLENE-THF/NADH/PROTON.44. (reverse)&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[96]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+19029.999999999993
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[72]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># divide velocities by enzyme counts</span>
+<span class="n">nvE_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">nonzero_velocities</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">/</span> <span class="n">sim_catalysts</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">S_matrix</span><span class="o">.</span><span class="n">columns</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">KeyError</span>                                  Traceback (most recent call last)
+<span class="ansi-green-fg">~/.pyenv/versions/3.9.9/envs/viv/lib/python3.9/site-packages/pandas/core/indexes/base.py</span> in <span class="ansi-cyan-fg">get_loc</span><span class="ansi-blue-fg">(self, key, method, tolerance)</span>
+<span class="ansi-green-intense-fg ansi-bold">   3360</span>             <span class="ansi-green-fg">try</span><span class="ansi-blue-fg">:</span>
+<span class="ansi-green-fg">-&gt; 3361</span><span class="ansi-red-fg">                 </span><span class="ansi-green-fg">return</span> self<span class="ansi-blue-fg">.</span>_engine<span class="ansi-blue-fg">.</span>get_loc<span class="ansi-blue-fg">(</span>casted_key<span class="ansi-blue-fg">)</span>
+<span class="ansi-green-intense-fg ansi-bold">   3362</span>             <span class="ansi-green-fg">except</span> KeyError <span class="ansi-green-fg">as</span> err<span class="ansi-blue-fg">:</span>
+
+<span class="ansi-green-fg">~/.pyenv/versions/3.9.9/envs/viv/lib/python3.9/site-packages/pandas/_libs/index.pyx</span> in <span class="ansi-cyan-fg">pandas._libs.index.IndexEngine.get_loc</span><span class="ansi-blue-fg">()</span>
+
+<span class="ansi-green-fg">pandas/_libs/index_class_helper.pxi</span> in <span class="ansi-cyan-fg">pandas._libs.index.Int64Engine._check_type</span><span class="ansi-blue-fg">()</span>
+
+<span class="ansi-green-fg">pandas/_libs/index_class_helper.pxi</span> in <span class="ansi-cyan-fg">pandas._libs.index.Int64Engine._check_type</span><span class="ansi-blue-fg">()</span>
+
+<span class="ansi-red-fg">KeyError</span>: &#39;1.5.1.20-RXN-5-METHYL-THF/NAD//METHYLENE-THF/NADH/PROTON.44. (reverse)&#39;
+
+The above exception was the direct cause of the following exception:
+
+<span class="ansi-red-fg">KeyError</span>                                  Traceback (most recent call last)
+<span class="ansi-green-fg">/var/folders/dx/0239zgvj0tgf46b5h8l7v_fc0000gn/T/ipykernel_3500/3767532082.py</span> in <span class="ansi-cyan-fg">&lt;module&gt;</span>
+<span class="ansi-green-intense-fg ansi-bold">      1</span> <span class="ansi-red-fg"># divide velocities by enzyme counts</span>
+<span class="ansi-green-fg">----&gt; 2</span><span class="ansi-red-fg"> </span>nvE_dict <span class="ansi-blue-fg">=</span> <span class="ansi-blue-fg">{</span>k<span class="ansi-blue-fg">:</span> nonzero_velocities<span class="ansi-blue-fg">[</span>k<span class="ansi-blue-fg">]</span> <span class="ansi-blue-fg">/</span> sim_catalysts<span class="ansi-blue-fg">[</span>k<span class="ansi-blue-fg">]</span> <span class="ansi-green-fg">for</span> k <span class="ansi-green-fg">in</span> S_matrix<span class="ansi-blue-fg">.</span>columns<span class="ansi-blue-fg">}</span>
+
+<span class="ansi-green-fg">/var/folders/dx/0239zgvj0tgf46b5h8l7v_fc0000gn/T/ipykernel_3500/3767532082.py</span> in <span class="ansi-cyan-fg">&lt;dictcomp&gt;</span><span class="ansi-blue-fg">(.0)</span>
+<span class="ansi-green-intense-fg ansi-bold">      1</span> <span class="ansi-red-fg"># divide velocities by enzyme counts</span>
+<span class="ansi-green-fg">----&gt; 2</span><span class="ansi-red-fg"> </span>nvE_dict <span class="ansi-blue-fg">=</span> <span class="ansi-blue-fg">{</span>k<span class="ansi-blue-fg">:</span> nonzero_velocities<span class="ansi-blue-fg">[</span>k<span class="ansi-blue-fg">]</span> <span class="ansi-blue-fg">/</span> sim_catalysts<span class="ansi-blue-fg">[</span>k<span class="ansi-blue-fg">]</span> <span class="ansi-green-fg">for</span> k <span class="ansi-green-fg">in</span> S_matrix<span class="ansi-blue-fg">.</span>columns<span class="ansi-blue-fg">}</span>
+
+<span class="ansi-green-fg">~/.pyenv/versions/3.9.9/envs/viv/lib/python3.9/site-packages/pandas/core/frame.py</span> in <span class="ansi-cyan-fg">__getitem__</span><span class="ansi-blue-fg">(self, key)</span>
+<span class="ansi-green-intense-fg ansi-bold">   3456</span>             <span class="ansi-green-fg">if</span> self<span class="ansi-blue-fg">.</span>columns<span class="ansi-blue-fg">.</span>nlevels <span class="ansi-blue-fg">&gt;</span> <span class="ansi-cyan-fg">1</span><span class="ansi-blue-fg">:</span>
+<span class="ansi-green-intense-fg ansi-bold">   3457</span>                 <span class="ansi-green-fg">return</span> self<span class="ansi-blue-fg">.</span>_getitem_multilevel<span class="ansi-blue-fg">(</span>key<span class="ansi-blue-fg">)</span>
+<span class="ansi-green-fg">-&gt; 3458</span><span class="ansi-red-fg">             </span>indexer <span class="ansi-blue-fg">=</span> self<span class="ansi-blue-fg">.</span>columns<span class="ansi-blue-fg">.</span>get_loc<span class="ansi-blue-fg">(</span>key<span class="ansi-blue-fg">)</span>
+<span class="ansi-green-intense-fg ansi-bold">   3459</span>             <span class="ansi-green-fg">if</span> is_integer<span class="ansi-blue-fg">(</span>indexer<span class="ansi-blue-fg">)</span><span class="ansi-blue-fg">:</span>
+<span class="ansi-green-intense-fg ansi-bold">   3460</span>                 indexer <span class="ansi-blue-fg">=</span> <span class="ansi-blue-fg">[</span>indexer<span class="ansi-blue-fg">]</span>
+
+<span class="ansi-green-fg">~/.pyenv/versions/3.9.9/envs/viv/lib/python3.9/site-packages/pandas/core/indexes/base.py</span> in <span class="ansi-cyan-fg">get_loc</span><span class="ansi-blue-fg">(self, key, method, tolerance)</span>
+<span class="ansi-green-intense-fg ansi-bold">   3361</span>                 <span class="ansi-green-fg">return</span> self<span class="ansi-blue-fg">.</span>_engine<span class="ansi-blue-fg">.</span>get_loc<span class="ansi-blue-fg">(</span>casted_key<span class="ansi-blue-fg">)</span>
+<span class="ansi-green-intense-fg ansi-bold">   3362</span>             <span class="ansi-green-fg">except</span> KeyError <span class="ansi-green-fg">as</span> err<span class="ansi-blue-fg">:</span>
+<span class="ansi-green-fg">-&gt; 3363</span><span class="ansi-red-fg">                 </span><span class="ansi-green-fg">raise</span> KeyError<span class="ansi-blue-fg">(</span>key<span class="ansi-blue-fg">)</span> <span class="ansi-green-fg">from</span> err
+<span class="ansi-green-intense-fg ansi-bold">   3364</span>
+<span class="ansi-green-intense-fg ansi-bold">   3365</span>         <span class="ansi-green-fg">if</span> is_scalar<span class="ansi-blue-fg">(</span>key<span class="ansi-blue-fg">)</span> <span class="ansi-green-fg">and</span> isna<span class="ansi-blue-fg">(</span>key<span class="ansi-blue-fg">)</span> <span class="ansi-green-fg">and</span> <span class="ansi-green-fg">not</span> self<span class="ansi-blue-fg">.</span>hasnans<span class="ansi-blue-fg">:</span>
+
+<span class="ansi-red-fg">KeyError</span>: &#39;1.5.1.20-RXN-5-METHYL-THF/NAD//METHYLENE-THF/NADH/PROTON.44. (reverse)&#39;
+</pre></div></div>
+</div>
+</section>
+<section id="First-test.-Single-flux-set.-No-eQuilibrator-or-regulation.">
+<h1>First test. Single flux set. No eQuilibrator or regulation.<a class="headerlink" href="#First-test.-Single-flux-set.-No-eQuilibrator-or-regulation." title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># sort nonzero_velocities to be in same order as S_matrix columns.</span>
+<span class="n">vE_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">nonzero_velocities</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">S_matrix</span><span class="o">.</span><span class="n">columns</span><span class="p">}</span>
+<span class="n">vE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">vE_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()))])</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Sd</span> <span class="o">=</span> <span class="n">S_matrix</span>
+<span class="c1"># Sd = pd.DataFrame(stoich_dict, dtype=np.int8).fillna(0).astype(np.int8)</span>
+<span class="c1"># Sd = Sd.iloc[0:7, 0:2]</span>
+
+<span class="n">Sd</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">S_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Sd</span><span class="p">)</span>
+
+<span class="c1"># count number of times a value occurs in S_array</span>
+<span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">S_array</span><span class="p">,</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># K_eq = np.log(keq)</span>
+<span class="c1"># K_eq_mod = K_eq[:, np.newaxis].T</span>
+<span class="c1"># vE = np.array([[90, 70, -30, 50], [100, 100, 30, 50], [110, 60, 75, 50]])</span>
+
+<span class="c1"># n_flux_set = vE.shape[0]</span>
+<span class="c1"># n_flux_set = 1</span>
+<span class="n">Sr</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="c1"># K_eq[vE &lt; 0] = 1/K_eq[vE &lt; 0]</span>
+
+<span class="n">lvE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">vE</span><span class="p">))</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">vE</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">vE</span><span class="p">)]),</span> <span class="n">columns</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span>
+             <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;$v_1$&quot;</span><span class="p">,</span> <span class="s2">&quot;sign 1&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Use-the-class-based-method-to-solve-the-problem">
+<h1>Use the class based method to solve the problem<a class="headerlink" href="#Use-the-class-based-method-to-solve-the-problem" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">E</span> <span class="o">=</span> <span class="n">ConvexKineticsNew</span><span class="p">()</span>
+<span class="n">y_f</span><span class="p">,</span> <span class="n">y_r</span><span class="p">,</span> <span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">,</span> <span class="n">y_i</span><span class="p">,</span> <span class="n">y_a</span><span class="p">,</span> <span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">,</span> <span class="n">Km_i</span><span class="p">,</span> <span class="n">Km_a</span><span class="p">,</span> <span class="n">S_s</span><span class="p">,</span> <span class="n">S_p</span><span class="p">,</span> <span class="n">S_i</span><span class="p">,</span> <span class="n">S_a</span><span class="p">,</span> \
+            <span class="n">met_s_nz</span><span class="p">,</span> <span class="n">met_p_nz</span><span class="p">,</span> <span class="n">met_i_nz</span><span class="p">,</span> <span class="n">met_a_nz</span><span class="p">,</span> <span class="n">rxn_s_nz</span><span class="p">,</span> <span class="n">rxn_p_nz</span><span class="p">,</span> <span class="n">rxn_i_nz</span><span class="p">,</span> <span class="n">rxn_a_nz</span><span class="p">,</span> \
+            <span class="n">n_rxn</span><span class="p">,</span> <span class="n">n_met</span><span class="p">,</span> <span class="n">n_flux_set</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">,</span> <span class="n">S</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">set_up_variables</span><span class="p">(</span><span class="n">S_matrix</span><span class="o">=</span><span class="n">Sd</span><span class="p">,</span> <span class="n">R_matrix</span><span class="o">=</span><span class="n">Sr</span><span class="p">,</span> <span class="n">flow_data</span><span class="o">=</span><span class="n">vE</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">C_alpha</span><span class="p">,</span> <span class="n">C_beta</span><span class="p">,</span> <span class="n">d_alpha</span><span class="p">,</span> <span class="n">d_beta</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">construct_binding_matrix</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">,</span> <span class="n">S_s</span><span class="p">,</span> <span class="n">S_p</span><span class="p">,</span> <span class="n">S_i</span><span class="p">,</span> <span class="n">S_a</span><span class="p">,</span> <span class="n">Sr</span><span class="p">,</span> <span class="n">met_s_nz</span><span class="p">,</span> <span class="n">met_p_nz</span><span class="p">,</span> <span class="n">met_i_nz</span><span class="p">,</span> <span class="n">met_a_nz</span><span class="p">,</span> <span class="n">rxn_s_nz</span><span class="p">,</span> <span class="n">rxn_p_nz</span><span class="p">,</span> <span class="n">rxn_i_nz</span><span class="p">,</span> <span class="n">rxn_a_nz</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Sd</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">127</span><span class="p">:</span><span class="mi">130</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">LSE_expr</span><span class="p">,</span> <span class="n">denom_expr</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">construct_kinetic_objective</span><span class="p">(</span><span class="n">vE</span><span class="p">,</span> <span class="n">n_flux_set</span><span class="p">,</span> <span class="n">n_rxn</span><span class="p">,</span> <span class="n">C_alpha</span><span class="p">,</span> <span class="n">C_beta</span><span class="p">,</span> <span class="n">d_alpha</span><span class="p">,</span> <span class="n">d_beta</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">y_f</span><span class="p">,</span> <span class="n">y_r</span><span class="p">,</span> <span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">,</span> <span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">loss</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">create_objective_function</span><span class="p">(</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">,</span> <span class="n">Km_i</span><span class="p">,</span> <span class="n">Km_a</span><span class="p">,</span> <span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">,</span> <span class="n">LSE_expr</span><span class="p">,</span> <span class="n">denom_expr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">constr</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">set_parameter_bounds</span><span class="p">(</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">,</span> <span class="n">Km_i</span><span class="p">,</span> <span class="n">Km_a</span><span class="p">,</span> <span class="n">lower_bound</span><span class="o">=-</span><span class="mi">12</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="mi">18</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">problem</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">set_up_problem</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">constr</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span><span class="o">.</span><span class="n">value</span>
+</pre></div>
+</div>
+</div>
+<p>Should be around 52</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">reconstructed_vE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">vE</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_flux_set</span><span class="p">):</span>
+    <span class="n">sat_expr</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">fwd_sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+    <span class="n">back_sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+    <span class="n">sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">):</span>
+        <span class="c1"># sum terms are separate in logsumexp. one per saturation term (row in C_alpha, C_beta)</span>
+        <span class="n">n_term_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term</span> <span class="o">=</span> <span class="n">n_term_s</span> <span class="o">+</span> <span class="n">n_term_p</span>
+
+
+        <span class="n">Km_s_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_s_idx</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="c1"># negate -1 entries</span>
+
+        <span class="n">Km_p_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_p_idx</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+
+        <span class="c1">#S_s_idx = S_s_nz[0, S_s_nz[1, :] == i]</span>
+
+        <span class="n">sat_expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>           <span class="p">[</span> <span class="p">(</span><span class="n">C_alpha</span> <span class="o">@</span> <span class="n">y_f</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())[</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="p">,</span>
+                                     <span class="p">(</span><span class="n">C_beta</span> <span class="o">@</span> <span class="n">y_r</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())[</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">],</span>
+                                     <span class="mi">0</span><span class="p">,</span>
+                                     <span class="c1">#-1*np.ones(n_lse_terms - n_term + 1)</span>
+                                   <span class="p">]</span>
+                       <span class="p">)</span>
+        <span class="n">fwd_sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">y_s</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="c1"># + cfwd.value[i]</span>
+        <span class="n">back_sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">y_p</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="c1"># + cfwd.value[i]</span>
+
+
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sat_expr</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">term</span><span class="p">))</span>
+
+        <span class="n">sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+    <span class="n">reconstr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">cfwd</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">*</span> <span class="n">fwd_sat</span><span class="o">/</span><span class="n">sat</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">crev</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">*</span> <span class="n">back_sat</span><span class="o">/</span><span class="n">sat</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">reconstr</span><span class="p">)</span>
+    <span class="n">reconstructed_vE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">reconstr</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_vE</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">vE</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Flux set 1&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">df_vE</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Actual flux&quot;</span>
+<span class="n">df_recon</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">reconstructed_vE</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Flux set 1&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">df_recon</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Reconstructed flux&quot;</span>
+
+<span class="n">df_reconstr_comp</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_vE</span><span class="p">,</span> <span class="n">df_recon</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="c1"># df_reconstr_comp</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_reconstr_comp</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># sort df_reconstr_comp by value</span>
+<span class="n">df_reconstr_comp</span> <span class="o">=</span> <span class="n">df_reconstr_comp</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">catplot</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="s2">&quot;variable&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;kind&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">df_reconstr_comp</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">60</span><span class="p">,:],</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;bar&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+<span class="c1"># change x axis to log scale</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+
+<span class="c1"># limit length of y axis labels to 20 characters</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">([</span><span class="n">t</span><span class="o">.</span><span class="n">get_text</span><span class="p">()[:</span><span class="mi">20</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_yticklabels</span><span class="p">()])</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Sd</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;ADCLY-RXN&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.experiments.tet_amp_sim &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.experiments.tet_amp_sim</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.experiments.tet_amp_sim</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">constants</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.composites.ecoli_engine_process</span> <span class="kn">import</span> <span class="n">run_simulation</span>
+<span class="kn">from</span> <span class="nn">ecoli.experiments.ecoli_master_sim</span> <span class="kn">import</span> <span class="n">CONFIG_DIR_PATH</span><span class="p">,</span> <span class="n">SimConfig</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.parameters</span> <span class="kn">import</span> <span class="n">param_store</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.logging_tools</span> <span class="kn">import</span> <span class="n">write_json</span>
+<span class="kn">from</span> <span class="nn">ecoli.states.wcecoli_state</span> <span class="kn">import</span> <span class="n">get_state_from_file</span>
+
+<span class="n">AVOGADRO</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">N_A</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span>
+
+<div class="viewcode-block" id="run_sim">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.tet_amp_sim.html#ecoli.experiments.tet_amp_sim.run_sim">[docs]</a>
+<span class="k">def</span> <span class="nf">run_sim</span><span class="p">(</span><span class="n">tet_conc</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">amp_conc</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">baseline</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">cloud</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">initial_colony_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">initial_state_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">start_time</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">runtime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">SimConfig</span><span class="p">()</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">update_from_json</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">CONFIG_DIR_PATH</span><span class="p">,</span> <span class="s2">&quot;antibiotics_ampicillin.json&quot;</span><span class="p">))</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">update_from_json</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">CONFIG_DIR_PATH</span><span class="p">,</span> <span class="s2">&quot;antibiotics_tetracycline.json&quot;</span><span class="p">))</span>
+    <span class="n">add_opts</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;spatial_environment_config&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;reaction_diffusion&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;gradient&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;molecules&quot;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">&quot;tetracycline&quot;</span><span class="p">:</span> <span class="n">tet_conc</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mM</span><span class="p">,</span>
+                        <span class="s2">&quot;ampicillin[p]&quot;</span><span class="p">:</span> <span class="n">amp_conc</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mM</span>  
+                    <span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;field_timeline&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="c1"># Set timeline with arbitrarily high time</span>
+                <span class="c1"># so that it is not used</span>
+                <span class="s2">&quot;timeline&quot;</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">[</span><span class="mi">100000</span><span class="p">,</span> <span class="p">{</span>
+                        <span class="s2">&quot;tetracycline&quot;</span><span class="p">:</span> <span class="mi">0</span>
+                    <span class="p">}],</span>
+                <span class="p">]</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="n">seed</span><span class="p">,</span>
+        <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="n">start_time</span><span class="p">,</span>
+        <span class="s2">&quot;colony_save_prefix&quot;</span><span class="p">:</span> <span class="s2">&quot;tet_amp&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">update_from_dict</span><span class="p">(</span><span class="n">add_opts</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">initial_colony_file</span><span class="p">:</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;initial_state_file&quot;</span><span class="p">)</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;initial_colony_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">initial_colony_file</span>
+    <span class="k">elif</span> <span class="n">initial_state_file</span><span class="p">:</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;initial_state_file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">initial_state_file</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">make_initial_state</span><span class="p">(</span><span class="s2">&quot;wcecoli_t0&quot;</span><span class="p">,</span> <span class="n">rnai_data</span><span class="o">=</span><span class="n">config</span><span class="p">[</span>
+            <span class="s2">&quot;process_configs&quot;</span><span class="p">][</span><span class="s2">&quot;ecoli-rna-interference&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">baseline</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running baseline sim (seed = </span><span class="si">{</span><span class="n">seed</span><span class="si">}</span><span class="s2">).&quot;</span><span class="p">)</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;colony_save_prefix&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;glc_combined&quot;</span>
+        <span class="c1"># 26000 allows 8th round of division to mostly complete</span>
+        <span class="c1"># Run for one timestep past that to catch inner sim emits at 26000</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">runtime</span><span class="p">:</span>
+            <span class="n">runtime</span> <span class="o">=</span> <span class="mi">26002</span>
+            <span class="n">config</span><span class="p">[</span><span class="s2">&quot;save&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">config</span><span class="p">[</span><span class="s2">&quot;save_times&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">11550</span><span class="p">,</span> <span class="mi">23100</span><span class="p">]</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;total_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">runtime</span>
+        <span class="c1"># Ensure that sim starts with correctly reduced murein counts</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;initial_state_overrides&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;overrides/reduced_murein&quot;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Seed: </span><span class="si">{</span><span class="n">seed</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tetracycline concentration: </span><span class="si">{</span><span class="n">tet_conc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ampicillin concentration: </span><span class="si">{</span><span class="n">amp_conc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;colony_save_prefix&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;amp_</span><span class="si">{</span><span class="n">amp_conc</span><span class="si">}</span><span class="s2">_tet_</span><span class="si">{</span><span class="n">tet_conc</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">runtime</span><span class="p">:</span>
+            <span class="n">runtime</span> <span class="o">=</span> <span class="mi">14452</span>
+            <span class="n">config</span><span class="p">[</span><span class="s2">&quot;save&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">config</span><span class="p">[</span><span class="s2">&quot;save_times&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">11550</span><span class="p">]</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;total_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">runtime</span>
+    <span class="k">if</span> <span class="n">cloud</span><span class="p">:</span>
+        <span class="n">config</span><span class="p">[</span><span class="s2">&quot;emitter_arg&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="s2">&quot;10.138.0.75:27017&quot;</span><span class="p">],</span>
+            <span class="p">[</span><span class="s2">&quot;emit_limit&quot;</span><span class="p">,</span> <span class="mi">5000000</span><span class="p">]</span>
+        <span class="p">]</span>
+
+    <span class="n">run_simulation</span><span class="p">(</span><span class="n">config</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="update_agent">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.tet_amp_sim.html#ecoli.experiments.tet_amp_sim.update_agent">[docs]</a>
+<span class="k">def</span> <span class="nf">update_agent</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">rnai_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">submasses</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">metabolite_idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">fields</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">if</span> <span class="s2">&quot;submass&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+            <span class="n">submasses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;metabolite&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                <span class="n">metabolite_idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">submasses</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">amp_mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">submasses</span><span class="p">))</span>
+    <span class="n">amp_mass</span><span class="p">[</span><span class="n">metabolite_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">param_store</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="s2">&quot;ampicillin&quot;</span><span class="p">,</span> <span class="s2">&quot;molar_mass&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
+        <span class="n">units</span><span class="o">.</span><span class="n">fg</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span> <span class="o">/</span> <span class="n">AVOGADRO</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+    <span class="n">tet_mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">submasses</span><span class="p">))</span>
+    <span class="n">tet_mass</span><span class="p">[</span><span class="n">metabolite_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">param_store</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="s2">&quot;tetracycline&quot;</span><span class="p">,</span> <span class="s2">&quot;mass&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
+        <span class="n">units</span><span class="o">.</span><span class="n">fg</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span> <span class="o">/</span> <span class="n">AVOGADRO</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+    <span class="n">tet_ribo_30s_mass</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">][</span><span class="n">submasses</span><span class="p">][</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;CPLX0-3953[c]&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">tet_ribo_30s_mass</span><span class="p">[</span><span class="s1">&#39;metabolite_submass&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tet_mass</span><span class="p">[</span><span class="n">metabolite_idx</span><span class="p">]</span>
+    <span class="n">marR_tet_mass</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">][</span><span class="n">submasses</span><span class="p">][</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;CPLX0-7710[c]&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">marR_tet_mass</span><span class="p">[</span><span class="s1">&#39;metabolite_submass&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tet_mass</span><span class="p">[</span><span class="n">metabolite_idx</span><span class="p">]</span>
+    <span class="n">new_bulk</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;marR-tet[c]&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">marR_tet_mass</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s2">&quot;tetracycline[p]&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tet_mass</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;tetracycline[c]&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tet_mass</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;CPLX0-3953-tetracycline[c]&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tet_ribo_30s_mass</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s2">&quot;ampicillin[p]&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">amp_mass</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;ampicillin_hydrolyzed[p]&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tet_mass</span><span class="p">)</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Add RNA duplexes</span>
+    <span class="k">if</span> <span class="n">rnai_data</span><span class="p">:</span>
+        <span class="c1"># Get RNA mass data</span>
+        <span class="n">duplex_masses</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">srna_id</span><span class="p">,</span> <span class="n">target_id</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">rnai_data</span><span class="p">[</span><span class="s2">&quot;srna_ids&quot;</span><span class="p">],</span>
+                                      <span class="n">rnai_data</span><span class="p">[</span><span class="s2">&quot;target_ids&quot;</span><span class="p">]):</span>
+            <span class="n">srna_mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="n">submasses</span><span class="p">][</span>
+                <span class="n">data</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">srna_id</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">target_mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="n">submasses</span><span class="p">][</span>
+                <span class="n">data</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">target_id</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">duplex_masses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">srna_mass</span> <span class="o">+</span> <span class="n">target_mass</span><span class="p">)</span>
+        <span class="n">new_bulk</span> <span class="o">+=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">duplex_id</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">duplex_mass</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">duplex_id</span><span class="p">,</span> <span class="n">duplex_mass</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="n">rnai_data</span><span class="p">[</span><span class="s2">&quot;duplex_ids&quot;</span><span class="p">],</span> <span class="n">duplex_masses</span><span class="p">)</span>
+        <span class="p">]</span>
+    <span class="n">new_bulk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">new_bulk</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;bulk&quot;</span><span class="p">],</span> <span class="n">new_bulk</span><span class="p">)</span>
+    <span class="c1"># Add promoter binding data for marA and marR</span>
+    <span class="n">new_bound_TF</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">bound_TF</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;unique&quot;</span><span class="p">][</span><span class="s2">&quot;promoter&quot;</span><span class="p">][</span><span class="s2">&quot;bound_TF&quot;</span><span class="p">]:</span>
+        <span class="c1"># Bound TF boolean mask should be 4th attr</span>
+        <span class="n">new_bound_TF</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bound_TF</span><span class="p">,</span> <span class="p">[</span><span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">]))</span>
+    <span class="n">new_dtype</span> <span class="o">=</span> <span class="p">[</span><span class="n">dt</span> <span class="k">for</span> <span class="n">dt</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;unique&quot;</span><span class="p">][</span><span class="s2">&quot;promoter&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">descr</span>
+                 <span class="k">if</span> <span class="s1">&#39;bound_TF&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dt</span><span class="p">]</span>
+    <span class="n">new_dtype</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;bound_TF&#39;</span><span class="p">,</span> <span class="s1">&#39;?&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">new_bound_TF</span><span class="p">[</span><span class="mi">0</span><span class="p">]),)))</span>
+    <span class="n">new_promoters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;unique&quot;</span><span class="p">][</span><span class="s2">&quot;promoter&quot;</span><span class="p">]),),</span> <span class="n">new_dtype</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;unique&quot;</span><span class="p">][</span><span class="s2">&quot;promoter&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">field</span> <span class="o">!=</span> <span class="s2">&quot;bound_TF&quot;</span><span class="p">:</span>
+            <span class="n">new_promoters</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;unique&quot;</span><span class="p">][</span><span class="s2">&quot;promoter&quot;</span><span class="p">][</span><span class="n">field</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_promoters</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_bound_TF</span>
+    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;unique&quot;</span><span class="p">][</span><span class="s2">&quot;promoter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_promoters</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+
+<div class="viewcode-block" id="make_initial_state">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.tet_amp_sim.html#ecoli.experiments.tet_amp_sim.make_initial_state">[docs]</a>
+<span class="k">def</span> <span class="nf">make_initial_state</span><span class="p">(</span><span class="n">initial_file</span><span class="p">,</span> <span class="n">rnai_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="n">get_state_from_file</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s1">&#39;data/migration_no_operons/</span><span class="si">{</span><span class="n">initial_file</span><span class="si">}</span><span class="s1">.json&#39;</span><span class="p">)</span>
+    <span class="c1"># Modify each cell in colony individually</span>
+    <span class="k">if</span> <span class="s2">&quot;agents&quot;</span> <span class="ow">in</span> <span class="n">initial_state</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">agent_data</span> <span class="ow">in</span> <span class="n">initial_state</span><span class="p">[</span><span class="s2">&quot;agents&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">initial_state</span><span class="p">[</span><span class="s2">&quot;agents&quot;</span><span class="p">][</span><span class="n">agent_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">update_agent</span><span class="p">(</span>
+                <span class="n">agent_data</span><span class="p">,</span> <span class="n">rnai_data</span><span class="p">)</span>
+            <span class="c1"># Save bulk and unique dtypes</span>
+            <span class="n">agent_data</span><span class="p">[</span><span class="s1">&#39;bulk_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">agent_data</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">agent_data</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mols</span> <span class="ow">in</span> <span class="n">agent_data</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">agent_data</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">mols</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+            <span class="n">agent_data</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;external&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">key</span><span class="p">:</span> <span class="n">value</span><span class="o">.</span><span class="n">magnitude</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">agent_data</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;external&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">initial_state</span> <span class="o">=</span> <span class="n">update_agent</span><span class="p">(</span><span class="n">initial_state</span><span class="p">,</span> <span class="n">rnai_data</span><span class="p">)</span>
+        <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;bulk_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mols</span> <span class="ow">in</span> <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;unique_dtypes&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">mols</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;external&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">key</span><span class="p">:</span> <span class="n">value</span><span class="o">.</span><span class="n">magnitude</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">initial_state</span><span class="p">[</span><span class="s1">&#39;boundary&#39;</span><span class="p">][</span><span class="s1">&#39;external&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span>
+    <span class="n">write_json</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;data/antibiotics_</span><span class="si">{</span><span class="n">initial_file</span><span class="si">}</span><span class="s1">.json&#39;</span><span class="p">,</span> <span class="n">initial_state</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="generate_data">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.tet_amp_sim.html#ecoli.experiments.tet_amp_sim.generate_data">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_data</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">cloud</span><span class="p">,</span> <span class="n">tet_conc</span><span class="p">,</span> <span class="n">amp_conc</span><span class="p">,</span>
+    <span class="n">initial_colony_file</span><span class="p">,</span> <span class="n">initial_state_file</span><span class="p">,</span> <span class="n">baseline</span><span class="p">,</span>
+    <span class="n">start_time</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">baseline</span><span class="p">:</span>
+        <span class="n">run_sim</span><span class="p">(</span>
+            <span class="n">tet_conc</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">amp_conc</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+            <span class="n">cloud</span><span class="o">=</span><span class="n">cloud</span><span class="p">,</span>
+            <span class="n">start_time</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">initial_state_file</span><span class="o">=</span><span class="n">initial_state_file</span><span class="p">,</span>
+            <span class="n">baseline</span><span class="o">=</span><span class="n">baseline</span><span class="p">,</span>
+            <span class="n">runtime</span><span class="o">=</span><span class="n">runtime</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">run_sim</span><span class="p">(</span>
+            <span class="n">tet_conc</span><span class="o">=</span><span class="n">tet_conc</span><span class="p">,</span>
+            <span class="n">amp_conc</span><span class="o">=</span><span class="n">amp_conc</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+            <span class="n">cloud</span><span class="o">=</span><span class="n">cloud</span><span class="p">,</span>
+            <span class="n">initial_colony_file</span><span class="o">=</span><span class="n">initial_colony_file</span><span class="p">,</span>
+            <span class="n">initial_state_file</span><span class="o">=</span><span class="n">initial_state_file</span><span class="p">,</span>
+            <span class="n">start_time</span><span class="o">=</span><span class="n">start_time</span><span class="p">,</span>
+            <span class="n">runtime</span><span class="o">=</span><span class="n">runtime</span>
+        <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.experiments.tet_amp_sim.html#ecoli.experiments.tet_amp_sim.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="s2">&quot;Run tetracycline simulations.&quot;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--seed&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Random seed for simulation.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-l&quot;</span><span class="p">,</span> <span class="s2">&quot;--local&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-b&quot;</span><span class="p">,</span> <span class="s2">&quot;--baseline&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-i&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--initial_colony_file&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Colony save state to run the simulation off of&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-f&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--initial_state_file&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Single cell initial state (e.g. from wcEcoli)&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-t&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--tet_conc&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="mf">0.003375</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Starting external tetracycline concentration (mM)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-a&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--amp_conc&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">param_store</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="s2">&quot;ampicillin&quot;</span><span class="p">,</span> <span class="s2">&quot;mic&quot;</span><span class="p">)),</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Starting external ampicillin concentration (mM)&quot;</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-r&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--runtime&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Custom simulation run time.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-n&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--start_time&quot;</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Custom simulation start time.&quot;</span>
+    <span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="n">generate_data</span><span class="p">(</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+        <span class="n">cloud</span><span class="o">=</span><span class="p">(</span><span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">local</span><span class="p">),</span>
+        <span class="n">tet_conc</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">tet_conc</span><span class="p">,</span>
+        <span class="n">amp_conc</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">amp_conc</span><span class="p">,</span>
+        <span class="n">initial_colony_file</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">initial_colony_file</span><span class="p">,</span>
+        <span class="n">initial_state_file</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">initial_state_file</span><span class="p">,</span>
+        <span class="n">baseline</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">baseline</span><span class="p">,</span>
+        <span class="n">runtime</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">runtime</span><span class="p">,</span>
+        <span class="n">start_time</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">start_time</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">multiprocessing</span><span class="p">;</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">set_start_method</span><span class="p">(</span><span class="s2">&quot;spawn&quot;</span><span class="p">)</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

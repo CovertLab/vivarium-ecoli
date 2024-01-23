@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.processes.listeners.mass_listener &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.processes.listeners.mass_listener</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.processes.listeners.mass_listener</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">=============</span>
+<span class="sd">Mass Listener</span>
+<span class="sd">=============</span>
+
+<span class="sd">Represents the total cellular mass.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy.lib</span> <span class="kn">import</span> <span class="n">recfunctions</span> <span class="k">as</span> <span class="n">rfn</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Step</span>
+<span class="kn">from</span> <span class="nn">ecoli.library.schema</span> <span class="kn">import</span> <span class="n">numpy_schema</span><span class="p">,</span> <span class="n">counts</span><span class="p">,</span> <span class="n">attrs</span><span class="p">,</span> <span class="n">bulk_name_to_idx</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.registries</span> <span class="kn">import</span> <span class="n">topology_registry</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="c1"># Register default topology for this process, associating it with process name</span>
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;ecoli-mass-listener&#39;</span>
+<span class="n">TOPOLOGY</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;bulk&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;bulk&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;unique&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;unique&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;listeners&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;listeners&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;global_time&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;global_time&quot;</span><span class="p">,),</span>
+    <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;timestep&quot;</span><span class="p">,)</span>
+<span class="p">}</span>
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MassListener">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.mass_listener.html#ecoli.processes.listeners.mass_listener.MassListener">[docs]</a>
+<span class="k">class</span> <span class="nc">MassListener</span><span class="p">(</span><span class="n">Step</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; MassListener &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">NAME</span>
+    <span class="n">topology</span> <span class="o">=</span> <span class="n">TOPOLOGY</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;cellDensity&#39;</span><span class="p">:</span> <span class="mf">1100.0</span><span class="p">,</span>
+        <span class="s1">&#39;bulk_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;bulk_masses&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">]),</span>
+        <span class="s1">&#39;unique_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s1">&#39;unique_masses&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">]),</span>
+        <span class="s1">&#39;submass_to_idx&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;rRNA&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;tRNA&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;mRNA&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;miscRNA&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+            <span class="s1">&#39;nonspecific_RNA&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;protein&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;metabolite&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+            <span class="s1">&#39;water&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span> <span class="s1">&#39;DNA&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">},</span>
+        <span class="s1">&#39;compartment_indices&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;projection&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;cytosol&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;extracellular&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;flagellum&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;membrane&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;outer_membrane&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;periplasm&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;pilus&#39;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s1">&#39;inner_membrane&#39;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="p">},</span>
+        <span class="s1">&#39;compartment_id_to_index&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;compartment_abbrev_to_index&#39;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="s1">&#39;n_avogadro&#39;</span><span class="p">:</span> <span class="mf">6.0221409e23</span><span class="p">,</span>  <span class="c1"># 1/mol</span>
+        <span class="s1">&#39;time_step&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s1">&#39;emit_unique&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s1">&#39;match_wcecoli&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="c1"># molecule indexes and masses</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulk_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bulk_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulk_masses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bulk_masses&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unique_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;unique_ids&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unique_masses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;unique_masses&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">submass_listener_indices</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;rna&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;rRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;tRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;mRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;miscRNA&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;nonspecific_RNA&quot;</span><span class="p">]</span>
+            <span class="p">]),</span>
+            <span class="s1">&#39;rRna&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="s2">&quot;rRNA&quot;</span><span class="p">],</span>
+            <span class="s1">&#39;tRna&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="s2">&quot;tRNA&quot;</span><span class="p">],</span>
+            <span class="s1">&#39;mRna&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="s2">&quot;mRNA&quot;</span><span class="p">],</span>
+            <span class="s1">&#39;dna&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="s2">&quot;DNA&quot;</span><span class="p">],</span>
+            <span class="s1">&#39;protein&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="s2">&quot;protein&quot;</span><span class="p">],</span>
+            <span class="s1">&#39;smallMolecule&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="s2">&quot;metabolite&quot;</span><span class="p">],</span>
+            <span class="s1">&#39;water&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">][</span><span class="s2">&quot;water&quot;</span><span class="p">]</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ordered_submasses</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">submass</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ordered_submasses</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">submass</span><span class="si">}</span><span class="s1">_submass&#39;</span>
+
+        <span class="c1"># compartment indexes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compartment_id_to_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;compartment_id_to_index&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projection_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;projection&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cytosol_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span><span class="s1">&#39;cytosol&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extracellular_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;extracellular&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flagellum_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;flagellum&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">membrane_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;membrane&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outer_membrane_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;outer_membrane&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">periplasm_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;periplasm&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pilus_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span><span class="s1">&#39;pilus&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inner_membrane_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;compartment_indices&#39;</span><span class="p">][</span>
+            <span class="s1">&#39;inner_membrane&#39;</span><span class="p">]</span>
+
+        <span class="c1"># Set up matrix for compartment mass calculation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compartment_abbrev_to_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span>
+            <span class="s1">&#39;compartment_abbrev_to_index&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compartment_abbrev_to_index</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_bulk_molecule_by_compartment</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">defchararray</span><span class="o">.</span><span class="n">chararray</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">bulk_ids</span><span class="p">,</span> <span class="n">abbrev</span> <span class="o">+</span> <span class="s1">&#39;]&#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">abbrev</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">compartment_abbrev_to_index</span>
+            <span class="p">])</span>
+
+        <span class="c1"># units and constants</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cellDensity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;cellDensity&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_avogadro</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;n_avogadro&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">first_time_step</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">massDiff_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;massDiff_&#39;</span> <span class="o">+</span> <span class="n">submass</span>
+            <span class="k">for</span> <span class="n">submass</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;submass_to_idx&#39;</span><span class="p">]]</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_cycle_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;condition_to_doubling_time&#39;</span><span class="p">][</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;condition&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span>
+
+        <span class="c1"># Helper indices for Numpy indexing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulk_idx</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Enable flag for perfect recapitulation of wcEcoli mass calculations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">match_wcecoli</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;match_wcecoli&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="MassListener.ports_schema">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.mass_listener.html#ecoli.processes.listeners.mass_listener.MassListener.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">split_divider_schema</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;_divide&#39;</span><span class="p">:</span> <span class="s1">&#39;split&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">set_divider_schema</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s1">&#39;_updater&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;_emit&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;_divide&#39;</span><span class="p">:</span> <span class="s1">&#39;set&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+        
+        <span class="c1"># Ensure that bulk ids are emitted in config for analyses</span>
+        <span class="n">bulk_schema</span> <span class="o">=</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;bulk&#39;</span><span class="p">)</span>
+        <span class="n">bulk_schema</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s1">&#39;_properties&#39;</span><span class="p">,</span> <span class="p">{})[</span><span class="s1">&#39;metadata&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bulk_ids</span>
+
+        <span class="n">ports</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;bulk&#39;</span><span class="p">:</span> <span class="n">bulk_schema</span><span class="p">,</span>
+            <span class="s1">&#39;unique&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">mol_id</span><span class="p">):</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="n">mol_id</span> <span class="o">+</span> <span class="s1">&#39;s&#39;</span><span class="p">,</span>
+                    <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_ids</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span>
+                    <span class="s1">&#39;DnaA_box&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;active_ribosome&#39;</span>
+                <span class="p">]</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;cell_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;water_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;dry_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="o">**</span><span class="p">{</span><span class="n">submass</span> <span class="o">+</span> <span class="s1">&#39;_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span>
+                       <span class="k">for</span> <span class="n">submass</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submass_listener_indices</span><span class="o">.</span><span class="n">keys</span><span class="p">()},</span>
+                    <span class="s1">&#39;volume&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;protein_mass_fraction&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;rna_mass_fraction&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;instantaneous_growth_rate&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;dry_mass_fold_change&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;protein_mass_fold_change&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;rna_mass_fold_change&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;small_molecule_fold_change&#39;</span><span class="p">:</span> <span class="n">set_divider_schema</span><span class="p">,</span>
+                    <span class="c1"># compartment mass</span>
+                    <span class="s1">&#39;projection_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;cytosol_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;extracellular_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;flagellum_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;membrane_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;outer_membrane_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;periplasm_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;pilus_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;inner_membrane_mass&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span><span class="p">,</span>
+                    <span class="s1">&#39;expected_mass_fold_change&#39;</span><span class="p">:</span> <span class="n">split_divider_schema</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;global_time&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="s1">&#39;timestep&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;_default&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;time_step&#39;</span><span class="p">]}</span>
+        <span class="p">}</span>
+        <span class="n">ports</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="s1">&#39;active_ribosome&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;active_ribosome&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;DnaA_box&#39;</span><span class="p">:</span> <span class="n">numpy_schema</span><span class="p">(</span><span class="s1">&#39;DnaA_boxes&#39;</span><span class="p">,</span>
+                <span class="n">emit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;emit_unique&#39;</span><span class="p">]),</span>
+        <span class="p">})</span>
+        <span class="k">return</span> <span class="n">ports</span></div>
+
+    
+<div class="viewcode-block" id="MassListener.update_condition">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.mass_listener.html#ecoli.processes.listeners.mass_listener.MassListener.update_condition">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;timestep&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span></div>
+
+
+<div class="viewcode-block" id="MassListener.next_update">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.mass_listener.html#ecoli.processes.listeners.mass_listener.MassListener.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bulk_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bulk_ids</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bulk_idx</span> <span class="o">=</span> <span class="n">bulk_name_to_idx</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bulk_ids</span><span class="p">,</span> <span class="n">bulk_ids</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_wcecoli</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bulk_addon</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bulk_idx</span><span class="p">),</span> <span class="mi">16</span><span class="p">))</span>
+
+        <span class="n">mass_update</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Get previous dry mass, for calculating growth later</span>
+        <span class="n">old_dry_mass</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">][</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">]</span>
+
+        <span class="c1"># get submasses from bulk and unique</span>
+        <span class="n">bulk_counts</span> <span class="o">=</span> <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">bulk_idx</span><span class="p">)</span>
+        <span class="n">bulk_masses</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">ordered_submasses</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">bulk_idx</span><span class="p">]</span>
+        <span class="n">bulk_masses</span> <span class="o">=</span> <span class="n">rfn</span><span class="o">.</span><span class="n">structured_to_unstructured</span><span class="p">(</span><span class="n">bulk_masses</span><span class="p">)</span>
+        <span class="n">bulk_submasses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">bulk_counts</span><span class="p">,</span> <span class="n">bulk_masses</span><span class="p">)</span>
+        <span class="n">bulk_compartment_masses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="n">bulk_counts</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bulk_molecule_by_compartment</span><span class="p">,</span> <span class="n">bulk_masses</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_wcecoli</span><span class="p">:</span>
+            <span class="n">bulk_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">bulk_addon</span><span class="p">,</span>
+                <span class="n">counts</span><span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">bulk_idx</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]])</span>
+            <span class="n">bulk_submasses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">bulk_counts</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">bulk_masses</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">bulk_compartment_masses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+                <span class="n">bulk_counts</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bulk_molecule_by_compartment</span><span class="p">,</span> <span class="n">bulk_masses</span><span class="p">)</span>
+
+        <span class="n">unique_submasses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">massDiff_names</span><span class="p">))</span>
+        <span class="n">unique_compartment_masses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">bulk_compartment_masses</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">unique_id</span><span class="p">,</span> <span class="n">unique_mass</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unique_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">unique_masses</span><span class="p">):</span>
+            <span class="n">molecules</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;unique&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">unique_id</span><span class="p">)</span>
+            <span class="n">n_molecules</span> <span class="o">=</span> <span class="n">molecules</span><span class="p">[</span><span class="s1">&#39;_entryState&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            
+            <span class="k">if</span> <span class="n">n_molecules</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            
+            <span class="n">unique_submasses</span> <span class="o">+=</span> <span class="n">unique_mass</span> <span class="o">*</span> <span class="n">n_molecules</span>
+            <span class="n">unique_compartment_masses</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">compartment_abbrev_to_index</span><span class="p">[</span><span class="s1">&#39;c&#39;</span><span class="p">],</span>
+				<span class="p">:]</span> <span class="o">+=</span> <span class="n">unique_mass</span> <span class="o">*</span> <span class="n">n_molecules</span>
+            
+            <span class="n">massDiffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">attrs</span><span class="p">(</span><span class="n">molecules</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">massDiff_names</span><span class="p">)))</span><span class="o">.</span><span class="n">T</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_wcecoli</span><span class="p">:</span>
+                <span class="n">massDiffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">records</span><span class="o">.</span><span class="n">fromarrays</span><span class="p">(</span>
+                    <span class="n">attrs</span><span class="p">(</span><span class="n">molecules</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">massDiff_names</span><span class="p">))</span><span class="o">.</span><span class="n">view</span><span class="p">(</span>
+                        <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">massDiff_names</span><span class="p">)))</span>
+            <span class="n">unique_submasses</span> <span class="o">+=</span> <span class="n">massDiffs</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">unique_compartment_masses</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">compartment_abbrev_to_index</span><span class="p">[</span><span class="s1">&#39;c&#39;</span><span class="p">],</span>
+				<span class="p">:]</span> <span class="o">+=</span> <span class="n">massDiffs</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># all of the submasses</span>
+        <span class="n">all_submasses</span> <span class="o">=</span> <span class="n">bulk_submasses</span> <span class="o">+</span> <span class="n">unique_submasses</span>
+
+        <span class="c1"># save cell mass, water mass, dry mass</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;cell_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_submasses</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;water_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">submass_listener_indices</span><span class="p">[</span><span class="s1">&#39;water&#39;</span><span class="p">]]</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;cell_mass&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;water_mass&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Store submasses</span>
+        <span class="k">for</span> <span class="n">submass</span><span class="p">,</span> <span class="n">indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submass_listener_indices</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="n">submass</span> <span class="o">+</span> <span class="s2">&quot;_mass&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_submasses</span><span class="p">[</span><span class="n">indices</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;volume&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;cell_mass&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cellDensity</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_time_step</span><span class="p">:</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;growth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dryMassInitial</span> <span class="o">=</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">proteinMassInitial</span> <span class="o">=</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;protein_mass&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rnaMassInitial</span> <span class="o">=</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;rna_mass&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">smallMoleculeMassInitial</span> <span class="o">=</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;smallMolecule_mass&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">timeInitial</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;growth&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">old_dry_mass</span>
+
+        <span class="c1"># Compartment submasses</span>
+        <span class="n">compartment_submasses</span> <span class="o">=</span> <span class="n">bulk_compartment_masses</span> \
+            <span class="o">+</span> <span class="n">unique_compartment_masses</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;projection_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">projection_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;cytosol_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cytosol_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;extracellular_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">extracellular_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;flagellum_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">flagellum_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;membrane_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">membrane_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;outer_membrane_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">outer_membrane_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;periplasm_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">periplasm_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;pilus_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pilus_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;inner_membrane_mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compartment_submasses</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inner_membrane_index</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># This listener tracks the mass changes caused by each process</span>
+        <span class="c1"># TODO: Blame processes?</span>
+        <span class="c1"># mass_update[&#39;processMassDifferences&#39;] = sum(</span>
+        <span class="c1">#     state.process_mass_diffs() for state in self.internal_states.values()</span>
+        <span class="c1"># ).sum(axis=1)</span>
+        
+        <span class="k">if</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;protein_mass_fraction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;protein_mass&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">])</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;rna_mass_fraction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;rna_mass&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">])</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;instantaneous_growth_rate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;growth&#39;</span><span class="p">]</span> <span class="o">/</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">time_step</span> <span class="o">/</span> <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">])</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass_fold_change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;dry_mass&#39;</span><span class="p">]</span> <span class="o">/</span> 
+                <span class="bp">self</span><span class="o">.</span><span class="n">dryMassInitial</span><span class="p">)</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;protein_mass_fold_change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mass_update</span><span class="p">[</span>
+                <span class="s1">&#39;protein_mass&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">proteinMassInitial</span><span class="p">)</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;rna_mass_fold_change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;rna_mass&#39;</span><span class="p">]</span> <span class="o">/</span> 
+                <span class="bp">self</span><span class="o">.</span><span class="n">rnaMassInitial</span><span class="p">)</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;small_molecule_fold_change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass_update</span><span class="p">[</span>
+                <span class="s1">&#39;smallMolecule_mass&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">smallMoleculeMassInitial</span>
+            <span class="n">mass_update</span><span class="p">[</span><span class="s1">&#39;expected_mass_fold_change&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+                <span class="o">*</span> <span class="p">(</span><span class="n">states</span><span class="p">[</span><span class="s1">&#39;global_time&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeInitial</span><span class="p">)</span>
+                <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_cycle_len</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">first_time_step</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">update</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;listeners&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;mass&#39;</span><span class="p">:</span> <span class="n">mass_update</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">update</span></div>
+</div>
+
+    
+
+<span class="n">topology_registry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;post-division-mass-listener&#39;</span><span class="p">,</span> <span class="n">TOPOLOGY</span><span class="p">)</span>
+<div class="viewcode-block" id="PostDivisionMassListener">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.mass_listener.html#ecoli.processes.listeners.mass_listener.PostDivisionMassListener">[docs]</a>
+<span class="k">class</span> <span class="nc">PostDivisionMassListener</span><span class="p">(</span><span class="n">MassListener</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Normally, the mass listener updates after all other processes and steps</span>
+<span class="sd">    have run. However, after division, the mass must be updated immediately</span>
+<span class="sd">    so other processes have access to the accurate mass of their daughter</span>
+<span class="sd">    cell. This process ensures that the mass seen by other processes following</span>
+<span class="sd">    division is accurate.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;post-division-mass-listener&#39;</span>
+
+<div class="viewcode-block" id="PostDivisionMassListener.update_condition">
+<a class="viewcode-back" href="../../../../reference/api/ecoli/ecoli.processes.listeners.mass_listener.html#ecoli.processes.listeners.mass_listener.PostDivisionMassListener.update_condition">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">first_time_step</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

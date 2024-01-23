@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>validation.ecoli.validation_data &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">validation.ecoli.validation_data</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for validation.ecoli.validation_data</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">ValidationData for Ecoli</span>
+
+<span class="sd">Raw data processed into forms convienent for validation and analysis</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">unum</span> <span class="kn">import</span> <span class="n">Unum</span>
+
+<span class="c1"># Raw data class</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.knowledge_base_raw</span> <span class="kn">import</span> <span class="n">KnowledgeBaseEcoli</span>
+
+<span class="c1"># Data classes</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.getter_functions</span> <span class="kn">import</span> <span class="n">GetterFunctions</span><span class="p">,</span> <span class="n">UNDEFINED_COMPARTMENT_IDS_TO_ABBREVS</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.molecule_groups</span> <span class="kn">import</span> <span class="n">MoleculeGroups</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.molecule_ids</span> <span class="kn">import</span> <span class="n">MoleculeIds</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.constants</span> <span class="kn">import</span> <span class="n">Constants</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.state.internal_state</span> <span class="kn">import</span> <span class="n">InternalState</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.process.process</span> <span class="kn">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters</span> <span class="kn">import</span> <span class="n">Mass</span><span class="p">,</span> <span class="n">GrowthRateParameters</span>
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.relation</span> <span class="kn">import</span> <span class="n">Relation</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+	<span class="s1">&#39;KnowledgeBaseEcoli&#39;</span><span class="p">,</span> <span class="s1">&#39;GetterFunctions&#39;</span><span class="p">,</span> <span class="s1">&#39;MoleculeGroups&#39;</span><span class="p">,</span> <span class="s1">&#39;MoleculeIds&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Constants&#39;</span><span class="p">,</span> <span class="s1">&#39;InternalState&#39;</span><span class="p">,</span> <span class="s1">&#39;Process&#39;</span><span class="p">,</span> <span class="s1">&#39;Mass&#39;</span><span class="p">,</span> <span class="s1">&#39;GrowthRateParameters&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;Relation&#39;</span><span class="p">,</span> <span class="s1">&#39;ValidationDataEcoli&#39;</span><span class="p">,</span> <span class="s1">&#39;Protein&#39;</span><span class="p">,</span> <span class="s1">&#39;ReactionFlux&#39;</span><span class="p">,</span>
+	<span class="s1">&#39;EssentialGenes&#39;</span><span class="p">,</span> <span class="s1">&#39;GeneFunctions&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ValidationDataEcoli">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.ValidationDataEcoli">[docs]</a>
+<span class="k">class</span> <span class="nc">ValidationDataEcoli</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot; ValidationDataEcoli &quot;&quot;&quot;</span>
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+		<span class="k">pass</span>
+
+<div class="viewcode-block" id="ValidationDataEcoli.initialize">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.ValidationDataEcoli.initialize">[docs]</a>
+	<span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">,</span> <span class="n">knowledge_base_raw</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">protein</span> <span class="o">=</span> <span class="n">Protein</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">,</span> <span class="n">knowledge_base_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">reactionFlux</span> <span class="o">=</span> <span class="n">ReactionFlux</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">,</span> <span class="n">knowledge_base_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">essential_genes</span> <span class="o">=</span> <span class="n">EssentialGenes</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">geneFunctions</span> <span class="o">=</span> <span class="n">GeneFunctions</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">macromolecular_growth_rate_modulation</span> <span class="o">=</span> <span class="n">MacromolecularGrowthRateModulation</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_add_amino_acid_growth_rates</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ValidationDataEcoli._add_amino_acid_growth_rates">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.ValidationDataEcoli._add_amino_acid_growth_rates">[docs]</a>
+	<span class="k">def</span> <span class="nf">_add_amino_acid_growth_rates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+<span class="w">		</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">		Loads growth rates with single amino acids supplemented in media.</span>
+
+<span class="sd">		amino_acid_media_growth_rates: dict with data from 4 replicates</span>
+<span class="sd">			{</span>
+<span class="sd">				media ID (str):</span>
+<span class="sd">				{</span>
+<span class="sd">					&#39;mean&#39;: mean max growth rate from 4 replicates (float with units per time)</span>
+<span class="sd">					&#39;std&#39;: standard deviation for max growth rate from 4 replicates (float with units per time)</span>
+<span class="sd">				}</span>
+<span class="sd">			}</span>
+<span class="sd">		amino_acid_media_dose_dependent_growth_rates: dict with data from single measurements from 4 concentrations</span>
+<span class="sd">			{</span>
+<span class="sd">				media ID (str):</span>
+<span class="sd">				{</span>
+<span class="sd">					&#39;conc&#39;: concentration of the amino acid in media (np.ndarray[float] with units mol/volume)</span>
+<span class="sd">					&#39;growth&#39;: max growth rate corresponding to each media concentration (float with units per time)</span>
+<span class="sd">				}</span>
+<span class="sd">			}</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+
+		<span class="n">rates</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">amino_acid_growth_rates</span><span class="p">:</span>
+			<span class="n">rates</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;Media&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+				<span class="s1">&#39;mean&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;Average max growth rate&#39;</span><span class="p">],</span>
+				<span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;Max growth rate standard deviation&#39;</span><span class="p">],</span>
+				<span class="p">}</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">amino_acid_growth_rates</span> <span class="o">=</span> <span class="n">rates</span>
+
+		<span class="n">rates</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">amino_acid_growth_rates_dose_response</span><span class="p">:</span>
+			<span class="n">rates</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;Media&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+				<span class="s1">&#39;conc&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;Media concentrations&#39;</span><span class="p">],</span>
+				<span class="s1">&#39;growth&#39;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;Max growth rates&#39;</span><span class="p">],</span>
+				<span class="p">}</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">amino_acid_dose_dependent_growth_rates</span> <span class="o">=</span> <span class="n">rates</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Protein">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.Protein">[docs]</a>
+<span class="k">class</span> <span class="nc">Protein</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot; Protein &quot;&quot;&quot;</span>
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">,</span> <span class="n">knowledge_base_raw</span><span class="p">):</span>
+
+		<span class="n">compartment_ids_to_abbreviations</span> <span class="o">=</span> <span class="p">{</span>
+			<span class="n">comp</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]:</span> <span class="n">comp</span><span class="p">[</span><span class="s1">&#39;abbrev&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">knowledge_base_raw</span><span class="o">.</span><span class="n">compartments</span>
+			<span class="p">}</span>
+
+		<span class="c1"># Compartments that don&#39;t exist in compartments.tsv</span>
+		<span class="n">compartment_ids_to_abbreviations</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+			<span class="n">UNDEFINED_COMPARTMENT_IDS_TO_ABBREVS</span><span class="p">)</span>
+
+		<span class="n">protein_id_to_compartment_tag</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="k">for</span> <span class="n">protein</span> <span class="ow">in</span> <span class="n">knowledge_base_raw</span><span class="o">.</span><span class="n">proteins</span><span class="p">:</span>
+			<span class="n">exp_compartment</span> <span class="o">=</span> <span class="n">protein</span><span class="p">[</span><span class="s1">&#39;experimental_compartment&#39;</span><span class="p">]</span>
+			<span class="n">comp_compartment</span> <span class="o">=</span> <span class="n">protein</span><span class="p">[</span><span class="s1">&#39;computational_compartment&#39;</span><span class="p">]</span>
+
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">exp_compartment</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp_compartment</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+				<span class="n">compartment</span> <span class="o">=</span> <span class="s1">&#39;CCO-CYTOSOL&#39;</span>
+			<span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">exp_compartment</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+				<span class="n">compartment</span> <span class="o">=</span> <span class="n">exp_compartment</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">compartment</span> <span class="o">=</span> <span class="n">comp_compartment</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+			<span class="n">protein_id_to_compartment_tag</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+				<span class="n">protein</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]:</span> <span class="p">[</span><span class="n">compartment_ids_to_abbreviations</span><span class="p">[</span><span class="n">compartment</span><span class="p">]]</span>
+				<span class="p">})</span>
+
+		<span class="c1"># Build and save a dict from gene ID to monomerId</span>
+		<span class="n">rna_id_to_gene_id</span> <span class="o">=</span> <span class="p">{</span>
+			<span class="n">gene</span><span class="p">[</span><span class="s1">&#39;rna_ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">knowledge_base_raw</span><span class="o">.</span><span class="n">genes</span><span class="p">}</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">geneIdToMonomerId</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">knowledge_base_raw</span><span class="o">.</span><span class="n">rnas</span><span class="p">:</span>
+			<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rna</span><span class="p">[</span><span class="s1">&#39;monomer_ids&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">rna</span><span class="p">[</span><span class="s1">&#39;monomer_ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">protein_id_to_compartment_tag</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">geneIdToMonomerId</span><span class="p">[</span><span class="n">rna_id_to_gene_id</span><span class="p">[</span><span class="n">rna</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]]]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">rna</span><span class="p">[</span><span class="s1">&#39;monomer_ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">[</span><span class="si">{</span><span class="n">protein_id_to_compartment_tag</span><span class="p">[</span><span class="n">rna</span><span class="p">[</span><span class="s1">&#39;monomer_ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]][</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">]&quot;</span>
+
+		<span class="c1"># Build and save a dict from gene symbol to corresponding monomerId</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">geneSymbolToMonomerId</span> <span class="o">=</span> <span class="p">{}</span>
+		<span class="n">gene_id_to_symbol</span> <span class="o">=</span> <span class="p">{</span>
+			<span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;symbol&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">knowledge_base_raw</span><span class="o">.</span><span class="n">genes</span><span class="p">}</span>
+
+		<span class="k">for</span> <span class="n">gene_id</span><span class="p">,</span> <span class="n">monomer_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">geneIdToMonomerId</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">geneSymbolToMonomerId</span><span class="p">[</span><span class="n">gene_id_to_symbol</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]]</span> <span class="o">=</span> <span class="n">monomer_id</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">_loadTaniguchi2010Counts</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_loadHouser2015Counts</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_loadWisniewski2014Counts</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">,</span> <span class="n">knowledge_base_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_loadSchmidt2015Counts</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_load_li</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Protein._loadTaniguchi2010Counts">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.Protein._loadTaniguchi2010Counts">[docs]</a>
+	<span class="k">def</span> <span class="nf">_loadTaniguchi2010Counts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="c1"># Load taniguichi Xie Science 2010 dataset</span>
+		<span class="n">taniguichi_dataset</span> <span class="o">=</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">taniguichi2010_table_6</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">taniguichi2010counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">taniguichi_dataset</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;monomerId&#39;</span><span class="p">,</span> <span class="s1">&#39;U100&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;gene_symbol&#39;</span><span class="p">,</span> <span class="s1">&#39;U10&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;b_number&#39;</span><span class="p">,</span> <span class="s1">&#39;U10&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;counts_ave&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;gamma_shape_parameter&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;gamma_scale_parameter&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)])</span>
+		<span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">taniguichi_dataset</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">taniguichi2010counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;Gene_Name&quot;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">taniguichi2010counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;b_number&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;B_Number&quot;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">taniguichi2010counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;counts_ave&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;Mean_Protein&quot;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">taniguichi2010counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;gamma_shape_parameter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;A_Protein&quot;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">taniguichi2010counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;gamma_scale_parameter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;B_Protein&quot;</span><span class="p">]</span>
+			<span class="c1"># Add a monomerId to each row</span>
+			<span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;Gene_Name&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">geneSymbolToMonomerId</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">taniguichi2010counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;monomerId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">geneSymbolToMonomerId</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;Gene_Name&quot;</span><span class="p">]]</span></div>
+
+
+<div class="viewcode-block" id="Protein._loadHouser2015Counts">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.Protein._loadHouser2015Counts">[docs]</a>
+	<span class="k">def</span> <span class="nf">_loadHouser2015Counts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="c1"># Load Houser Wilke PLoSCB 2015 dataset</span>
+		<span class="n">houser_dataset</span> <span class="o">=</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">houser2015_javier_table</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">houser2015counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">houser_dataset</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[</span>
+			<span class="p">(</span><span class="s1">&#39;monomerId&#39;</span><span class="p">,</span> <span class="s1">&#39;U100&#39;</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;gene_symbol&#39;</span><span class="p">,</span> <span class="s1">&#39;U10&#39;</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;counts_ave_exponential&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample16_t3&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample17_t4&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample18_t5&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample19_t6&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample20_t8&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample21_t24&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample22_t48&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample23_t168&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample24_336&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample25_t3&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample26_t4&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample27_t5&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample28_t6&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample29_t8&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample30_t24&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample31_t48&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample32_t168&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample34_336&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample97_t3&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample98_t4&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample99_t5&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample100_t6&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample101_t8&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample102_t24&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample103_t48&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample104_t168&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+			<span class="p">(</span><span class="s1">&#39;sample105_336&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+			<span class="p">])</span>
+
+		<span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">houser_dataset</span><span class="p">):</span>
+			<span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">geneSymbolToMonomerId</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">houser2015counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;monomerId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">geneSymbolToMonomerId</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">]]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">houser2015counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">]</span>
+			<span class="c1"># Hour 6 is the most clearly exponential time point, this is in columns labeled as t6</span>
+			<span class="n">exponential_average</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;sample19_t6&quot;</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;sample28_t6&quot;</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;sample100_t6&quot;</span><span class="p">])])</span>
+			<span class="c1"># Only include proteins observed at least once in this time step</span>
+			<span class="k">if</span> <span class="n">exponential_average</span><span class="p">:</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">houser2015counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;counts_ave_exponential&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">exponential_average</span>
+			<span class="c1"># Otherwise, remove this row from the dataset</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">houser2015counts</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+			<span class="c1"># Load the rest of the data as-is</span>
+			<span class="k">for</span> <span class="n">fieldName</span> <span class="ow">in</span> <span class="n">row</span><span class="p">:</span>
+				<span class="k">if</span> <span class="n">fieldName</span> <span class="o">==</span> <span class="s2">&quot;gene_symbol&quot;</span> <span class="ow">or</span> <span class="n">fieldName</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+					<span class="k">continue</span>
+				<span class="bp">self</span><span class="o">.</span><span class="n">houser2015counts</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">fieldName</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">fieldName</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="Protein._loadWisniewski2014Counts">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.Protein._loadWisniewski2014Counts">[docs]</a>
+	<span class="k">def</span> <span class="nf">_loadWisniewski2014Counts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">,</span> <span class="n">knowledge_base_raw</span><span class="p">):</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">wisniewski2014_supp2</span>
+		<span class="n">rep1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;rep1&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">])</span>
+		<span class="n">rep2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;rep2&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">])</span>
+		<span class="n">rep3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;rep3&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">])</span>
+		<span class="n">avg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">rep1</span><span class="p">,</span> <span class="n">rep2</span><span class="p">,</span> <span class="n">rep3</span><span class="p">),</span> <span class="n">axis</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="n">geneIds</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;EcoCycID&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">]</span>
+
+		<span class="n">monomer_ids</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">avg_counts_filtered</span> <span class="o">=</span> <span class="p">[]</span>
+
+		<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">gene_id</span><span class="p">,</span> <span class="n">avg_count</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">geneIds</span><span class="p">,</span> <span class="n">avg</span><span class="p">)):</span>
+			<span class="k">if</span> <span class="n">gene_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">geneIdToMonomerId</span><span class="p">:</span>
+				<span class="n">monomer_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geneIdToMonomerId</span><span class="p">[</span><span class="n">gene_id</span><span class="p">])</span>
+				<span class="n">avg_counts_filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">avg_count</span><span class="p">)</span>
+
+		<span class="n">nEntries</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">monomer_ids</span><span class="p">)</span>
+
+		<span class="n">wisniewski2014Data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+			<span class="n">nEntries</span><span class="p">,</span>
+			<span class="n">dtype</span> <span class="o">=</span> <span class="p">[</span>
+				<span class="p">(</span><span class="s1">&#39;monomerId&#39;</span><span class="p">,</span> <span class="s1">&#39;U50&#39;</span><span class="p">),</span>
+				<span class="p">(</span><span class="s1">&#39;avgCounts&#39;</span><span class="p">,</span> <span class="s1">&#39;f8&#39;</span><span class="p">),</span>
+				<span class="p">]</span>
+			<span class="p">)</span>
+
+		<span class="n">wisniewski2014Data</span><span class="p">[</span><span class="s2">&quot;monomerId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monomer_ids</span>
+		<span class="n">wisniewski2014Data</span><span class="p">[</span><span class="s2">&quot;avgCounts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">avg_counts_filtered</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">wisniewski2014Data</span> <span class="o">=</span> <span class="n">wisniewski2014Data</span></div>
+
+
+<div class="viewcode-block" id="Protein._loadSchmidt2015Counts">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.Protein._loadSchmidt2015Counts">[docs]</a>
+	<span class="k">def</span> <span class="nf">_loadSchmidt2015Counts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">schmidt2015_javier_table</span>
+
+		<span class="n">geneIds</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;EcoCycID&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">]</span>
+		<span class="n">monomerIds</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">geneIdToMonomerId</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">geneIds</span><span class="p">]</span>
+
+		<span class="n">glucoseCounts</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;Glucose&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">]</span>
+		<span class="n">lb_counts</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;LB&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">]</span>
+		<span class="n">nEntries</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">geneIds</span><span class="p">)</span>
+
+		<span class="n">schmidt2015Data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+			<span class="n">nEntries</span><span class="p">,</span>
+			<span class="n">dtype</span> <span class="o">=</span> <span class="p">[</span>
+				<span class="p">(</span><span class="s1">&#39;monomerId&#39;</span><span class="p">,</span> <span class="s1">&#39;U50&#39;</span><span class="p">),</span>
+				<span class="p">(</span><span class="s1">&#39;glucoseCounts&#39;</span><span class="p">,</span> <span class="s1">&#39;f8&#39;</span><span class="p">),</span>
+				<span class="p">(</span><span class="s1">&#39;LB_counts&#39;</span><span class="p">,</span> <span class="s1">&#39;f8&#39;</span><span class="p">),</span>
+			<span class="p">])</span>
+
+		<span class="n">schmidt2015Data</span><span class="p">[</span><span class="s2">&quot;monomerId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monomerIds</span>
+		<span class="n">schmidt2015Data</span><span class="p">[</span><span class="s2">&quot;glucoseCounts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">glucoseCounts</span>
+		<span class="n">schmidt2015Data</span><span class="p">[</span><span class="s2">&quot;LB_counts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lb_counts</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">schmidt2015Data</span> <span class="o">=</span> <span class="n">schmidt2015Data</span></div>
+
+
+<div class="viewcode-block" id="Protein._load_li">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.Protein._load_li">[docs]</a>
+	<span class="k">def</span> <span class="nf">_load_li</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="n">monomers</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">rich_rates</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="n">minimal_rates</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">li_protein_synthesis_rates_2014</span><span class="p">:</span>
+			<span class="n">gene</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="s1">&#39;Gene&#39;</span><span class="p">]</span>
+			<span class="k">if</span> <span class="p">(</span><span class="n">symbol</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">geneSymbolToMonomerId</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">gene</span><span class="p">))</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="n">monomers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+				<span class="n">rich_rates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="s1">&#39;MOPS complete&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;[]&#39;</span><span class="p">)))</span>
+				<span class="n">minimal_rates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="s1">&#39;MOPS minimal&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;[]&#39;</span><span class="p">)))</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">li_2014</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+			<span class="nb">len</span><span class="p">(</span><span class="n">monomers</span><span class="p">),</span>
+			<span class="n">dtype</span> <span class="o">=</span> <span class="p">[</span>
+				<span class="p">(</span><span class="s1">&#39;monomer&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;U</span><span class="si">{</span><span class="nb">max</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">monomer</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">monomer</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">monomers</span><span class="p">])</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">),</span>
+				<span class="p">(</span><span class="s1">&#39;rich_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;f8&#39;</span><span class="p">),</span>
+				<span class="p">(</span><span class="s1">&#39;minimal_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;f8&#39;</span><span class="p">),</span>
+			<span class="p">])</span>
+
+		<span class="bp">self</span><span class="o">.</span><span class="n">li_2014</span><span class="p">[</span><span class="s2">&quot;monomer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monomers</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">li_2014</span><span class="p">[</span><span class="s2">&quot;rich_rate&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rich_rates</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">li_2014</span><span class="p">[</span><span class="s2">&quot;minimal_rate&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">minimal_rates</span></div>
+</div>
+
+
+<div class="viewcode-block" id="ReactionFlux">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.ReactionFlux">[docs]</a>
+<span class="k">class</span> <span class="nc">ReactionFlux</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot; ReactionFlux &quot;&quot;&quot;</span>
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">,</span> <span class="n">knowledge_base_raw</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_loadToya2010Fluxes</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ReactionFlux._loadToya2010Fluxes">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.ReactionFlux._loadToya2010Fluxes">[docs]</a>
+	<span class="k">def</span> <span class="nf">_loadToya2010Fluxes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="c1"># Load Toya 2010 Biotech Prog central carbon metabolism C13 flux dataset</span>
+		<span class="n">toya_dataset</span> <span class="o">=</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">toya_2010_central_carbon_fluxes</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">toya2010fluxes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">toya_dataset</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;reactionID&#39;</span><span class="p">,</span> <span class="s1">&#39;U100&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;reactionFlux&#39;</span><span class="p">,</span> <span class="n">Unum</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;reactionFluxStdev&#39;</span><span class="p">,</span> <span class="n">Unum</span><span class="p">)])</span>
+		<span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">toya_dataset</span><span class="p">):</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">toya2010fluxes</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;reactionID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;reactionID&quot;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">toya2010fluxes</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;reactionFlux&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;flux&quot;</span><span class="p">]</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">toya2010fluxes</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;reactionFluxStdev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;flux standard deviation&quot;</span><span class="p">]</span></div>
+</div>
+
+
+<div class="viewcode-block" id="EssentialGenes">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.EssentialGenes">[docs]</a>
+<span class="k">class</span> <span class="nc">EssentialGenes</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot; EssentialGenes &quot;&quot;&quot;</span>
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_load_essential_genes</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EssentialGenes._load_essential_genes">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.EssentialGenes._load_essential_genes">[docs]</a>
+	<span class="k">def</span> <span class="nf">_load_essential_genes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">essential_genes</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">essential_cistrons</span> <span class="o">=</span> <span class="p">[]</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">essential_proteins</span> <span class="o">=</span> <span class="p">[]</span>
+
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">essential_genes</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">essential_genes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;FrameID&quot;</span><span class="p">])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">essential_cistrons</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;rnaID&quot;</span><span class="p">])</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">essential_proteins</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;proteinID&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;[&quot;</span> <span class="o">+</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;proteinLoc&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;]&quot;</span><span class="p">)</span></div>
+</div>
+
+
+<div class="viewcode-block" id="GeneFunctions">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.GeneFunctions">[docs]</a>
+<span class="k">class</span> <span class="nc">GeneFunctions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot; GeneFunctions &quot;&quot;&quot;</span>
+
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_loadGeneFunctions</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GeneFunctions._loadGeneFunctions">
+<a class="viewcode-back" href="../../../reference/api/validation/validation.ecoli.validation_data.html#validation.ecoli.validation_data.GeneFunctions._loadGeneFunctions">[docs]</a>
+	<span class="k">def</span> <span class="nf">_loadGeneFunctions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">geneFunctions</span> <span class="o">=</span> <span class="p">{}</span>
+
+		<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">geneFunctions</span><span class="p">:</span>
+			<span class="bp">self</span><span class="o">.</span><span class="n">geneFunctions</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;FrameID&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;Function&quot;</span><span class="p">]</span></div>
+</div>
+
+
+<span class="k">class</span> <span class="nc">MacromolecularGrowthRateModulation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">	</span><span class="sd">&quot;&quot;&quot; MacromolecularGrowthRateModulation &quot;&quot;&quot;</span>
+	<span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="bp">self</span><span class="o">.</span><span class="n">_load_macromolecular_growth_rate_modulation</span><span class="p">(</span><span class="n">validation_data_raw</span><span class="p">)</span>
+
+	<span class="k">def</span> <span class="nf">_load_macromolecular_growth_rate_modulation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validation_data_raw</span><span class="p">):</span>
+		<span class="n">dataset</span> <span class="o">=</span> <span class="n">validation_data_raw</span><span class="o">.</span><span class="n">macromolecular_growth_rate_modulation</span>
+		<span class="c1"># List of data value names extracted from the raw flat file</span>
+		<span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+		<span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+			<span class="c1"># Store numerical value of raw data into a temporary ndarray</span>
+			<span class="n">temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">))</span>
+			<span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span> <span class="p">(</span><span class="n">dataset</span><span class="p">):</span>
+				<span class="n">y</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">value</span><span class="p">]</span>
+				<span class="n">temp</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">Unum</span><span class="o">.</span><span class="n">coerceToUnum</span><span class="p">(</span><span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span>
+			<span class="c1"># Set each ndarray as the corresponding attribute, while tagging the data&#39;s original units onto the ndarray</span>
+			<span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">Unum</span><span class="p">(</span><span class="n">Unum</span><span class="o">.</span><span class="n">coerceToUnum</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">value</span><span class="p">])</span><span class="o">.</span><span class="n">_unit</span><span class="p">,</span> <span class="n">temp</span><span class="p">))</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
