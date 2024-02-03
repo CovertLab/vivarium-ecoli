@@ -18,10 +18,12 @@ import warnings
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+import numpy as np
 from vivarium.core.engine import Engine
 from vivarium.core.process import Process
 from vivarium.core.serialize import deserialize_value, serialize_value
-from vivarium.library.dict_utils import deep_merge
+from vivarium.library.dict_utils import deep_merge, deep_merge_check
+from vivarium.library.topology import inverse_topology
 from vivarium.library.topology import assoc_path
 from ecoli.library.logging_tools import write_json
 import ecoli.composites.ecoli_master
@@ -214,7 +216,6 @@ class SimConfig:
             help='Name of initial state overrides (no ".json") under '
                 'data/overrides')
 
-
     @staticmethod
     def merge_config_dicts(d1: dict[str, Any], d2: dict[str, Any]) -> None:
         """Helper function to safely merge two config dictionaries. Config 
@@ -240,7 +241,6 @@ class SimConfig:
             d2[key].sort()
         deep_merge(d1, d2)
 
-
     def update_from_json(self, path: str) -> None:
         """Loads config dictionary from file path ``path`` and merges it into 
         the currently loaded config.
@@ -255,7 +255,6 @@ class SimConfig:
             config_path = os.path.join(CONFIG_DIR_PATH, config_name)
             self.update_from_json(config_path)
         self.merge_config_dicts(self._config, new_config)
-
 
     def update_from_cli(self):
         """Parses command-line options defined in ``__init__`` and 
@@ -277,27 +276,21 @@ class SimConfig:
         cli_config['parallel'] = args.parallel
         self.merge_config_dicts(self._config, cli_config)
 
-
     def update_from_dict(self, dict_config: dict[str, Any]):
         """Updates loaded config with user-specified dictionary."""
         self.merge_config_dicts(self._config, dict_config)
 
-
     def __getitem__(self, key):
         return self._config[key]
-
 
     def get(self, key, default=None):
         return self._config.get(key, default)
 
-
     def __setitem__(self, key, val):
         self._config[key] = val
 
-
     def keys(self):
         return self._config.keys()
-
 
     def to_dict(self):
         return copy.deepcopy(self._config)
@@ -384,7 +377,6 @@ class EcoliSim:
         if self.generations:
             warnings.warn("generations option is not yet implemented!")
 
-
     @staticmethod
     def from_file(filepath=CONFIG_DIR_PATH + 'default.json') -> 'EcoliSim':
         """Used to instantiate 
@@ -401,7 +393,6 @@ class EcoliSim:
         config.update_from_json(filepath)
         return EcoliSim(config.to_dict())
 
-
     @staticmethod
     def from_cli() -> 'EcoliSim':
         """Used to instantiate 
@@ -412,7 +403,6 @@ class EcoliSim:
         config = SimConfig()
         config.update_from_cli()
         return EcoliSim(config.to_dict())
-
 
     def _retrieve_processes(self,
                             processes: list[str],
@@ -450,7 +440,6 @@ class EcoliSim:
             result[process_name] = process_class
 
         return result
-
 
     def _retrieve_topology(self,
                            topology: dict[str, dict[str, tuple[str]]],
@@ -507,7 +496,6 @@ class EcoliSim:
 
         return result
 
-
     def _retrieve_process_configs(self, 
                                   process_configs: dict[str, dict[str, Any]], 
                                   processes: list[str]) -> dict[str, Any]:
@@ -529,7 +517,6 @@ class EcoliSim:
             if result[process] is None:
                 result[process] = "sim_data"
         return result
-
 
     def build_ecoli(self):
         """
@@ -614,7 +601,6 @@ class EcoliSim:
             self.generated_initial_state = deep_merge(
                 self.generated_initial_state, initial_environment)
 
-
     def save_states(self):
         """
         Runs the simulation while saving the states of specific
@@ -663,7 +649,6 @@ class EcoliSim:
         if time_remaining:
             self.ecoli_experiment.update(time_remaining)
 
-
     def run(self):
         """Create and run an EcoliSim experiment.
         
@@ -676,6 +661,7 @@ class EcoliSim:
                 before calling run().")
 
         metadata = self.get_metadata()
+        metadata['output_metadata'] = self.get_output_metadata()
         # make the experiment
         emitter_config = {'type': self.emitter}
         for key, value in self.emitter_arg:
@@ -735,7 +721,6 @@ class EcoliSim:
         if self.profile:
             report_profiling(self.ecoli_experiment.stats)
 
-
     def query(self, query: list[tuple[str]]=None):
         """
         Query emitted data.
@@ -762,7 +747,6 @@ class EcoliSim:
         else:
             return self.ecoli_experiment.emitter.get_timeseries(query)
 
-
     def merge(self, other: 'EcoliSim'):
         """
         Combine settings from this EcoliSim with another, overriding
@@ -772,7 +756,6 @@ class EcoliSim:
             other: Simulation with settings to override current simulation.
         """
         deep_merge(self.config, other.config)
-
 
     def get_metadata(self) -> dict[str, Any]:
         """
@@ -794,7 +777,6 @@ class EcoliSim:
         metadata['processes'] = [k for k in metadata['processes'].keys()]
         return metadata
 
-
     def to_json_string(self) -> str:
         """
         Serializes simulation setting dictionary along with git hash and 
@@ -803,7 +785,33 @@ class EcoliSim:
         
         """
         return str(serialize_value(self.get_metadata()))
-
+    
+    def get_output_metadata(self) -> dict[str, Any]:
+        """
+        Filters all ports schemas to include only output metadata
+        located at the path ('_properties', 'metadata') for each schema.
+        See :py:meth:`~ecoli.library.schema.listener_schema` for usage details.
+        """
+        if self.divide:
+            processes_and_steps = self.ecoli.processes['agents'][self.agent_id]
+            processes_and_steps.update(
+                self.ecoli.steps['agents'][self.agent_id])
+            topologies = self.ecoli.topology['agents'][self.agent_id]
+        else:
+            processes_and_steps = self.ecoli.processes
+            processes_and_steps.update(self.ecoli.steps)
+            topologies = self.ecoli.topology
+        output_metadata = {}
+        for proc_name, proc in processes_and_steps.items():
+            proc_ports_schema = proc.get_schema()
+            extracted = extract_metadata(proc_ports_schema)
+            if extracted:
+                extracted = inverse_topology((), extracted, topologies[proc_name])
+                output_metadata = deep_merge_check(
+                    output_metadata, extracted, check_equality=True)
+        if self.divide:
+            output_metadata = {'agents': {self.agent_id: output_metadata}}
+        return output_metadata
 
     def export_json(self, filename: str=CONFIG_DIR_PATH + "export.json"):
         """
@@ -816,6 +824,40 @@ class EcoliSim:
         """
         with open(filename, 'w') as f:
             f.write(self.to_json_string())
+
+
+def extract_metadata(ports_schema: dict[str, Any], properties: bool=False):
+    """
+    Filters ports schema to contain only a mapping of ports to user-supplied
+    metadata (pulled from path `('_properties', 'metadata')` for each schema).
+    See :py:meth:`~ecoli.library.schema.listener_schema` for usage details.
+
+    Args:
+        ports_schema: Ports schema to filter and compile metadata for
+        properties: Flag used internally during recursive filtering
+    Returns:
+        Dictionary with same structure as ports schema but with only metadata
+        as leaf nodes instead of complete schema
+    """
+    extracted = {}
+
+    if '_properties' in ports_schema and isinstance(
+            ports_schema['_properties'], dict):
+        return extract_metadata(ports_schema['_properties'], True)
+    
+    if properties and 'metadata' in ports_schema:
+        metadata = ports_schema['metadata']
+        if isinstance(metadata, np.ndarray):
+            metadata = metadata.tolist()
+        return metadata
+
+    for port, schema in ports_schema.items():
+        if isinstance(schema, dict):
+            subextracted = extract_metadata(schema)
+            if subextracted is not None:
+                extracted[port] = subextracted
+    
+    return extracted or None
 
 
 def main():

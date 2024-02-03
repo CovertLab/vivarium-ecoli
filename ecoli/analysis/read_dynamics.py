@@ -126,7 +126,7 @@ def convert_dynamics(seriesOutDir, sim_data, node_list, edge_list, experiment_id
     def build_index_dict(id_array):
         return {mol: i for i, mol in enumerate(id_array)}
 
-    molecule_ids = config['state']['bulk']['_properties']['metadata']
+    molecule_ids = config['metadata']['output_metadata']['bulk']
     indexes["BulkMolecules"] = build_index_dict(molecule_ids)
 
     gene_ids = sim_data.process.transcription.cistron_data['gene_id']
@@ -143,8 +143,8 @@ def convert_dynamics(seriesOutDir, sim_data, node_list, edge_list, experiment_id
 
     # metabolism_rxn_ids = TableReader(
     # 	os.path.join(simOutDir, "FBAResults")).readAttribute("reactionIDs")
-    metabolism_rxn_ids = config['state']['listeners']['fba_results'][
-        'reaction_fluxes']['_properties']['metadata']
+    metabolism_rxn_ids = config['metadata']['output_metadata'][
+        'listeners']['fba_results']['reaction_fluxes']
     metabolism_rxn_ids = sim_data.process.metabolism.reaction_stoich.keys()
     indexes["MetabolismReactions"] = build_index_dict(metabolism_rxn_ids)
 
@@ -156,8 +156,8 @@ def convert_dynamics(seriesOutDir, sim_data, node_list, edge_list, experiment_id
 
     # unprocessed_rna_ids = TableReader(
     #     os.path.join(simOutDir, "RnaMaturationListener")).readAttribute("unprocessed_rna_ids")
-    unprocessed_rna_ids = config['state']['listeners'][
-        'rna_maturation_listener']['unprocessed_rnas_consumed']['_properties']['metadata']
+    unprocessed_rna_ids = config['metadata']['output_metadata']['listeners'][
+        'rna_maturation_listener']['unprocessed_rnas_consumed']
     indexes["UnprocessedRnas"] = build_index_dict(unprocessed_rna_ids)
 
     tf_ids = sim_data.process.transcription_regulation.tf_ids

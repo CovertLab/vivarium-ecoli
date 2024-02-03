@@ -396,10 +396,10 @@ class TableReader(object):
         to access listener metadata (e.g. bulk molecule names for count arrays)
         """
         viv_path = self._mapping[name]
-        sim_metadata = self.emitted_config['state'] or {}
+        sim_metadata = self.emitted_config['metadata']['output_metadata'] or {}
         for key in viv_path:
             sim_metadata = sim_metadata.get(key, {})
-        return sim_metadata.get('_properties', {}).get('metadata', None)
+        return sim_metadata
 
     def readColumn(self, name, indices=None, squeeze=True):
         # type: (str, Any, bool) -> np.ndarray

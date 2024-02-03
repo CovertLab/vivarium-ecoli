@@ -139,7 +139,7 @@ class TfBinding(Step):
                     'n_actual_bound': ([0] * self.n_TF, self.tf_ids),
                     'n_available_promoters': ([0] * self.n_TF, self.tf_ids),
                     'n_bound_TF_per_TU': ([[0] * self.n_TF] * self.n_TU,
-                        (self.rna_ids, self.tf_ids))})},
+                        self.rna_ids)})},
             
             'next_update_time': {
                 '_default': self.parameters['time_step'],
