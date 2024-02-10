@@ -34,13 +34,10 @@ class LoadSimData:
         self,
         sim_data_path: str=SIM_DATA_PATH,
         seed: int=0,
-        # TODO: Figure out why this is so slow
-        jit: bool=False,
         total_time: int=10,
         fixed_media: str = None,
         media_timeline: tuple[tuple[int, str]]=((0, 'minimal'),),   # have to change both media_timeline and condition
         condition: str = 'basal',
-        operons: bool=True,
         trna_charging: bool=True,
         ppgpp_regulation: bool=True,
         mar_regulon: bool=False,
@@ -80,14 +77,11 @@ class LoadSimData:
             seed: Used to deterministically seed all random number 
                 generators. Simulations with the same seed will yield 
                 the same output.
-            jit: Use Numba JIT compilation to speed up equilibrium and 
-                two component system diff eq. solve
             total_time: Time to simulate (seconds)
             media_timeline: Iterable of tuples where the first element of 
                 each tuple is the time to start using a certain media and the 
                 second element is a string corresponding to one of the media 
                 options in ``self.sim_data.external_state.saved_media``
-            operons: Use operon transcription units
             trna_charging: Use steady-state charging model 
                 (:py:class:`~ecoli.processes.polypeptide_elongation.SteadyStateElongationModel`)
                 in :py:class:`~ecoli.processes.polypeptide_elongation.PolypeptideElongation`
@@ -149,9 +143,6 @@ class LoadSimData:
                 inhibition in :py:class:`~ecoli.processes.polypeptide_elongation.PolypeptideElongation`
                 when ``trna_charging`` is ``True``
         """
-        if not operons:
-            sim_data_path = SIM_DATA_PATH_NO_OPERONS
-
         self.seed = seed
         self.total_time = total_time
         self.random_state = np.random.RandomState(seed = seed)
@@ -177,7 +168,6 @@ class LoadSimData:
             disable_ppgpp_elongation_inhibition
         self.recycle_stalled_elongation = recycle_stalled_elongation
         self.emit_unique = emit_unique
-        self.jit = jit
         
         # NEW to vivarium-ecoli: Whether to lump miscRNA with mRNAs
         # when calculating degradation

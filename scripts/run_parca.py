@@ -11,6 +11,57 @@ from wholecell.utils import constants
 import wholecell.utils.filepath as fp
 
 
+def run_parca(config):
+    # Make output directory
+    kb_directory = fp.makedirs(config['outdir'], constants.KB_DIR)
+
+    raw_data_file = os.path.join(kb_directory, constants.SERIALIZED_RAW_DATA)
+    sim_data_file = os.path.join(
+        kb_directory, constants.SERIALIZED_SIM_DATA_FILENAME)
+    raw_validation_data_file = os.path.join(
+        kb_directory, constants.SERIALIZED_RAW_VALIDATION_DATA)
+    validation_data_file = os.path.join(
+        kb_directory, constants.SERIALIZED_VALIDATION_DATA)
+
+
+    print(f"{time.ctime()}: Instantiating raw_data with operons={config['operons']}")
+    raw_data = KnowledgeBaseEcoli(
+        operons_on=config['operons'],
+        remove_rrna_operons=config['remove_rrna_operons'],
+        remove_rrff=config['remove_rrff'])
+    print(f"{time.ctime()}: Saving raw_data")
+    with open(raw_data_file, 'wb') as f:
+        pickle.dump(raw_data, f)
+    
+    print(f"{time.ctime()}: Instantiating sim_data with operons={config['operons']}")
+    sim_data = fitSimData_1(
+        raw_data=raw_data, cpus=config['cpus'], debug=config['debug_parca'],
+        load_intermediate=config['load_intermediate'],
+        save_intermediates=config['save_intermediates'],
+        intermediates_directory=config['intermediates_directory'],
+        variable_elongation_transcription=config['variable_elongation_transcription'],
+        variable_elongation_translation=config['variable_elongation_translation'],
+        disable_ribosome_capacity_fitting=(not config['ribosome_fitting']),
+        disable_rnapoly_capacity_fitting=(not config['rnapoly_fitting'])
+    )
+    print(f"{time.ctime()}: Saving sim_data")
+    with open(sim_data_file, 'wb') as f:
+        pickle.dump(sim_data, f)
+
+    print(f"{time.ctime()}: Instantiating raw_validation_data")
+    raw_validation_data = ValidationDataRawEcoli()
+    print(f"{time.ctime()}: Saving raw_validation_data")
+    with open(raw_validation_data_file, 'wb') as f:
+        pickle.dump(raw_validation_data, f)
+    
+    print(f"{time.ctime()}: Instantiating validation_data")
+    validation_data = ValidationDataEcoli()
+    validation_data.initialize(raw_validation_data, raw_data)
+    print(f"{time.ctime()}: Saving validation_data")
+    with open(validation_data_file, 'wb') as f:
+        pickle.dump(validation_data, f)
+
+
 def main():
     parser = argparse.ArgumentParser(description='run_parca')
     parser.add_argument('-c', '--cpus', type=int, default=1,
@@ -60,57 +111,7 @@ def main():
         ' Usually set this consistently between runParca and runSim.')
     
     args = parser.parse_args()
-
-    # Make output directory
-    kb_directory = fp.makedirs(fp.ROOT_PATH, args.outdir, constants.KB_DIR)
-
-    raw_data_file = os.path.join(kb_directory, constants.SERIALIZED_RAW_DATA)
-    sim_data_file = os.path.join(
-        kb_directory, constants.SERIALIZED_SIM_DATA_FILENAME)
-    metrics_data_file = os.path.join(
-        kb_directory, constants.SERIALIZED_METRICS_DATA_FILENAME)
-    raw_validation_data_file = os.path.join(
-        kb_directory, constants.SERIALIZED_RAW_VALIDATION_DATA)
-    validation_data_file = os.path.join(
-        kb_directory, constants.SERIALIZED_VALIDATION_DATA)
-
-
-    print(f"{time.ctime()}: Instantiating raw_data with operons={args.operons}")
-    raw_data = KnowledgeBaseEcoli(
-        operons_on=args.operons,
-        remove_rrna_operons=args.remove_rrna_operons,
-        remove_rrff=args.remove_rrff)
-    print(f"{time.ctime()}: Saving raw_data")
-    with open(raw_data_file, 'wb') as f:
-        pickle.dump(raw_data, f)
-    
-    print(f"{time.ctime()}: Instantiating sim_data with operons={args.operons}")
-    sim_data = fitSimData_1(
-        raw_data=raw_data, cpus=args.cpus, debug=args.debug_parca,
-        load_intermediate=args.load_intermediate,
-        save_intermediates=args.save_intermediates,
-        intermediates_directory=args.intermediates_directory,
-        variable_elongation_transcription=args.variable_elongation_transcription,
-        variable_elongation_translation=args.variable_elongation_translation,
-        disable_ribosome_capacity_fitting=(not args.ribosome_fitting),
-        disable_rnapoly_capacity_fitting=(not args.rnapoly_fitting)
-    )
-    print(f"{time.ctime()}: Saving sim_data")
-    with open(sim_data_file, 'wb') as f:
-        pickle.dump(sim_data, f)
-
-    print(f"{time.ctime()}: Instantiating raw_validation_data")
-    raw_validation_data = ValidationDataRawEcoli()
-    print(f"{time.ctime()}: Saving raw_validation_data")
-    with open(raw_validation_data_file, 'wb') as f:
-        pickle.dump(raw_validation_data, f)
-    
-    print(f"{time.ctime()}: Instantiating validation_data")
-    validation_data = ValidationDataEcoli()
-    validation_data.initialize(raw_validation_data, raw_data)
-    print(f"{time.ctime()}: Saving validation_data")
-    with open(validation_data_file, 'wb') as f:
-        pickle.dump(validation_data, f)
+    run_parca(vars(args))
 
 
 if __name__ == '__main__':
