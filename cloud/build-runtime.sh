@@ -13,8 +13,9 @@ set -eu
 ID="${1:-$USER}"
 
 PROJECT="$(gcloud config get-value core/project)"
+REGION=$(gcloud config get compute/region)
 WCM_RUNTIME="${ID}-wcm-runtime"
-TAG="us-central1-docker.pkg.dev/${PROJECT}/vecoli/${WCM_RUNTIME}"
+TAG="${REGION}-docker.pkg.dev/${PROJECT}/vecoli/${WCM_RUNTIME}"
 
 echo "=== Cloud-building WCM runtime Docker Image: ${TAG} ==="
 

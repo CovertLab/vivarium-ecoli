@@ -21,6 +21,7 @@ GIT_HASH=$(git rev-parse HEAD)
 GIT_BRANCH=$(git symbolic-ref --short HEAD)
 TIMESTAMP=$(date '+%Y%m%d.%H%M%S')
 PROJECT_ID=$(gcloud config get project)
+REGION=$(gcloud config get compute/region)
 
 mkdir -p source-info
 git diff HEAD > source-info/git_diff.txt
@@ -31,6 +32,6 @@ echo "=== git hash ${GIT_HASH}, git branch ${GIT_BRANCH} ==="
 # This needs a config file to identify the project files to upload and the
 # Dockerfile to run.
 gcloud builds submit --timeout=15m --config cloud/cloud_build_conf.json \
-    --substitutions="_WCM_RUNTIME=${WCM_RUNTIME},_WCM_CODE=${WCM_CODE},_GIT_HASH=${GIT_HASH},_GIT_BRANCH=${GIT_BRANCH},_TIMESTAMP=${TIMESTAMP}"
+    --substitutions="_REGION=${REGION},_WCM_RUNTIME=${WCM_RUNTIME},_WCM_CODE=${WCM_CODE},_GIT_HASH=${GIT_HASH},_GIT_BRANCH=${GIT_BRANCH},_TIMESTAMP=${TIMESTAMP}"
 
 rm source-info/git_diff.txt
