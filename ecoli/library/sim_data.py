@@ -915,7 +915,7 @@ class LoadSimData:
             'time_step': time_step,
             '_parallel': parallel,
 
-            'jit': self.jit,
+            'jit': False,
             # TODO -- wcEcoli has this in 1/mmol, why?
             'n_avogadro': self.sim_data.constants.n_avogadro.asNumber(1 / units.mmol),
             'cell_density': self.sim_data.constants.cell_density.asNumber(units.g / units.L),
@@ -932,7 +932,7 @@ class LoadSimData:
             'time_step': time_step,
             '_parallel': parallel,
 
-            'jit': self.jit,
+            'jit': False,
             'n_avogadro': self.sim_data.constants.n_avogadro.asNumber(1 / units.mol),
             'cell_density': self.sim_data.constants.cell_density.asNumber(units.g / units.L),
             'stoichMatrix': self.sim_data.process.equilibrium.stoich_matrix().astype(np.int64),

@@ -13,6 +13,7 @@ import copy
 import os
 import pstats
 import subprocess
+import sys
 import json
 import warnings
 from datetime import datetime
@@ -31,6 +32,7 @@ import ecoli.composites.ecoli_master
 import ecoli.composites.environment.lattice
 
 from ecoli.processes import process_registry
+from ecoli.processes.cell_division import DivisionDetected
 from ecoli.processes.registries import topology_registry
 
 from ecoli.composites.ecoli_configs import CONFIG_DIR_PATH
@@ -127,7 +129,8 @@ class SimConfig:
 
     default_config_path = os.path.join(CONFIG_DIR_PATH, 'default.json')
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None,
+                 parser: Optional[argparse.ArgumentParser] = None):
         '''Stores configuration options for a simulation. Has dictionary-like 
         interface (e.g. bracket indexing, get, keys).
 
@@ -139,82 +142,87 @@ class SimConfig:
             config: Configuration options. If not provided, the default
                 configuration is loaded from the file path 
                 :py:data:`~ecoli.experiments.ecoli_master_sim.SimConfig.default_config_path`.
+            parser: Useful for scripts that leverage the inheritance features
+                of the JSON config files but want to have their own CLI args
+                for clarity.
         '''
         self._config = config or {}
         if not self._config:
             self.update_from_json(self.default_config_path)
 
-        self.parser = argparse.ArgumentParser(description='ecoli_master')
-        self.parser.add_argument(
-            '--config', '-c', action='store',
-            default=self.default_config_path,
-            help=(
-                'Path to configuration file for the simulation. '
-                'All key-value pairs in this file will be applied on top '
-                f'of the options defined in {self.default_config_path}.'))
-        self.parser.add_argument(
-            '--experiment_id', '-id', action="store",
-            help=(
-                'ID for this experiment. A UUID will be generated if '
-                'this argument is not used and "experiment_id" is null '
-                'in the configuration file.'))
-        self.parser.add_argument(
-            '--emitter', '-e', action='store',
-            choices=["timeseries", "database", "print", "null",
-                "shared_ram"],
-            help=(
-                "Emitter to use. Timeseries uses RAMEmitter, database "
-                "emits to MongoDB, and print emits to stdout."))
-        self.parser.add_argument(
-            '--emitter_arg', '-ea', action='store', nargs='*',
-            type=key_value_pair,
-            help=(
-                'Key-value pairs, separated by `=`, to include in '
-                'emitter config.'))
-        self.parser.add_argument(
-            '--seed', '-s', action="store", type=int,
-            help="Random seed.")
-        self.parser.add_argument(
-            '--initial_state', '-t0', action="store",
-            help=(
-                "Name of the initial state to load from (corresponding "
-                "initial state file must be present in data folder)."))
-        self.parser.add_argument(
-            '--total_time', '-t', action="store", type=float,
-            help="Time to run the simulation for.")
-        self.parser.add_argument(
-            '--generations', '-g', action="store", type=int,
-            help="Number of generations to run the simulation for.")
-        self.parser.add_argument(
-            '--log_updates', '-u', action="store_true",
-            help=(
-                "Save updates from each process if this flag is set, "
-                "e.g. for use with blame plot."))
-        self.parser.add_argument(
-            '--raw_output', action="store_true",
-            help=(
-                "Whether to return data in raw format (dictionary "
-                "where keys are times, values are states)."))
-        self.parser.add_argument(
-            "--agent_id", action="store", type=str,
-            help="Agent ID.")
-        self.parser.add_argument(
-            '--sim_data_path', nargs="*", default=None,
-            help="Path to the sim_data to use for this experiment.")
-        self.parser.add_argument(
-            '--parallel', action='store_true', default=False,
-            help='Run processes in parallel.')
-        self.parser.add_argument(
-            '--profile', action='store_true', default=False,
-            help='Print profiling information at the end.')
-        self.parser.add_argument(
-            '--initial_state_file', action='store',
-            default='',
-            help='Name of initial state file (no ".json") under data/')
-        self.parser.add_argument(
-            '--initial_state_overrides', action='store', nargs='*',
-            help='Name of initial state overrides (no ".json") under '
-                'data/overrides')
+        self.parser = parser
+        if self.parser is None:
+            self.parser = argparse.ArgumentParser(description='ecoli_master')
+            self.parser.add_argument(
+                '--config', '-c', action='store',
+                default=self.default_config_path,
+                help=(
+                    'Path to configuration file for the simulation. '
+                    'All key-value pairs in this file will be applied on top '
+                    f'of the options defined in {self.default_config_path}.'))
+            self.parser.add_argument(
+                '--experiment_id', '-id', action="store",
+                help=(
+                    'ID for this experiment. A UUID will be generated if '
+                    'this argument is not used and "experiment_id" is null '
+                    'in the configuration file.'))
+            self.parser.add_argument(
+                '--emitter', '-e', action='store',
+                choices=["timeseries", "database", "print", "null",
+                    "shared_ram"],
+                help=(
+                    "Emitter to use. Timeseries uses RAMEmitter, database "
+                    "emits to MongoDB, and print emits to stdout."))
+            self.parser.add_argument(
+                '--emitter_arg', '-ea', action='store', nargs='*',
+                type=key_value_pair,
+                help=(
+                    'Key-value pairs, separated by `=`, to include in '
+                    'emitter config.'))
+            self.parser.add_argument(
+                '--seed', '-s', action="store", type=int,
+                help="Random seed.")
+            self.parser.add_argument(
+                '--initial_state', '-t0', action="store",
+                help=(
+                    "Name of the initial state to load from (corresponding "
+                    "initial state file must be present in data folder)."))
+            self.parser.add_argument(
+                '--total_time', '-t', action="store", type=float,
+                help="Time to run the simulation for.")
+            self.parser.add_argument(
+                '--generations', '-g', action="store", type=int,
+                help="Number of generations to run the simulation for.")
+            self.parser.add_argument(
+                '--log_updates', '-u', action="store_true",
+                help=(
+                    "Save updates from each process if this flag is set, "
+                    "e.g. for use with blame plot."))
+            self.parser.add_argument(
+                '--raw_output', action="store_true",
+                help=(
+                    "Whether to return data in raw format (dictionary "
+                    "where keys are times, values are states)."))
+            self.parser.add_argument(
+                "--agent_id", action="store", type=str,
+                help="Agent ID.")
+            self.parser.add_argument(
+                '--sim_data_path', nargs="*", default=None,
+                help="Path to the sim_data to use for this experiment.")
+            self.parser.add_argument(
+                '--parallel', action='store_true', default=False,
+                help='Run processes in parallel.')
+            self.parser.add_argument(
+                '--profile', action='store_true', default=False,
+                help='Print profiling information at the end.')
+            self.parser.add_argument(
+                '--initial_state_file', action='store',
+                default='',
+                help='Name of initial state file (no ".json") under data/')
+            self.parser.add_argument(
+                '--initial_state_overrides', action='store', nargs='*',
+                help='Name of initial state overrides (no ".json") under '
+                    'data/overrides')
 
     @staticmethod
     def merge_config_dicts(d1: dict[str, Any], d2: dict[str, Any]) -> None:
@@ -604,7 +612,7 @@ class EcoliSim:
     def save_states(self):
         """
         Runs the simulation while saving the states of specific
-        timesteps to jsons. Automatically invoked by 
+        timesteps to JSONs. Automatically invoked by 
         :py:meth:`~ecoli.experiments.ecoli_master_sim.EcoliSim.run` 
         if ``config['save'] == True``. State is saved as a JSON that 
         can be reloaded into a simulation as described in 
@@ -621,7 +629,12 @@ class EcoliSim:
                 time_to_next_save = self.save_times[i]
             else:
                 time_to_next_save = self.save_times[i] - self.save_times[i-1]
-            self.ecoli_experiment.update(time_to_next_save)
+            try:
+                self.ecoli_experiment.update(time_to_next_save)
+            except DivisionDetected:
+                # Emit daughter cell states
+                self.ecoli_experiment._emit_store_data()
+                sys.exit()
             time_elapsed = self.save_times[i]
             state = self.ecoli_experiment.state.get_value(
                 condition=not_a_process)
@@ -713,7 +726,7 @@ class EcoliSim:
         self.ecoli = None
 
         # run the experiment
-        if self.save:
+        if self.save or self.lineage:
             self.save_states()
         else:
             self.ecoli_experiment.update(self.total_time)

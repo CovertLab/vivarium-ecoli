@@ -163,3 +163,27 @@ class Division(Step):
                         'mother': self.agent_id,
                         'daughters': daughter_updates}}}
         return {}
+
+
+class DivisionDetected(Exception):
+    pass
+
+
+class StopAfterDivision(Step):
+    """
+    Detect division and raise an exception that must be caught.
+    """
+
+    name = 'stop-after-division'
+            
+    def ports_schema(self):
+        return {
+            'agents': {
+                '*': {}},
+        }
+
+    def next_update(self, timestep, states):
+        # Raise exception once division has occurred
+        if len(states['agents']) > 1:
+            raise DivisionDetected('More than one cell in agents store.')
+        return {}
