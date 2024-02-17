@@ -3,6 +3,8 @@ import os
 import pickle
 import time
 
+from ecoli.composites.ecoli_configs import CONFIG_DIR_PATH
+from ecoli.experiments.ecoli_master_sim import SimConfig
 from reconstruction.ecoli.knowledge_base_raw import KnowledgeBaseEcoli
 from reconstruction.ecoli.fit_sim_data_1 import fitSimData_1
 from validation.ecoli.validation_data_raw import ValidationDataRawEcoli
@@ -64,6 +66,14 @@ def run_parca(config):
 
 def main():
     parser = argparse.ArgumentParser(description='run_parca')
+    default_config = os.path.join(CONFIG_DIR_PATH, 'default.json')
+    parser.add_argument(
+        '--config', action='store',
+        default=default_config,
+        help=(
+            'Path to configuration file for the simulation. '
+            'All key-value pairs in this file will be applied on top '
+            f'of the options defined in {default_config}.'))
     parser.add_argument('-c', '--cpus', type=int, default=1,
         help='The number of CPU processes to use. Default = 1.')
     parser.add_argument('-o', '--outdir', type=str,
@@ -109,6 +119,9 @@ def main():
         help='Use a different elongation rate for different polypeptides'
         ' (currently increases rates for ribosomal proteins).'
         ' Usually set this consistently between runParca and runSim.')
+    
+    config = SimConfig(parser=parser)
+    config.update_from_cli()
     
     args = parser.parse_args()
     run_parca(vars(args))
