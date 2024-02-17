@@ -21,23 +21,23 @@ SIM_GEN_X_FLOW = ("\t{name}({parent}.out.config, {parent}.out.sim_data, "
     "{parent}.out.initial_seed, {parent}.out.generation, "
     "{parent}.out.{daughter}, {sim_seed})")
 
-MULTIGEN_CHANNEL = """
+ALL_SIM_CHANNEL = """
     {task_one}.out.db
         .mix({other_tasks})
+        .set {{ all_sim_ch }}
+"""
+MULTIGEN_CHANNEL = """
+    all_sim_ch
         .groupTuple(by: [0, 1], size: {size})
         .set {{ multigen_ch }}
 """
-
 COHORT_CHANNEL = """
-    {task_one}.out.db
-        .mix({other_tasks})
+    all_sim_ch
         .groupTuple(by: 0, size: {size})
         .set {{ cohort_ch }}
 """
-
 VARIANT_CHANNEL = """
-    {task_one}.out.db
-        .mix({other_tasks})
+    all_sim-ch
         .collect()
         .set {{ variant_ch }}
 """
@@ -112,17 +112,14 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
                     sim_workflow.append(SIM_GEN_X_FLOW.format(
                         name=name, initial_seed=seed, sim_seed=seed+gen+cell,
                         gen=gen, parent=parent, daughter=daughter))
-                multigen_sim_tasks.append(f'sim_{name}.out[3]')
                 all_sim_tasks.append(f'sim_{name}.out[3]')
-    sim_workflow.append(MULTIGEN_CHANNEL.format(
-        task_one=multigen_sim_tasks[0],
-        other_tasks=', '.join(multigen_sim_tasks[1:]),
-        size=len(multigen_sim_tasks)))
-    sim_workflow.append(COHORT_CHANNEL.format(
-        task_one=multigen_sim_tasks[0],
-        other_tasks=', '.join(multigen_sim_tasks[1:]),
-        size=len(multigen_sim_tasks)))
-    all_sim_channel = []
+    sim_workflow.append(ALL_SIM_CHANNEL.format(task_one=all_sim_tasks[0],
+        other_tasks=', '.join(all_sim_tasks[1:])))
+    multigen_size = sum([2**gen if not single_daughters else 1
+                         for gen in range(generations)])
+    sim_workflow.append(MULTIGEN_CHANNEL.format(size=multigen_size))
+    sim_workflow.append(COHORT_CHANNEL.format(size=multigen_size*n_init_sims))
+    sim_workflow.append(VARIANT_CHANNEL)
 
 
 def generate_code(config):
@@ -157,8 +154,8 @@ def main():
         nf_template = f.readlines()
     nf_template = ''.join(nf_template)
     sim_imports, sim_workflow = generate_code(config)
-    nf_template = nf_template.replace("INSERT_ONE", sim_imports)
-    nf_template = nf_template.replace("INSERT_TWO", sim_workflow)
+    nf_template = nf_template.replace("IMPORTS", sim_imports)
+    nf_template = nf_template.replace("WORKFLOW", sim_workflow)
 
 
 if __name__ == '__main__':

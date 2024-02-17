@@ -50,7 +50,7 @@ process create_variants {
     """
 }
 
-INSERT_ONE
+IMPORTS
 
 workflow {
     run_parca(params.config)
@@ -58,5 +58,5 @@ workflow {
         .variant_sim_data
         .flatten()
         .set { variant_ch }
-    INSERT_TWO
+    WORKFLOW
 }
