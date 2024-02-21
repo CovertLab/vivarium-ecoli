@@ -50,11 +50,65 @@ process create_variants {
     """
 }
 
+process analysis_parca {
+    publishDir "${params.publish_dir}/parca"
+
+    input:
+    path config
+    path kb
+
+    output:
+    path 'plots/*'
+
+    script:
+    """
+    python ${params.project_root}/scripts/analysis.py -c $config \
+        --sim-data-path=$kb/simData.cPickle \
+        --validation-data-path=$kb/validationData.cPickle \
+        --parca -o \$(pwd)
+    """
+
+    stub:
+    """
+    mkdir plots
+    echo -e "$config\n\n$kb" > plots/test.txt
+    """
+}
+
+process analysis {
+    publishDir "${params.publish_dir}/analyses/${sim_data.getBaseName()}/${seed}/${generation}/${cell}"
+
+    input:
+    path config
+    path kb
+    tuple path(sim_data), val(seed), val(generation), val(cell_id)
+    val analysis_type
+
+    output:
+    path 'plots/*'
+
+    script:
+    """
+    python ${params.project_root}/scripts/analysis.py -c $config \
+        --sim-data-path=$sim_data \
+        --validation-data-path=$kb/validationData.cPickle \
+        --$analysis_type -o \$(pwd)
+    """
+
+    stub:
+    """
+    mkdir plots
+    echo -e "$sim_data\n\n$seed\n\n\$generation\n\n\$cell_id\
+        \n\n\$kb\n\n\$config\n\n\$analysis_type" > plots/test.txt
+    """
+}
+
 IMPORTS
 
 workflow {
     run_parca(params.config)
-    create_variants(params.config, run_parca.out)
+    run_parca.toList().set { kb }
+    create_variants(params.config, kb)
         .variant_sim_data
         .flatten()
         .set { variant_ch }

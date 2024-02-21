@@ -281,7 +281,8 @@ class SimConfig:
             if value and key not in (
                 'config', 'parallel', 'no_parallel')
         }
-        cli_config['parallel'] = args.parallel
+        if 'parallel' in vars(args):
+            cli_config['parallel'] = args.parallel
         self.merge_config_dicts(self._config, cli_config)
 
     def update_from_dict(self, dict_config: dict[str, Any]):

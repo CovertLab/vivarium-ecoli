@@ -5,48 +5,41 @@ from ecoli.composites.ecoli_configs import CONFIG_DIR_PATH
 from ecoli.experiments.ecoli_master_sim import SimConfig
 
 SIM_TAG = "seed_{seed}_gen_{gen}_cell_{cell}"
-SIM_GEN_0_IN = "include {{ sim_gen_0 as sim_{name} }} from './sim_gen_0.nf'"
-SIM_GEN_X_IN = "include {{ sim_gen_x as sim_{name} }} from './sim_gen_x.nf'"
-ANALYSIS_SINGLE_IN = ("include {{ analysis_single as analysis_{name} }}"
-    "from './analysis.nf'")
-ANALYSIS_MULTIGEN_IN = ("include {{ analysis_multigen as analysis_{name} }}"
-    "from './analysis.nf'")
-ANALYSIS_COHORT_IN = ("include {{ analysis_cohort as analysis_{name} }}"
-    "from './analysis.nf'")
-ANALYSIS_VARIANT_IN = ("include {{ analysis_variant as analysis_{name} }}"
-    "from './analysis.nf'")
-
-SIM_GEN_0_FLOW = "\t{name}(params.config, variant_ch, {seed})"
-SIM_GEN_X_FLOW = ("\t{name}({parent}.out.config, {parent}.out.sim_data, "
-    "{parent}.out.initial_seed, {parent}.out.generation, "
-    "{parent}.out.{daughter}, {sim_seed})")
+SIM_INC = "include {{ sim as sim_{name} }} from './sim.nf'"
+SIM_GEN_0_FLOW = ("\t{name}(params.config, "
+    "variant_ch.combine([{seed}]).combine([0]), '', {seed})")
+SIM_FLOW = ("\t{name}({parent}.out.config, {parent}.out.next_gen, "
+    "{parent}.out.{daughter}, {seed})")
 
 ALL_SIM_CHANNEL = """
-    {task_one}.out.db
+    {task_one}
         .mix({other_tasks})
-        .set {{ all_sim_ch }}
+        .set {{ sim_ch }}
 """
 MULTIGEN_CHANNEL = """
-    all_sim_ch
+    sim_ch
         .groupTuple(by: [0, 1], size: {size})
         .set {{ multigen_ch }}
 """
 COHORT_CHANNEL = """
-    all_sim_ch
+    sim_ch
         .groupTuple(by: 0, size: {size})
         .set {{ cohort_ch }}
 """
 VARIANT_CHANNEL = """
-    all_sim-ch
-        .collect()
+    sim_ch
+        .toList()
+        .groupTuple(by: [0, 1], size: {size})
+        .toList()
         .set {{ variant_ch }}
 """
+
 
 def generate_colony(seeds: int):
     """
     Create strings to import and compose Nextflow processes for colony sims.
     """
-    pass
+    return [], []
 
 
 def generate_lineage(seed: int, n_init_sims: int, generations: int, 
@@ -68,6 +61,7 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
                 'cohort': analyses to run on output grouped by variant,
                 'multigen': analyses to run on output grouped by variant & seed,
                 'single': analyses to run on output for each individual cell,
+                'parca': analyses to run on parameter calculator output
             }
 
     Returns:
@@ -77,63 +71,73 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
         - **sim_workflow**: Fully composed workflow for entire lineage
     """
     sim_imports = []
-
     sim_workflow = []
-    
-    
-    variant_analyses = analysis_config.get('variant', [])
-    cohort_analyses = analysis_config.get('cohort', [])
-    multigen_analyses = analysis_config.get('multigen', [])
-    single_analyses = analysis_config.get('single', [])
-
-    if variant_analyses:
-        sim_imports.append("include { analysis_variant } from './analysis.nf'")
-    if cohort_analyses:
-        sim_imports.append("include { analysis_cohort } from './analysis.nf'")
 
     all_sim_tasks = []
     for seed in range(seed, seed + n_init_sims):
-        multigen_sim_tasks = []
         for gen in range(generations):
-            parents_encountered = []
             for cell in (range(2**gen) if not single_daughters else [0]):
                 name = SIM_TAG.format(seed=seed, gen=gen, cell=cell)
+                sim_imports.append(SIM_INC.format(name=name))
+                
+                # Handle special case of 1st generation
                 if gen == 0:
-                    sim_imports.append(SIM_GEN_0_IN.format(name=name))
-                    sim_workflow.append(SIM_GEN_0_FLOW.format(
-                        name=name, seed=seed))
-                else:
-                    sim_imports.append(SIM_GEN_X_IN.format(name=name))
-                    parent = SIM_TAG.format(seed=seed, gen=gen-1, cell=cell//2)
-                    if parent in parents_encountered:
-                        daughter = 'd2'
-                    else:
-                        daughter = 'd1'
-                    sim_workflow.append(SIM_GEN_X_FLOW.format(
-                        name=name, initial_seed=seed, sim_seed=seed+gen+cell,
-                        gen=gen, parent=parent, daughter=daughter))
-                all_sim_tasks.append(f'sim_{name}.out[3]')
+                    sim_workflow.append(SIM_GEN_0_FLOW.format(name=name, seed=seed))
+                    continue
+                
+                # Cell 0 has daughters 0 & 1 in next gen, 1 has 2 & 3, etc.
+                parent = SIM_TAG.format(seed=seed, gen=gen-1, cell=cell//2)
+                daughter = 'd1'
+                if cell % 2 == 1 and not single_daughters:
+                    daughter = 'd2'
+                sim_workflow.append(SIM_FLOW.format(name=name, parent=parent,
+                    daughter=daughter, seed=seed+gen+cell))
+                
+                # Compile list of metadata outputs for all sim tasks
+                all_sim_tasks.append(f'sim_{name}.out.metadata')
+
+    # Channel that combines metadata for all sim tasks
     sim_workflow.append(ALL_SIM_CHANNEL.format(task_one=all_sim_tasks[0],
         other_tasks=', '.join(all_sim_tasks[1:])))
-    multigen_size = sum([2**gen if not single_daughters else 1
-                         for gen in range(generations)])
-    sim_workflow.append(MULTIGEN_CHANNEL.format(size=multigen_size))
-    sim_workflow.append(COHORT_CHANNEL.format(size=multigen_size*n_init_sims))
-    sim_workflow.append(VARIANT_CHANNEL)
+
+    if analysis_config.get('variant', False):
+        # Channel that groups all sim tasks
+        sim_workflow.append(VARIANT_CHANNEL)
+        sim_workflow.append("\tanalysis(params.config, kb, variant_ch, 'variant')")
+    
+    if analysis_config.get('cohort', False):
+        # Channel that groups sim tasks by variant sim_data
+        sim_workflow.append(COHORT_CHANNEL.format(size=len(all_sim_tasks)))
+        sim_workflow.append("\tanalysis(params.config, kb, cohort_ch, 'cohort')")
+    
+    if analysis_config.get('multigen', False):
+        # Channel that groups sim tasks by variant sim_data and initial seed
+        sim_workflow.append(MULTIGEN_CHANNEL.format(
+            size=len(all_sim_tasks) / n_init_sims))
+        sim_workflow.append("\tanalysis(params.config, kb, multigen_ch, 'multigen')")
+    
+    if analysis_config.get('single', False):
+        sim_workflow.append("\tanalysis(params.config, kb, sim_ch, 'single')")
+    
+    if analysis_config.get('parca', False):
+        sim_workflow.append("\tanalysis_parca(params.config, kb)")
+
+    return sim_imports, sim_workflow
 
 
 def generate_code(config):
     seed = config.get('seed', 0)
-    n_init_sims = lineage.get('n_init_sims')
     lineage = config.get('lineage', {})
+    n_init_sims = lineage.get('n_init_sims')
     if lineage:
         generations = lineage.get('generations', 1)
         single_daughters = lineage.get('single_daughters', True)
         sim_imports, sim_workflow = generate_lineage(
-            seed, n_init_sims, generations, single_daughters)
-        
+            seed, n_init_sims, generations, single_daughters,
+            config.get('analysis', {}))
     else:
-        sim_imports, sim_workflow = generate_colony(seed, n_init_sims)         
+        sim_imports, sim_workflow = generate_colony(seed, n_init_sims)
+    return '\n'.join(sim_imports), '\n'.join(sim_workflow)       
 
 
 def main():
@@ -149,13 +153,16 @@ def main():
     config = SimConfig(parser=parser)
     config.update_from_cli()
 
-    nf_template_path = os.path.join(os.path.dirname(__file__), 'nf.template')
+    sim_imports, sim_workflow = generate_code(config)
+
+    nf_template_path = os.path.join(os.path.dirname(__file__), 'nextflow', 'template.nf')
     with open(nf_template_path, 'r') as f:
         nf_template = f.readlines()
     nf_template = ''.join(nf_template)
-    sim_imports, sim_workflow = generate_code(config)
     nf_template = nf_template.replace("IMPORTS", sim_imports)
     nf_template = nf_template.replace("WORKFLOW", sim_workflow)
+    with open(os.path.join(os.path.dirname(__file__), 'main.nf'), 'w') as f:
+        f.writelines(nf_template)
 
 
 if __name__ == '__main__':
