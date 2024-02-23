@@ -1,6 +1,18 @@
+process gcpBuildRuntimeImage {
+    """
+    
+    """
+}
+
+process gcpBuildWcmImage {
+    """
+    
+    """
+}
+
 process run_parca {
     // Run ParCa using parca_options from config JSON
-    publishDir "${params.publish_dir}/parca"
+    publishDir "${params.publishDir}/parca"
 
     input:
     path config
@@ -10,7 +22,7 @@ process run_parca {
 
     script:
     """
-    python ${params.project_root}/scripts/run_parca.py -c $config -o \$(pwd)
+    python ${params.projectRoot}/scripts/run_parca.py -c $config -o \$(pwd)
     """
 
     stub:
@@ -25,7 +37,7 @@ process run_parca {
 
 process create_variants {
     // Parse variants in config JSON to generate variants
-    publishDir "${params.publish_dir}/variant_sim_data"
+    publishDir "${params.publishDir}/variant_sim_data"
 
     input:
     path config
@@ -37,7 +49,9 @@ process create_variants {
 
     script:
     """
-    python ${params.project_root}/scripts/create_variants.py -c $config --kb $kb -o \$(pwd)
+    python ${params.projectRoot}/scripts/create_variants.py \
+        -c $config --kb $kb -o \$(pwd)
+    cp $kb/simData.cPickle baseline.cPickle
     """
 
     stub:
@@ -47,11 +61,12 @@ process create_variants {
     cp $kb/simData.cPickle variant_2.cPickle
     echo "Mock variant 2" >> variant_2.cPickle
     echo "Mock metadata.json" > metadata.json
+    cp $kb/simData.cPickle baseline.cPickle
     """
 }
 
 process analysis_parca {
-    publishDir "${params.publish_dir}/parca"
+    publishDir "${params.publishDir}/parca"
 
     input:
     path config
@@ -75,42 +90,20 @@ process analysis_parca {
     """
 }
 
-process analysis {
-    publishDir "${params.publish_dir}/analyses/${sim_data.getBaseName()}/${seed}/${generation}/${cell}"
-
-    input:
-    path config
-    path kb
-    tuple path(sim_data), val(seed), val(generation), val(cell_id)
-    val analysis_type
-
-    output:
-    path 'plots/*'
-
-    script:
-    """
-    python ${params.project_root}/scripts/analysis.py -c $config \
-        --sim-data-path=$sim_data \
-        --validation-data-path=$kb/validationData.cPickle \
-        --$analysis_type -o \$(pwd)
-    """
-
-    stub:
-    """
-    mkdir plots
-    echo -e "$sim_data\n\n$seed\n\n\$generation\n\n\$cell_id\
-        \n\n\$kb\n\n\$config\n\n\$analysis_type" > plots/test.txt
-    """
-}
-
 IMPORTS
 
 workflow {
+    if( params.onGcp ) {
+        gcp_build_image()
+    }
+    else if ( params.onSherlock ) {
+        sherlock_build_image()
+    }
     run_parca(params.config)
-    run_parca.toList().set { kb }
+    run_parca.out.toList().set { kb }
     create_variants(params.config, kb)
         .variant_sim_data
         .flatten()
         .set { variant_ch }
-    WORKFLOW
+WORKFLOW
 }
