@@ -5,7 +5,8 @@ if TYPE_CHECKING:
 def test_variant(sim_data: 'SimulationDataEcoli', params: dict[str, list[Any]]
          ) -> 'SimulationDataEcoli':
     """
-    Test variant that adds new attributes to sim_data.
+    Test variant that adds new attributes to sim_data. Also tests composition 
+    of variant functions.
 
     Args:
         sim_data: Simulation data to modify
@@ -13,7 +14,11 @@ def test_variant(sim_data: 'SimulationDataEcoli', params: dict[str, list[Any]]
 
             {
                 'a': int,
-                'b': float,
+                'b': str,
+                'c': {
+                    'd': int,
+                    'e': float
+                }
             }
     
     Returns:
@@ -21,10 +26,13 @@ def test_variant(sim_data: 'SimulationDataEcoli', params: dict[str, list[Any]]
 
             sim_data.a
             sim_data.b
+            sim_data.d
+            sim_data.e
 
     """
     sim_data.a = params['a']
     sim_data.b = params['b']
+    sim_data = test_variant_2(sim_data, params['c'])
     return sim_data
 
 def test_variant_2(sim_data: 'SimulationDataEcoli', params: dict[str, list[Any]]
@@ -37,17 +45,17 @@ def test_variant_2(sim_data: 'SimulationDataEcoli', params: dict[str, list[Any]]
         params: Parameter dictionary of the following format::
 
             {
-                'c': int,
-                'd': float,
+                'd': int,
+                'e': float,
             }
     
     Returns:
         Simulation data with the following attributes modified::
 
-            sim_data.c
             sim_data.d
+            sim_data.e
 
     """
-    sim_data.c = params['c']
     sim_data.d = params['d']
+    sim_data.e = params['e']
     return sim_data

@@ -12,8 +12,8 @@ def template(sim_data: 'SimulationDataEcoli', params: dict[str, list[Any]]
         params: Parameter dictionary of the following format::
 
             {
-                'param_1': int,
-                'param_2': float,
+                'param_1': int, # Type hints are for your benefit
+                'param_2': float, # Type hints are not enforced
             }
     
     Returns:
