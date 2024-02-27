@@ -5,8 +5,8 @@ from ecoli.composites.ecoli_configs import CONFIG_DIR_PATH
 from ecoli.experiments.ecoli_master_sim import SimConfig
 
 SIM_TAG = "seed_{seed}_gen_{gen}_cell_{cell}"
-SIM_GEN_0_INC = "include {{ sim_gen_0 as sim_{name} }} from './sim.nf'"
-SIM_INC = "include {{ sim as sim_{name} }} from './sim.nf'"
+SIM_GEN_0_INC = "include {{ sim_gen_0 as sim_{name} }} from './sim'"
+SIM_INC = "include {{ sim as sim_{name} }} from './sim'"
 SIM_GEN_0_FLOW = ("\tsim_{name}(params.config, "
     "variant_ch.combine([{seed}]).combine([0]), {seed}, 0)")
 SIM_FLOW = ("\tsim_{name}(sim_{parent}.out.config, sim_{parent}.out.next_gen, "
@@ -105,24 +105,24 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
         sim_workflow.append(VARIANT_CHANNEL.format(
             size=int(len(all_sim_tasks) / n_init_sims)))
         sim_workflow.append("\tanalysis_variant(params.config, kb, variant_ch)")
-        sim_imports.append("include { analysis_variant } from './analysis.nf'")
+        sim_imports.append("include { analysis_variant } from './sim'")
     
     if analysis_config.get('cohort', False):
         # Channel that groups sim tasks by variant sim_data
         sim_workflow.append(COHORT_CHANNEL.format(size=len(all_sim_tasks)))
         sim_workflow.append("\tanalysis_cohort(params.config, kb, cohort_ch)")
-        sim_imports.append("include { analysis_cohort } from './analysis.nf'")
+        sim_imports.append("include { analysis_cohort } from './sim'")
     
     if analysis_config.get('multigen', False):
         # Channel that groups sim tasks by variant sim_data and initial seed
         sim_workflow.append(MULTIGEN_CHANNEL.format(
             size=int(len(all_sim_tasks) / n_init_sims)))
         sim_workflow.append("\tanalysis_multigen(params.config, kb, multigen_ch)")
-        sim_imports.append("include { analysis_multigen } from './analysis.nf'")
+        sim_imports.append("include { analysis_multigen } from './sim'")
     
     if analysis_config.get('single', False):
         sim_workflow.append("\tanalysis_single(params.config, kb, sim_ch)")
-        sim_imports.append("include { analysis_single } from './analysis.nf'")
+        sim_imports.append("include { analysis_single } from './sim'")
     
     if analysis_config.get('parca', False):
         sim_workflow.append("\tanalysis_parca(params.config, kb)")
