@@ -1,36 +1,37 @@
 import argparse
 import os
+import subprocess
 
 from ecoli.composites.ecoli_configs import CONFIG_DIR_PATH
 from ecoli.experiments.ecoli_master_sim import SimConfig
 
-SIM_TAG = "seed_{seed}_gen_{gen}_cell_{cell}"
-SIM_GEN_0_INC = "include {{ sim_gen_0 as sim_{name} }} from './sim'"
-SIM_INC = "include {{ sim as sim_{name} }} from './sim'"
-SIM_GEN_0_FLOW = ("\tsim_{name}(params.config, "
-    "variant_ch.combine([{seed}]).combine([0]), {seed}, 0)")
-SIM_FLOW = ("\tsim_{name}(sim_{parent}.out.config, sim_{parent}.out.next_gen, "
-    "sim_{parent}.out.{daughter}, {seed}, {cell})")
+SIM_TAG = "Seed{seed}Gen{gen}Cell{cell}"
+SIM_GEN_0_INC = "include {{ simGen0 as sim{name} }} from './sim'"
+SIM_INC = "include {{ sim as sim{name} }} from './sim'"
+SIM_GEN_0_FLOW = ("\tsim{name}(params.config, "
+    "variantCh.combine([{seed}]).combine([0]), {seed}, 0)")
+SIM_FLOW = ("\tsim{name}(sim{parent}.out.config, sim{parent}.out.nextGen, "
+    "sim{parent}.out.{daughter}, {seed}, {cell})")
 
 ALL_SIM_CHANNEL = """
     {task_one}
         .mix({other_tasks})
-        .set {{ sim_ch }}
+        .set {{ simCh }}
 """
 MULTIGEN_CHANNEL = """
-    sim_ch
+    simCh
         .groupTuple(by: [1, 2], size: {size})
-        .set {{ multigen_ch }}
+        .set {{ multigenCh }}
 """
 COHORT_CHANNEL = """
-    sim_ch
+    simCh
         .groupTuple(by: 1, size: {size})
-        .set {{ cohort_ch }}
+        .set {{ cohortCh }}
 """
 VARIANT_CHANNEL = """
-    sim_ch
+    simCh
         .groupTuple(by: [5])
-        .set {{ variant_ch }}
+        .set {{ variantCh }}
 """
 
 
@@ -79,7 +80,7 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
                 name = SIM_TAG.format(seed=seed, gen=gen, cell=cell)
 
                 # Compile list of metadata outputs for all sim tasks
-                all_sim_tasks.append(f'sim_{name}.out.metadata')
+                all_sim_tasks.append(f'sim{name}.out.metadata')
                 
                 # Handle special case of 1st generation
                 if gen == 0:
@@ -104,28 +105,28 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
         # Channel that groups all sim tasks
         sim_workflow.append(VARIANT_CHANNEL.format(
             size=int(len(all_sim_tasks) / n_init_sims)))
-        sim_workflow.append("\tanalysis_variant(params.config, kb, variant_ch)")
-        sim_imports.append("include { analysis_variant } from './sim'")
+        sim_workflow.append("\tanalysisVariant(params.config, kb, variantCh)")
+        sim_imports.append("include { analysisVariant } from './analysis'")
     
     if analysis_config.get('cohort', False):
         # Channel that groups sim tasks by variant sim_data
         sim_workflow.append(COHORT_CHANNEL.format(size=len(all_sim_tasks)))
-        sim_workflow.append("\tanalysis_cohort(params.config, kb, cohort_ch)")
-        sim_imports.append("include { analysis_cohort } from './sim'")
+        sim_workflow.append("\tanalysisCohort(params.config, kb, cohortCh)")
+        sim_imports.append("include { analysisCohort } from './analysis'")
     
     if analysis_config.get('multigen', False):
         # Channel that groups sim tasks by variant sim_data and initial seed
         sim_workflow.append(MULTIGEN_CHANNEL.format(
             size=int(len(all_sim_tasks) / n_init_sims)))
-        sim_workflow.append("\tanalysis_multigen(params.config, kb, multigen_ch)")
-        sim_imports.append("include { analysis_multigen } from './sim'")
+        sim_workflow.append("\tanalysisMultigen(params.config, kb, multigenCh)")
+        sim_imports.append("include { analysisMultigen } from './analysis'")
     
     if analysis_config.get('single', False):
-        sim_workflow.append("\tanalysis_single(params.config, kb, sim_ch)")
-        sim_imports.append("include { analysis_single } from './sim'")
+        sim_workflow.append("\tanalysisSingle(params.config, kb, simCh)")
+        sim_imports.append("include { analysisSingle } from './analysis'")
     
     if analysis_config.get('parca', False):
-        sim_workflow.append("\tanalysis_parca(params.config, kb)")
+        sim_workflow.append("\tanalysisParca(params.config, kb)")
 
     return sim_imports, sim_workflow
 
@@ -142,7 +143,20 @@ def generate_code(config):
             config.get('analysis', {}))
     else:
         sim_imports, sim_workflow = generate_colony(seed, n_init_sims)
-    return '\n'.join(sim_imports), '\n'.join(sim_workflow)       
+    return '\n'.join(sim_imports), '\n'.join(sim_workflow)
+
+
+def build_runtime_image(image_name):
+    build_script = os.path.join(os.path.dirname(__file__),
+                                'container', 'build-runtime.sh')
+    subprocess.run([build_script, '-r', image_name], check=True)
+
+
+def build_wcm_image(image_name, runtime_image_name):
+    build_script = os.path.join(os.path.dirname(__file__),
+                                'container', 'build-wcm.sh')
+    subprocess.run([build_script, '-w', image_name,
+                    '-l', runtime_image_name], check=True)
 
 
 def main():
@@ -157,6 +171,33 @@ def main():
             f'of the options defined in {default_config}.'))
     config = SimConfig(parser=parser)
     config.update_from_cli()
+
+    cloud_config = config.get('gcloud', None)
+    if cloud_config is not None:
+        # Add logic for starting MongoDB VM
+        build_runtime_image = cloud_config.get('build_runtime_image', False)
+        runtime_image_name = cloud_config.get('runtime_image_name', None)
+        if build_runtime_image:
+            if runtime_image_name is None:
+                raise RuntimeError('Must supply name for runtime image.')
+            build_runtime_image(runtime_image_name)
+        build_wcm_image = cloud_config.get('build_wcm_image', False)
+        wcm_image_name = cloud_config.get('wcm_image_name', None)
+        if wcm_image_name is None:
+            raise RuntimeError('Must supply name for WCM image.')
+        if build_wcm_image:
+            if runtime_image_name is None:
+                raise RuntimeError('Must supply name for runtime image.')
+            build_wcm_image(wcm_image_name, runtime_image_name)
+        nf_config = os.path.join(os.path.dirname(__file__),
+                                 'nextflow', 'config.template')
+        with open(nf_config, 'r') as f:
+            nf_config = f.readlines()
+        nf_config = nf_config.replace("IMAGE_NAME", wcm_image_name)
+        config_path = os.path.join(os.path.dirname(__file__),
+                                   'nextflow', 'nextflow.config')
+        with open(config_path, 'w') as f:
+            f.writelines(nf_config)
 
     sim_imports, sim_workflow = generate_code(config)
 

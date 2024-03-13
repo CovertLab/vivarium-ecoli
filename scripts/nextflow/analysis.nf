@@ -1,4 +1,4 @@
-process analysis_single {
+process analysisSingle {
     publishDir "${params.publishDir}/analyses/${variant}/${seed}/${generation}/${cell_id}"
 
     input:
@@ -25,7 +25,7 @@ process analysis_single {
     """
 }
 
-process analysis_multigen {
+process analysisMultigen {
     publishDir "${params.publishDir}/analyses/${variant}/${seed}"
 
     input:
@@ -52,7 +52,7 @@ process analysis_multigen {
     """
 }
 
-process analysis_cohort {
+process analysisCohort {
     publishDir "${params.publishDir}/analyses/${variant_name}"
 
     input:
@@ -79,7 +79,7 @@ process analysis_cohort {
     """
 }
 
-process analysis_variant {
+process analysisVariant {
     publishDir "${params.publishDir}/analyses"
 
     input:
