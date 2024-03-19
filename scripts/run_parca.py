@@ -122,9 +122,12 @@ def main():
     
     config = SimConfig(parser=parser)
     config.update_from_cli()
-    
-    args = parser.parse_args()
-    run_parca(vars(args))
+    config = config.to_dict()
+    # ParCa options are defined under `parca_options` key in config JSON
+    # Merge these with CLI arguments, which take precedence
+    parca_options = config.pop('parca_options')
+    config = {**parca_options, **config}
+    run_parca(config)
 
 
 if __name__ == '__main__':

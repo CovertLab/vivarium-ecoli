@@ -43,7 +43,7 @@ def generate_colony(seeds: int):
 
 
 def generate_lineage(seed: int, n_init_sims: int, generations: int, 
-    single_daughters: bool, analysis_config: dict[str, list[str]]):
+    single_daughters: bool, analysis_config: dict[str, dict[str, dict]]]):
     """
     Create strings to import and compose Nextflow processes for lineage sims:
     cells that divide for a number of generations but do not interact. Also
@@ -63,6 +63,9 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
                 'single': analyses to run on output for each individual cell,
                 'parca': analyses to run on parameter calculator output
             }
+
+            Each key corresponds to a mapping from analysis name (as defined
+            in ``ecol/analysis/__init__.py``) to keyword arguments.
 
     Returns:
         2-element tuple containing
@@ -133,14 +136,13 @@ def generate_lineage(seed: int, n_init_sims: int, generations: int,
 
 def generate_code(config):
     seed = config.get('seed', 0)
-    lineage = config.get('lineage', {})
-    n_init_sims = lineage.get('n_init_sims')
-    if lineage:
-        generations = lineage.get('generations', 1)
-        single_daughters = lineage.get('single_daughters', True)
+    generations = config.get('generations', 0)
+    if generations:
+        n_init_sims = config.get('n_init_sims')
+        single_daughters = config.get('single_daughters', True)
         sim_imports, sim_workflow = generate_lineage(
             seed, n_init_sims, generations, single_daughters,
-            config.get('analysis', {}))
+            config.get('analysis_options', {}))
     else:
         sim_imports, sim_workflow = generate_colony(seed, n_init_sims)
     return '\n'.join(sim_imports), '\n'.join(sim_workflow)

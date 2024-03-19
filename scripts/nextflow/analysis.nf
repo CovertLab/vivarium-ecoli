@@ -11,7 +11,7 @@ process analysisSingle {
 
     script:
     """
-    python ${params.projectRoot}/scripts/analysis.py -c $config \
+    python ${params.projectRoot}/scripts/run_analysis.py -c $config \
         --sim-data-path=$sim_data \
         --validation-data-path=$kb/validationData.cPickle \
         --single -o \$(pwd)
@@ -38,7 +38,7 @@ process analysisMultigen {
 
     script:
     """
-    python ${params.projectRoot}/scripts/analysis.py -c $config \
+    python ${params.projectRoot}/scripts/run_analysis.py -c $config \
         --sim-data-path=$sim_data \
         --validation-data-path=$kb/validationData.cPickle \
         --multigen -o \$(pwd)
@@ -65,7 +65,7 @@ process analysisCohort {
 
     script:
     """
-    python ${params.projectRoot}/scripts/analysis.py -c $config \
+    python ${params.projectRoot}/scripts/run_analysis.py -c $config \
         --sim-data-path=$sim_data \
         --validation-data-path=$kb/validationData.cPickle \
         --cohort -o \$(pwd)
@@ -92,7 +92,7 @@ process analysisVariant {
 
     script:
     """
-    python ${params.projectRoot}/scripts/analysis.py -c $config \
+    python ${params.projectRoot}/scripts/run_analysis.py -c $config \
         --sim-data-path=$sim_data \
         --validation-data-path=$kb/validationData.cPickle \
         --variant -o \$(pwd)

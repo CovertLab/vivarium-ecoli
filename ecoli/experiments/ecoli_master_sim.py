@@ -125,6 +125,21 @@ def key_value_pair(argument_string: str) -> tuple[str, str]:
     return split
 
 
+def prepare_save_state(state: dict[str, Any]) -> None:
+    """Prepares simulation state to be saved to a JSON file by pruning
+    unsaveable values and adding necessary metadata. Mutates in-place.
+    """
+    # Processes can't be serialized
+    del state['process']
+    # Bulk random state can't be serialized
+    del state['allocator_rng']
+    # Save bulk and unique dtypes
+    state['bulk_dtypes'] = str(state['bulk'].dtype)
+    state['unique_dtypes'] = {}
+    for name, mols in state['unique'].items():
+        state['unique_dtypes'][name] = str(mols.dtype)
+
+
 class SimConfig:
 
     default_config_path = os.path.join(CONFIG_DIR_PATH, 'default.json')
@@ -383,9 +398,6 @@ class EcoliSim:
             config_entry = ConfigEntry(attr)
             setattr(EcoliSim, attr, config_entry)
 
-        if self.generations:
-            warnings.warn("generations option is not yet implemented!")
-
     @staticmethod
     def from_file(filepath=CONFIG_DIR_PATH + 'default.json') -> 'EcoliSim':
         """Used to instantiate 
@@ -610,7 +622,7 @@ class EcoliSim:
             self.generated_initial_state = deep_merge(
                 self.generated_initial_state, initial_environment)
 
-    def save_states(self):
+    def save_states(self, daughter_outdir: str=''):
         """
         Runs the simulation while saving the states of specific
         timesteps to JSONs. Automatically invoked by 
@@ -618,6 +630,12 @@ class EcoliSim:
         if ``config['save'] == True``. State is saved as a JSON that 
         can be reloaded into a simulation as described in 
         :py:meth:`~ecoli.composites.ecoli_master.Ecoli.initial_state`.
+
+        Args:
+            daughter_outdir: Location to write JSON files for daughter cell(s).
+                Only used if ``config`` contains ``generations`` key specifying
+                number of generations to simulate. Nextflow chains simulations
+                together by passing saved daughter states to new processes.
         """
         for time in self.save_times:
             if time > self.total_time:
@@ -633,30 +651,24 @@ class EcoliSim:
             try:
                 self.ecoli_experiment.update(time_to_next_save)
             except DivisionDetected:
-                # Emit daughter cell states
-                self.ecoli_experiment._emit_store_data()
+                state = self.ecoli_experiment.state.get_value(
+                    condition=not_a_process)
+                assert len(state['agents']) == 2
+                for i, agent_state in enumerate(state['agents'].values()):
+                    prepare_save_state(agent_state)
+                    daughter_path = os.path.join(daughter_outdir,
+                                                 f'daughter_state_{i}.json')
+                    write_json(daughter_path, agent_state)
+                print(f'Divided at t = {self.ecoli_experiment.global_time}.')
                 sys.exit()
             time_elapsed = self.save_times[i]
             state = self.ecoli_experiment.state.get_value(
                 condition=not_a_process)
             if self.divide:
                 for agent_state in state['agents'].values():
-                    # Processes can't be serialized
-                    del agent_state['process']
-                    # Bulk random state can't be serialized
-                    del agent_state['allocator_rng']
-                    # Save bulk and unique dtypes
-                    agent_state['bulk_dtypes'] = str(agent_state['bulk'].dtype)
-                    agent_state['unique_dtypes'] = {}
-                    for name, mols in agent_state['unique'].items():
-                        agent_state['unique_dtypes'][name] = str(mols.dtype)
+                    prepare_save_state(agent_state)
             else:
-                del state['process']
-                del state['allocator_rng']
-                state['bulk_dtypes'] = str(state['bulk'].dtype)
-                state['unique_dtypes'] = {}
-                for name, mols in state['unique'].items():
-                    state['unique_dtypes'][name] = str(mols.dtype)
+                prepare_save_state(state)
             write_json('data/vivecoli_t' + str(time_elapsed) + '.json', state)
             print('Finished saving the state at t = ' + str(time_elapsed))
         time_remaining = self.total_time - self.save_times[-1]
@@ -727,8 +739,8 @@ class EcoliSim:
         self.ecoli = None
 
         # run the experiment
-        if self.save or self.lineage:
-            self.save_states()
+        if self.save or self.generations:
+            self.save_states(self.daughter_outdir)
         else:
             self.ecoli_experiment.update(self.total_time)
         self.ecoli_experiment.end()
