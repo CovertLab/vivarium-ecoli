@@ -10,7 +10,7 @@ from vivarium.library.dict_utils import get_value_from_path
 
 from ecoli.analysis.antibiotics_colony import (EXPERIMENT_ID_MAPPING,
                                                PATHS_TO_LOAD)
-from ecoli.analysis.db import access_counts, deserialize_and_remove_units
+from ecoli.analysis.db import access_counts_old, deserialize_and_remove_units
 
 
 def agent_data_table(raw_data, paths_dict, condition, seed):
@@ -60,7 +60,7 @@ def load_data(experiment_id=None, cpus=8, sampling_rate=2,
             if curr_experiment_id != experiment_id:
                 continue
             metadata = {condition: {seed: {}}}
-            rep_data = access_counts(
+            rep_data = access_counts_old(
                 experiment_id=experiment_id,
                 monomer_names=monomers,
                 mrna_names=mrnas,

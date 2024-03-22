@@ -7,7 +7,7 @@ from vivarium.library.topology import convert_path_style
 from vivarium.core.serialize import deserialize_value
 from vivarium.library.units import remove_units
 
-from ecoli.analysis.db import access_counts, deserialize_and_remove_units
+from ecoli.analysis.db import access_counts_old, deserialize_and_remove_units
 from ecoli.analysis.analyze_db_experiment import OUT_DIR
 from ecoli.plots.snapshots_video import make_video
 
@@ -58,7 +58,7 @@ def main():
     outer_paths = [('data', 'dimensions')]
     if args.fields:
         outer_paths += [('data', 'fields')]
-    data = access_counts(
+    data = access_counts_old(
         experiment_id=args.experiment_id,
         monomer_names=monomers,
         mrna_names=mrnas,

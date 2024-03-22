@@ -20,7 +20,7 @@ from vivarium.core.emitter import DatabaseEmitter
 from vivarium.library.dict_utils import get_value_from_path
 from vivarium.library.topology import convert_path_style
 
-from ecoli.analysis.db import access_counts, deserialize_and_remove_units
+from ecoli.analysis.db import access_counts_old, deserialize_and_remove_units
 from ecoli.plots.snapshots import format_snapshot_data, get_tag_ranges, plot_tags
 
 from ecoli.analysis.antibiotics_colony import COUNTS_PER_FL_TO_NANOMOLAR, PATHS_TO_LOAD
@@ -215,7 +215,7 @@ def get_data(experiment_id, time, molecules, host, port, cpus, verbose):
         print(f"Accessing data for experiment {experiment_id}...")
 
     # Query database
-    data = access_counts(
+    data = access_counts_old(
         experiment_id=experiment_id,
         monomer_names=monomers,
         mrna_names=mrnas,

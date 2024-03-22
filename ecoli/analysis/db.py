@@ -4,6 +4,7 @@ import collections
 from bson import MinKey, MaxKey
 from functools import partial
 from concurrent.futures import ProcessPoolExecutor
+from typing import Optional
 
 from vivarium.core.emitter import (
     data_from_database,
@@ -158,7 +159,140 @@ def val_at_idx_in_path(idx, path):
     }
 
 
-def access_counts(experiment_id, monomer_names=None, mrna_names=None,
+def access_data(experiment_id: str, path_dict: dict[tuple[str], Optional[int]],
+                variant_id: Optional[str]=None, seed: Optional[int]=None,
+                generation: Optional[int]=None, host: str='localhost',
+                port: int=27017, sampling_rate: Optional[int]=None,
+                start_time: Optional[int]=None, end_time: Optional[int]=None,
+                cpus: int=1):
+    """
+    Retrieve simulation data from MongoDB for a single experiment.
+
+    TODO: Figure out how to implement variant, seed, and generation IDs.
+    
+    Args:
+        experiment_id: Experiment ID for simulation/workflow
+        path_dict: Mapping of tuples to optional integer index of interest
+            if value at tuple path is an array (e.g. bulk counts). Tuple paths
+            should omit the ('agent', agent_id) prefix. By default, data is
+            collected for all paths from all cells in the specified time range.
+        variant_id: Variant ID to retrieve data for
+        seed: Initial seed to retrieve data for
+        generation: Simulated generation to retrieve data for. Only applies for
+            lineage simulation workflows (not colony simulations)
+        host: Hostname of MongoDB server
+        port: Port of MongoDB server
+        sampling_rate: Number of seconds between retrieved data points (get
+            everything by default)
+        start_time: Initial time for data retrieval (default: minimum possible)
+        end_time: Final time for data retrieval (default: max possible)
+        cpus: Number of processes to parallelize query over
+    """
+    config = {
+        'host': f'{host}:{port}',
+        'database': 'simulations'
+    }
+    emitter = DatabaseEmitter(config)
+    db = emitter.db
+
+    # Match experiment ID and time range
+    experiment_query = {'experiment_id': experiment_id}
+    time_filter = {'data.time': {'$gte': start_time, '$lte': end_time}}
+    if sampling_rate:
+        time_filter['data.time']['$mod'] = [sampling_rate, 0]
+    # Ensure data is ordered by time (putting it early in pipeline
+    # allows MongoDB to use index)
+    aggregation = [{'$match': {**experiment_query, **time_filter}},
+                   {'$sort': {'data.time': 1}}]
+    # Separate agents into their own documents
+    aggregation.append({'$project': {
+        'data.agents': {
+            '$objectToArray': {
+                # Add fail-safe for sims with no live agents
+                '$ifNull': ['$data.agents', {}]
+            }
+        },
+        'data.time': 1,
+        }})
+    aggregation.append({'$unwind': '$data.agents'})
+    # Construct aggregation stage to retrieve data at paths and group them
+    # into timeseries arrays for each agent ID
+    retrieve_paths = {
+        'data.agents.k': 1,
+        'data.time': 1
+    }
+    group_paths = {
+        '_id': '$data.agents.k',
+        'start_time': {'$first': '$data.time'},
+        'end_time': {'$last': '$data.time'}
+    }
+    final_projection = {
+        '_id': 0,
+        'agent_id': '$_id',
+        'start_time': 1,
+        'end_time': 1
+    }
+    for path, index in path_dict.items():
+        path_name = '.'.join(path)
+        # Group stage does not allow dot notation (nested dictionaries),
+        # so we temporarily restructure into a single-level dictionary
+        # with field names equal to the path joined by double underscores
+        temp_path_name = '__'.join(path)
+        dollar_path_name = '$' + path_name
+        dollar_temp_path_name = '$'+ temp_path_name
+        if index is not None:
+            retrieve_paths[temp_path_name] = {
+                '$arrayElemAt': [dollar_path_name, index]
+            }
+        else:
+            retrieve_paths[temp_path_name] = dollar_path_name
+        group_paths[temp_path_name] = {
+            '$push': {
+                '$cond': {
+                    # When data is split across multiple documents to meet
+                    # MongoDB's 16MB/doc limit, not all documents will have
+                    # all paths. In these cases, we hack MongoDB to skip
+                    # pushing null values onto the growing array by telling
+                    # it to push the non-existent 'noval' field instead.
+                    'if': {'$ne': [dollar_temp_path_name, None]},
+                    'then': dollar_temp_path_name,
+                    'else': '$noval'
+                }
+            }
+        }
+        # Final project stage brings back nested dictionary structure
+        final_projection[path_name] = dollar_temp_path_name
+    aggregation.append({'$project': retrieve_paths})
+    aggregation.append({'$group': group_paths})
+    aggregation.append({'$project': final_projection})
+
+    # Having many CPU processes query different segments of the total
+    # search space greatly improves I/O saturation for maximum speed
+    if cpus > 1:
+        chunks = get_data_chunks(
+            db.history, experiment_id, start_time, end_time, cpus)
+        aggregations = []
+        for chunk in chunks:
+            agg_chunk = copy.deepcopy(aggregation)
+            agg_chunk[0]['$match'] = {
+                **experiment_query,
+                '_id': {'$gte': chunk[0], '$lt': chunk[1]},
+                'data.time': {'$gte': start_time, '$lte': end_time, 
+                              '$mod': [sampling_rate, 0]}
+            }
+            aggregations.append(agg_chunk)
+        partial_get_agg = partial(get_aggregation, host, port)
+        with ProcessPoolExecutor(cpus) as executor:
+            queried_chunks = executor.map(partial_get_agg, aggregations)
+        result = itertools.chain.from_iterable(queried_chunks)
+    else:
+        result = db.history.aggregate(
+            aggregation, 
+            hint={'experiment_id':1, 'data.time':1, '_id':1})
+    return list(result)
+
+
+def access_counts_old(experiment_id, monomer_names=None, mrna_names=None,
     rna_init=None, rna_synth_prob=None, inner_paths=None, outer_paths=None,
     host='localhost', port=27017, sampling_rate=None, start_time=None,
     end_time=None, cpus=1, func_dict=None
