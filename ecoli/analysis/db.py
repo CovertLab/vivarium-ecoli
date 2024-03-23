@@ -195,6 +195,11 @@ def access_data(experiment_id: str, path_dict: dict[tuple[str], Optional[int]],
     emitter = DatabaseEmitter(config)
     db = emitter.db
 
+    if start_time is None:
+        start_time = MinKey()
+    if end_time is None:
+        end_time = MaxKey()
+
     # Match experiment ID and time range
     experiment_query = {'experiment_id': experiment_id}
     time_filter = {'data.time': {'$gte': start_time, '$lte': end_time}}
@@ -238,7 +243,7 @@ def access_data(experiment_id: str, path_dict: dict[tuple[str], Optional[int]],
         # so we temporarily restructure into a single-level dictionary
         # with field names equal to the path joined by double underscores
         temp_path_name = '__'.join(path)
-        dollar_path_name = '$' + path_name
+        dollar_path_name = '$data.agents.' + path_name
         dollar_temp_path_name = '$'+ temp_path_name
         if index is not None:
             retrieve_paths[temp_path_name] = {
@@ -277,8 +282,7 @@ def access_data(experiment_id: str, path_dict: dict[tuple[str], Optional[int]],
             agg_chunk[0]['$match'] = {
                 **experiment_query,
                 '_id': {'$gte': chunk[0], '$lt': chunk[1]},
-                'data.time': {'$gte': start_time, '$lte': end_time, 
-                              '$mod': [sampling_rate, 0]}
+                **time_filter
             }
             aggregations.append(agg_chunk)
         partial_get_agg = partial(get_aggregation, host, port)

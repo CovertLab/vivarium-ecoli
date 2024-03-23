@@ -42,7 +42,7 @@ class ReplicationData(Step):
                 'replication_data': listener_schema({
                     'fork_coordinates': [-1],
                     'fork_domains': [-1],
-                    'fork_unique_index': [2**63],
+                    'fork_unique_index': [2**31],
                     'number_of_oric': [-1],
                     'free_DnaA_boxes': [-1],
                     'total_DnaA_boxes': [-1]

@@ -1,14 +1,25 @@
-from vivarium.core.emitter import Emitter
-import psycopg
-from psycopg import sql
+import itertools
+import queue
+import threading
 from typing import Any, Mapping, Optional
 
-from vivarium.core.serialize import (
-    make_fallback_serializer_function,
-    serialize_value,
-    deserialize_value)
+import orjson
+import psycopg
+from psycopg import sql
+from vivarium.core.emitter import Emitter
+from vivarium.core.serialize import make_fallback_serializer_function
 
 _FLAG_FIRST = object()
+
+def make_fields(col_types: list[str], field_names: list[str]):
+    """Combine PostgreSQL column name and type
+    in the format expected by CREATE/ALTER TABLE."""
+    fields = []
+    for col_type, field_name in zip(col_types, field_names):
+        fields.append(sql.SQL("{} {}").format(
+            sql.Identifier(str(field_name)),
+            sql.SQL(col_type)))
+    return fields
 
 def flatten_dict(d):
     """
@@ -23,11 +34,6 @@ def flatten_dict(d):
             newKey = k if partialKey==_FLAG_FIRST else f'{partialKey}__{k}'
             if isinstance(v, Mapping):
                 visit(v, results, newKey)
-            # TODO: Fix empty values and remove
-            elif isinstance(v, list) and len(v) == 0:
-                continue
-            elif v is None:
-                continue
             else:
                 results.append((newKey, v))
     visit(d, results, _FLAG_FIRST)
@@ -75,49 +81,42 @@ class PostgresEmitter(Emitter):
         super().__init__(config)
         self.experiment_id = config.get('experiment_id')
         # Construct connection string
-        conninfo = ("postgresql://postgres:postgres@"
+        self.conninfo = ("postgresql://postgres:postgres@"
             f"{config.get('host', 'localhost')}:{config.get('port', 5432)}"
             "/postgres")
-        self.conn = psycopg.connect(conninfo, autocommit=True)
-        self.cur = self.conn.cursor()
         self._tables_created = {}
         self.fallback_serializer = make_fallback_serializer_function()
+        self.query_queue = queue.Queue()
+        self.submit_thread = threading.Thread(
+            target=self._insert_query, daemon=True
+        )
+        self.submit_thread.start()
 
-    def _get_fields(self, flat_data: dict[str, Any], table_id: str, field_names: str):
-        """Get PostgreSQL column name and type for each value in dictionary
-        in the format expected by CREATE/ALTER TABLE. Replaces full column
-        names with number indicating index of column in separate column
-        name table."""
-        col_types = []
-        for col, val in flat_data.items():
-            # Use text type for all strings
-            if isinstance(val, str):
-                col_types.append((col, 'text'))
-                continue
-            elif isinstance(val, list):
-                if isinstance(val[0], str):
-                    col_types.append((col, 'text[]'))
-                    continue
-                elif isinstance(val[0], list) and isinstance(val[0][0], str):
-                    col_types.append((col, 'text[]'))
-                    continue
-            type_cmd = sql.SQL("SELECT pg_typeof({})").format(sql.Literal(val))
-            self.cur.execute(type_cmd)
-            col_types.append((col, self.cur.fetchone()[0]))
-        fields = []
-        for col_type, field_name in zip(col_types, field_names):
-            fields.append(sql.SQL("{} {}").format(
-                sql.Identifier(str(field_name)), sql.SQL(col_type[1])))
-        return fields
-    
-    def _keys_to_add(self, table_id, keys):
+    def _insert_query(self):
+        while True:
+            query = self.query_queue.get()
+            with psycopg.connect(self.conninfo, autocommit=True) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(query[0], query[1])
+
+    def _get_curr_colnames(self, table_id):
         colnames_table = table_id + '_colnames'
-        get_curr_colnames = sql.SQL("SELECT {}, {} FROM {}").format(
-            sql.Identifier("fullname"),
-            sql.Identifier("numname"),
+        get_curr_colnames = sql.SQL('SELECT fullname, numname FROM {}').format(
             sql.Identifier(colnames_table))
-        self.cur.execute(get_curr_colnames)
-        full_to_numnames = dict(self.cur.fetchall())
+        with psycopg.connect(self.conninfo, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(get_curr_colnames)
+                full_to_numnames = dict(cur.fetchall())
+        with psycopg.connect(self.conninfo, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT column_name FROM "
+                    "information_schema.columns WHERE table_name=%s",
+                    (table_id,))
+                existing_num_names = [int(i) for i in list(zip(*cur.fetchall()))[0]]
+        assert set(full_to_numnames.values()) == set(existing_num_names)
+        return full_to_numnames
+
+    def _keys_to_add(self, full_to_numnames, table_id, keys):
         curr_max_numname = -1
         if len(full_to_numnames) > 0:
             curr_max_numname = max(full_to_numnames.values())
@@ -129,71 +128,96 @@ class PostgresEmitter(Emitter):
                 keys_to_add.append((key, curr_max_numname))
         self._tables_created[table_id] = full_to_numnames
         return keys_to_add
+    
+    def _create_table(self, table_id, col_types):
+        field_names = list(range(len(col_types)))
+        fields = make_fields(list(col_types.values()), field_names)
+        fields = sql.SQL(', ').join(fields)
+        create_table_cmd = sql.SQL("CREATE TABLE IF NOT EXISTS {} ({})"
+            ).format(sql.Identifier(table_id), fields)
+        with psycopg.connect(self.conninfo, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(create_table_cmd)
+        
+        # PostgreSQL has 63 character limit for column names. Use number
+        # column names in the main table and create a separate table
+        # with two columns: full column name and number column name
+        colnames_table = table_id + '_colnames'
+        create_table_prefix = sql.SQL('CREATE TABLE IF NOT EXISTS {} '
+            '("numname", "fullname") AS SELECT * FROM ( VALUES ').format(
+                sql.Identifier(colnames_table))
+        col_name_combined = list(itertools.chain.from_iterable(list(enumerate(col_types))))
+        col_values = sql.SQL(", ").join(sql.SQL("({})").format(
+            sql.SQL(',').join(sql.Placeholder()*2)) * len(col_types))
+        create_table_cmd = sql.Composed([create_table_prefix, col_values, sql.SQL(" )")])
+        with psycopg.connect(self.conninfo, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(create_table_cmd, col_name_combined)
+
+        self._tables_created[table_id] = self._get_curr_colnames(table_id)
         
     def emit(self, data: dict[str, Any]) -> None:
         table_id = data['table']
         emit_dicts = reorganize_data(data['data'], self.experiment_id)
         for d in emit_dicts:
             flat_dict = dict(flatten_dict(d))
-            flat_dict = serialize_value(flat_dict, self.fallback_serializer)
-            self.write_emit(table_id, flat_dict)
+            new_dict = {}
+            col_types = {}
+            for k, v in flat_dict.items():
+                bin_val = orjson.dumps(v, option=orjson.OPT_SERIALIZE_NUMPY,
+                    default=self.fallback_serializer)
+                py_val = orjson.loads(bin_val)
+                if isinstance(py_val, str):
+                    new_dict[k] = py_val
+                    col_types[k] = 'text'
+                elif isinstance(py_val, int):
+                    new_dict[k] = py_val
+                    col_types[k] = 'bigint'
+                elif isinstance(py_val, float):
+                    new_dict[k] = py_val
+                    col_types[k] = 'numeric'
+                elif isinstance(py_val, bool):
+                    new_dict[k] = py_val
+                    col_types[k] = 'boolean'
+                else:
+                    new_dict[k] = bin_val
+                    col_types[k] = 'bytea'
+            if table_id not in self._tables_created:
+                self._create_table(table_id, col_types)
+            self.write_emit(new_dict, table_id, col_types)
 
-    def write_emit(self, table_id: str, flat_data: dict[str, Any]) -> None:
+    def write_emit(self, flat_data: dict[str, Any], table_id: str, col_types) -> None:
         """
         Write data as new row, creating tables, columns, and indices as needed.
         """
-        # First time a table is written to, create if necessary
-        if table_id not in self._tables_created:
-            field_names = list(range(len(flat_data)))
-            fields = self._get_fields(flat_data, table_id, field_names)
-            fields = sql.SQL(', ').join(fields)
-            create_table_cmd = sql.SQL("CREATE TABLE IF NOT EXISTS {} ({})"
-                ).format(sql.Identifier(table_id), fields)
-            self.cur.execute(create_table_cmd)
-            
-            # PostgreSQL has 63 character limit for column names. Use number
-            # column names in the main table and create a separate table
-            # with two columns: full column name and number column name
-            colnames_table = table_id + '_colnames'
-            create_table_cmd = sql.SQL('CREATE TABLE IF NOT EXISTS {} '
-                '({} integer, {} text)').format(
-                    sql.Identifier(colnames_table),
-                    sql.Identifier("numname"),
-                    sql.Identifier("fullname"))
-            self.cur.execute(create_table_cmd)
-            
-            keys_to_add = self._keys_to_add(table_id, flat_data.keys())
-            insert_colnames_cmd = sql.SQL("COPY {} ({}, {}) FROM STDIN"
-                ).format(sql.Identifier(colnames_table),
-                    sql.Identifier("fullname"),
-                    sql.Identifier("numname"))
-            with self.cur.copy(insert_colnames_cmd) as copy:
-                for record in keys_to_add:
-                    copy.write_row(record)
-        
         # Add new columns if necessary (e.g. if new Stores were created)
         new_keys = set(flat_data) - set(self._tables_created[table_id])
         if len(new_keys) > 0:
             new_keys = list(new_keys)
-            keys_to_add = self._keys_to_add(table_id, new_keys)
-            fullnames_to_add, numnames_to_add = list(zip(*keys_to_add))
-            fields = self._get_fields(dict(
-                ((k,v) for k,v in flat_data.items() if k in fullnames_to_add)), table_id,
-                numnames_to_add)
+            curr_max_numname = max(self._tables_created[table_id].values())
+            keys_to_add = {}
+            for key in new_keys:
+                curr_max_numname += 1
+                self._tables_created[table_id][key] = curr_max_numname
+                keys_to_add[key] = curr_max_numname
+            fields = make_fields([col_types[k] for k in new_keys], list(keys_to_add.values()))
             fields = sql.SQL(', ').join([sql.SQL("ADD COLUMN {}").format(
                 i) for i in fields])
             alter_table_cmd = sql.SQL("ALTER TABLE {} \
                 {}""").format(sql.Identifier(table_id), fields)
-            self.cur.execute(alter_table_cmd)
+            with psycopg.connect(self.conninfo, autocommit=True) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(alter_table_cmd)
 
             colnames_table = table_id + '_colnames'
-            insert_colnames_cmd = sql.SQL("COPY {} ({}, {}) FROM STDIN"
-                ).format(sql.Identifier(colnames_table),
-                    sql.Identifier("fullname"),
-                    sql.Identifier("numname"))
-            with self.cur.copy(insert_colnames_cmd) as copy:
-                for record in keys_to_add:
-                    copy.write_row(record)
+            insert_colnames_cmd = sql.SQL(
+                'COPY {} ("fullname", "numname") FROM STDIN'
+                ).format(sql.Identifier(colnames_table))
+            with psycopg.connect(self.conninfo, autocommit=True) as conn:
+                with conn.cursor() as cur:
+                    with cur.copy(insert_colnames_cmd) as copy:
+                        for record in keys_to_add.items():
+                            copy.write_row(record)
 
         # Retrieve column indices to insert
         col_idx = [str(self._tables_created[table_id][full_name])
@@ -203,8 +227,7 @@ class PostgresEmitter(Emitter):
             sql.SQL(', ').join(map(sql.Identifier, col_idx)),
             sql.SQL(', ').join(sql.Placeholder() * len(flat_data))
         )
-        self.cur.execute(insert_cmd, list(flat_data.values()))
-        
+        self.query_queue.put((insert_cmd, list(flat_data.values())))
 
     def get_data(self, query: Optional[list] = None) -> None:
         return None

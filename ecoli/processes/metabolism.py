@@ -598,7 +598,7 @@ class Metabolism(Step):
                     'target_fluxes': targets / timestep,
                     'target_fluxes_upper': upper_targets / timestep,
                     'target_fluxes_lower': lower_targets / timestep,
-                    'target_aa_conc': [self.aa_targets.get(id_, 0)
+                    'target_aa_conc': [self.aa_targets.get(id_, 0.)
                                        for id_ in self.aa_names]}},
                                        
                 'next_update_time': states['global_time'] + states['timestep']}
@@ -630,7 +630,7 @@ class Metabolism(Step):
                 if self.aa_targets[aa] < 0:
                     print('Warning: updated amino acid target for '
                           f'{aa} was negative - adjusted to be positive.')
-                    self.aa_targets[aa] = 1
+                    self.aa_targets[aa] = 1.
 
         # First time step of a simulation so set target to current counts to
         # prevent concentration jumps between generations
@@ -638,7 +638,7 @@ class Metabolism(Step):
             for aa, counts in amino_acid_counts.items():
                 if aa in self.aa_targets_not_updated:
                     continue
-                self.aa_targets[aa] = counts
+                self.aa_targets[aa] = float(counts)
 
         conc_updates = {aa: counts * counts_to_molar for aa,
                         counts in self.aa_targets.items()}
