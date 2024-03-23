@@ -44,15 +44,15 @@ class DnaSupercoiling(Step):
         return {
             'listeners': {
                 'dna_supercoiling': listener_schema({
-                    'segment_left_boundary_coordinates': [],
-                    'segment_right_boundary_coordinates': [],
-                    'segment_domain_indexes': [],
-                    'segment_superhelical_densities': []
+                    'segment_left_boundary_coordinates': [-1],
+                    'segment_right_boundary_coordinates': [-1],
+                    'segment_domain_indexes': [-1],
+                    'segment_superhelical_densities': [-1]
                 })
             },
             'chromosomal_segments': numpy_schema('chromosomal_segments',
                 emit=self.parameters['emit_unique']),
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']}
         }
     
@@ -63,6 +63,18 @@ class DnaSupercoiling(Step):
         boundary_coordinates, domain_indexes, linking_numbers = attrs(
             states['chromosomal_segments'],
             ['boundary_coordinates', 'domain_index', 'linking_number'])
+
+        if len(boundary_coordinates) == 0:
+            return {
+                'listeners': {
+                    'dna_supercoiling': {
+                        'segment_left_boundary_coordinates': [-1],
+                        'segment_right_boundary_coordinates': [-1],
+                        'segment_domain_indexes': [-1],
+                        'segment_superhelical_densities': [-1]
+                    }
+                }
+            }
 
         # Get mask for segments with nonzero lengths
         segment_lengths = boundary_coordinates[:, 1] - boundary_coordinates[

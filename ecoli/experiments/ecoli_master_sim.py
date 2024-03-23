@@ -690,8 +690,9 @@ class EcoliSim:
         metadata['output_metadata'] = self.get_output_metadata()
         # make the experiment
         emitter_config = {'type': self.emitter}
-        for key, value in self.emitter_arg:
-            emitter_config[key] = value
+        # TODO: Fix this
+        # for key, value in self.emitter_arg:
+        #     emitter_config[key] = value
         experiment_config = {
             'description': self.description,
             'metadata': metadata,

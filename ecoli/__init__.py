@@ -1,7 +1,7 @@
 from vivarium.core.registry import (
     divider_registry,
-    updater_registry,
     serializer_registry,
+    emitter_registry
 )
 from ecoli.library.schema import (
     divide_binomial,
@@ -25,6 +25,9 @@ from ecoli.library.updaters import (
 from ecoli.library.serialize import (
     UnumSerializer, ParameterSerializer,
     NumpyRandomStateSerializer, MethodSerializer)
+from ecoli.library.pgsql_emitter import PostgresEmitter
+
+emitter_registry.register('postgres', PostgresEmitter)
 
 # register :term:`updaters`
 inverse_updater_registry.register(

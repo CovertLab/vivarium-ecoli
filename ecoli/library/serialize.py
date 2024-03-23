@@ -16,10 +16,12 @@ class UnumSerializer(Serializer):
 
     python_type = Unum
     def serialize(self, value):
-        num = str(value.asNumber())
+        num = value.asNumber()
         if isinstance(num, np.ndarray):
             num = num.tolist()
-        return f'!UnumSerializer[{num} | {value.strUnit()}]'
+        # TODO: Fix this
+        # return f'!UnumSerializer[{num} | {value.strUnit()}]'
+        return num
         
     def can_deserialize(self, data):
         if not isinstance(data, str):

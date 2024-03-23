@@ -132,8 +132,8 @@ class ChromosomeStructure(Step):
                     'n_total_collisions': 0,
                     'n_headon_collisions': 0,
                     'n_codirectional_collisions': 0,
-                    'headon_collision_coordinates': [],
-                    'codirectional_collision_coordinates': [],
+                    'headon_collision_coordinates': [-1],
+                    'codirectional_collision_coordinates': [-1],
                     'n_removed_ribosomes': 0})},
             'bulk': numpy_schema('bulk'),
 

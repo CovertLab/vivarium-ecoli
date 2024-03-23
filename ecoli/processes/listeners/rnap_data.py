@@ -56,11 +56,11 @@ class RnapData(Step):
             'listeners': {
                 'rnap_data': listener_schema({
                     'rna_init_event': np.zeros(n_TUs),
-                    'active_rnap_coordinates': [],
-                    'active_rnap_domain_indexes': [],
-                    'active_rnap_unique_indexes': [],
-                    'active_rnap_on_stable_RNA_indexes': [],
-                    'active_rnap_n_bound_ribosomes': [],
+                    'active_rnap_coordinates': [-1],
+                    'active_rnap_domain_indexes': [-1],
+                    'active_rnap_unique_indexes': [-1],
+                    'active_rnap_on_stable_RNA_indexes': [-1],
+                    'active_rnap_n_bound_ribosomes': [-1],
                     'rna_init_event_per_cistron': ([0] * len(self.cistron_ids),
                         self.cistron_ids)
                 })

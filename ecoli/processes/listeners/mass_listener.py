@@ -271,7 +271,7 @@ class MassListener(Step):
         mass_update['volume'] = mass_update['cell_mass'] / self.cellDensity
 
         if self.first_time_step:
-            mass_update['growth'] = np.nan
+            mass_update['growth'] = 0
             self.dryMassInitial = mass_update['dry_mass']
             self.proteinMassInitial = mass_update['protein_mass']
             self.rnaMassInitial = mass_update['rna_mass']

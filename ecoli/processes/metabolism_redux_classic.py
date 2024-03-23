@@ -193,6 +193,7 @@ class MetabolismReduxClassic(Step):
                     'cell_mass': 0.0,
                     'dry_mass': 0.0}),
 
+                # TODO: Not empty list default
                 'fba_results': listener_schema({
                     'solution_fluxes': [],
                     'solution_dmdt': [],

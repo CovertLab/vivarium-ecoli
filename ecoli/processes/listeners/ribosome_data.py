@@ -62,18 +62,18 @@ class RibosomeData(Step):
                     'n_ribosomes_on_partial_mRNA_per_transcript': (
                         [0] * len(self.monomer_ids), self.monomer_ids),
                     'total_rRNA_initiated': 0,
-                    'total_rRNA_init_prob': 0,
+                    'total_rRNA_init_prob': 0.,
                     'rRNA5S_initiated': 0,
                     'rRNA16S_initiated': 0,
                     'rRNA23S_initiated': 0,
-                    'rRNA5S_init_prob': 0,
-                    'rRNA16S_init_prob': 0,
-                    'rRNA23S_init_prob': 0,
-                    'mRNA_TU_index': [],
-                    'n_ribosomes_on_each_mRNA': [],
-                    'protein_mass_on_polysomes': [],
+                    'rRNA5S_init_prob': 0.,
+                    'rRNA16S_init_prob': 0.,
+                    'rRNA23S_init_prob': 0.,
+                    'mRNA_TU_index': [-1],
+                    'n_ribosomes_on_each_mRNA': [-1],
+                    'protein_mass_on_polysomes': [-1.],
                     'rRNA_initiated_TU': [0] * n_rRNA_TUs,
-                    'rRNA_init_prob_TU': [0] * n_rRNA_TUs
+                    'rRNA_init_prob_TU': [0.] * n_rRNA_TUs
                 })
             },
             'RNAs': numpy_schema('RNAs',
