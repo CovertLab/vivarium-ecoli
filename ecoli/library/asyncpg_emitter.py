@@ -23,12 +23,35 @@ async def async_copy_records(conn_args, table_name, records, columns=None):
     await con.copy_records_to_table(table_name, records=records, columns=columns)
 
 
-def main_process(q):
+def run_queries(records, colnames, table_id, conn_args):
+    filled_records = []
+    for record in records:
+        filled_records.append([record.get(v, None) for v in colnames.values()])
+    asyncio.run(async_copy_records(conn_args, table_id, filled_records, list(colnames.keys())))
+
+
+def main_process(q, conn_args):
+    all_colnames = {}
+    collected_records = []
+    table_id = None
     while True:
         query = q.get()
         if query == 'Shutting down...':
+            run_queries(collected_records, all_colnames, table_id, conn_args)
             break
-        asyncio.run(async_copy_records(*query))
+        if table_id is None:
+            table_id = query[0]
+        elif query[0] != table_id:
+            run_queries(collected_records, all_colnames, table_id, conn_args)
+            collected_records = []
+            all_colnames = {}
+            table_id = query[0]
+        all_colnames.update(query[2])
+        collected_records.append(query[1])
+        if len(collected_records) > 5:
+            run_queries(collected_records, all_colnames, table_id, conn_args)
+            collected_records = []
+            all_colnames = {}
 
 
 _FLAG_FIRST = object()
@@ -305,7 +328,8 @@ class AsyncpgMPEmitter(AsyncpgEmitter):
         self._tables_created = {}
         self.fallback_serializer = make_fallback_serializer_function()
         self.main_queue = Queue()
-        self.db_process = Process(target=main_process, args=(self.main_queue,))
+        self.db_process = Process(target=main_process,
+            args=(self.main_queue, self.connection_args))
         self.db_process.start()
         self.inc_lists = True
 
@@ -322,7 +346,5 @@ class AsyncpgMPEmitter(AsyncpgEmitter):
         if len(new_keys) > 0:
             self.add_new_keys(new_keys, table_id, col_types)
 
-        # Retrieve column indices to insert
-        col_names = [str(self._tables_created[table_id][full_name])
-                     for full_name in flat_data]
-        self.main_queue.put((self.connection_args, table_id, (list(flat_data.values()),), col_names))
+        seq_to_full = {str(v): k for k, v in self._tables_created[table_id].items()}
+        self.main_queue.put((table_id, flat_data, seq_to_full))
