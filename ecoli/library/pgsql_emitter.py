@@ -40,6 +40,27 @@ def flatten_dict(d):
     return results
 
 
+def get_pg_type(py_val):
+    if isinstance(py_val, bool):
+        return 'boolean'
+    elif isinstance(py_val, int):
+        return 'bigint'
+    elif isinstance(py_val, float):
+        return 'numeric'
+    if isinstance(py_val, str):
+        return 'text'
+    # elif isinstance(py_val, list):
+    #     if len(py_val) > 0:
+    #         inner_pg_type = get_pg_type(py_val[0])
+    #         if inner_pg_type != 'bytea':
+    #             return  inner_pg_type + '[]'
+    #     py_val.append(None)
+    #     return 'empty list'
+    else:
+        return 'bytea'
+
+
+
 def reorganize_data(d, experiment_id):
     """
     Reorganize simulation outputs and add metadata for querying. Further
@@ -167,21 +188,12 @@ class PostgresEmitter(Emitter):
                 bin_val = orjson.dumps(v, option=orjson.OPT_SERIALIZE_NUMPY,
                     default=self.fallback_serializer)
                 py_val = orjson.loads(bin_val)
-                if isinstance(py_val, str):
-                    new_dict[k] = py_val
-                    col_types[k] = 'text'
-                elif isinstance(py_val, int):
-                    new_dict[k] = py_val
-                    col_types[k] = 'bigint'
-                elif isinstance(py_val, float):
-                    new_dict[k] = py_val
-                    col_types[k] = 'numeric'
-                elif isinstance(py_val, bool):
-                    new_dict[k] = py_val
-                    col_types[k] = 'boolean'
-                else:
+                pg_type = get_pg_type(py_val)  
+                if pg_type == 'bytea':
                     new_dict[k] = bin_val
-                    col_types[k] = 'bytea'
+                else:
+                    new_dict[k] = py_val
+                col_types[k] = get_pg_type(py_val) 
             if table_id not in self._tables_created:
                 self._create_table(table_id, col_types)
             self.write_emit(new_dict, table_id, col_types)

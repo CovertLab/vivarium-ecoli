@@ -26,8 +26,11 @@ from ecoli.library.serialize import (
     UnumSerializer, ParameterSerializer,
     NumpyRandomStateSerializer, MethodSerializer)
 from ecoli.library.pgsql_emitter import PostgresEmitter
+from ecoli.library.asyncpg_emitter import AsyncpgEmitter, AsyncpgMPEmitter
 
 emitter_registry.register('postgres', PostgresEmitter)
+emitter_registry.register('asyncpg', AsyncpgEmitter)
+emitter_registry.register('asyncpg_mp', AsyncpgMPEmitter)
 
 # register :term:`updaters`
 inverse_updater_registry.register(
