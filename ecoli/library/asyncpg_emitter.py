@@ -63,7 +63,7 @@ def get_pg_type(py_val, inc_list=False):
         return 'text'
     elif inc_list and isinstance(py_val, list):
         if len(py_val) > 0:
-            inner_pg_type = get_pg_type(py_val[0])
+            inner_pg_type = get_pg_type(py_val[0], inc_list)
             if inner_pg_type != 'bytea':
                 return  inner_pg_type + '[]'
         return 'text'
@@ -119,6 +119,7 @@ class AsyncpgEmitter(Emitter):
             'database': config.get('database', 'postgres'),
             'password': config.get('password', None)
         }
+        self.inc_lists = config.get('inc_lists', False)
         self._tables_created = {}
         self.fallback_serializer = make_fallback_serializer_function()
         self.async_event_loop = asyncio.new_event_loop()
@@ -165,6 +166,20 @@ class AsyncpgEmitter(Emitter):
         existing_uuids = [int(i[0]) for i in existing_uuids]
         assert set(full_to_seq.values()) == set(existing_uuids)
         return full_to_seq
+    
+    def _add_new_keys(self, new_keys, table_id, col_types):
+        new_keys = list(new_keys)
+        new_seq = self._get_new_colnames(len(new_keys))
+        fields = [f'"{s}" {col_types[k]}' for s, k in zip(new_seq, new_keys)]
+        fields = ', '.join([f'ADD COLUMN {i}' for i in fields])
+        alter_table_cmd = f'ALTER TABLE "{table_id}" {fields}'
+        asyncio.run(async_query(
+            self.connection_args, alter_table_cmd, (), False))
+
+        colnames_table = table_id + '_colnames'
+        asyncio.run(async_copy_records(
+            self.connection_args, colnames_table, zip(new_seq, new_keys)))
+        self._tables_created[table_id] = self._get_curr_colnames(table_id)
     
     def _get_new_colnames(self, n):
         # Get column names to create data table with
@@ -216,12 +231,12 @@ class AsyncpgEmitter(Emitter):
                 bin_val = orjson.dumps(v, option=orjson.OPT_SERIALIZE_NUMPY,
                     default=self.fallback_serializer)
                 py_val = orjson.loads(bin_val)
-                pg_type = get_pg_type(py_val)  
+                pg_type = get_pg_type(py_val, self.inc_lists)  
                 if pg_type == 'bytea':
                     new_dict[k] = bin_val
                 else:
                     new_dict[k] = py_val
-                col_types[k] = get_pg_type(py_val) 
+                col_types[k] = pg_type 
             if table_id not in self._tables_created:
                 self._create_table(table_id, col_types)
             self.write_emit(new_dict, table_id, col_types)
@@ -233,18 +248,7 @@ class AsyncpgEmitter(Emitter):
         # Add new columns if necessary (e.g. if new Stores were created)
         new_keys = set(flat_data) - set(self._tables_created[table_id])
         if len(new_keys) > 0:
-            new_keys = list(new_keys)
-            new_seq = self._get_new_colnames(len(new_keys))
-            fields = [f'"{s}" {col_types[k]}' for s, k in zip(new_seq, new_keys)]
-            fields = ', '.join([f'ADD COLUMN {i}' for i in fields])
-            alter_table_cmd = f'ALTER TABLE "{table_id}" {fields}'
-            asyncio.run(async_query(
-                self.connection_args, alter_table_cmd, (), False))
-
-            colnames_table = table_id + '_colnames'
-            asyncio.run(async_copy_records(
-                self.connection_args, colnames_table, zip(new_seq, new_keys)))
-            self._tables_created[table_id] = self._get_curr_colnames(table_id)
+            self._add_new_keys(new_keys, table_id, col_types)
 
         # Retrieve column indices to insert
         col_names = [str(self._tables_created[table_id][full_name])
@@ -276,45 +280,14 @@ class AsyncpgMPEmitter(AsyncpgEmitter):
     def __init__(self, config: dict[str, Any]) -> None:
         """config may have 'host' and 'database' items."""
         super().__init__(config)
-        self.experiment_id = config.get('experiment_id')
-        # Collect connection arguments
-        self.connection_args = {
-            'host': config.get('host', None),
-            'port': config.get('port', None),
-            'user': config.get('user', 'postgres'),
-            'database': config.get('database', 'postgres'),
-            'password': config.get('password', None)
-        }
-        self._tables_created = {}
-        self.fallback_serializer = make_fallback_serializer_function()
         self.main_queue = Queue()
         self.db_process = Process(target=main_process, args=(self.main_queue,))
         self.db_process.start()
+        self.inc_lists = True
 
     def __del__(self):
         self.main_queue.put('Shutting down...')
         self.db_process.join()
-        
-    def emit(self, data: dict[str, Any]) -> None:
-        table_id = data['table']
-        emit_dicts = reorganize_data(data['data'], self.experiment_id)
-        for d in emit_dicts:
-            flat_dict = dict(flatten_dict(d))
-            new_dict = {}
-            col_types = {}
-            for k, v in flat_dict.items():
-                bin_val = orjson.dumps(v, option=orjson.OPT_SERIALIZE_NUMPY,
-                    default=self.fallback_serializer)
-                py_val = orjson.loads(bin_val)
-                pg_type = get_pg_type(py_val)  
-                if pg_type == 'bytea':
-                    new_dict[k] = bin_val
-                else:
-                    new_dict[k] = py_val
-                col_types[k] = get_pg_type(py_val, True) 
-            if table_id not in self._tables_created:
-                self._create_table(table_id, col_types)
-            self.write_emit(new_dict, table_id, col_types)
 
     def write_emit(self, flat_data: dict[str, Any], table_id: str, col_types) -> None:
         """
@@ -323,18 +296,7 @@ class AsyncpgMPEmitter(AsyncpgEmitter):
         # Add new columns if necessary (e.g. if new Stores were created)
         new_keys = set(flat_data) - set(self._tables_created[table_id])
         if len(new_keys) > 0:
-            new_keys = list(new_keys)
-            new_seq = self._get_new_colnames(len(new_keys))
-            fields = [f'"{s}" {col_types[k]}' for s, k in zip(new_seq, new_keys)]
-            fields = ', '.join([f'ADD COLUMN {i}' for i in fields])
-            alter_table_cmd = f'ALTER TABLE "{table_id}" {fields}'
-            asyncio.run(async_query(
-                self.connection_args, alter_table_cmd, (), False))
-
-            colnames_table = table_id + '_colnames'
-            asyncio.run(async_copy_records(
-                self.connection_args, colnames_table, zip(new_seq, new_keys)))
-            self._tables_created[table_id] = self._get_curr_colnames(table_id)
+            self.add_new_keys(new_keys, table_id, col_types)
 
         # Retrieve column indices to insert
         col_names = [str(self._tables_created[table_id][full_name])
