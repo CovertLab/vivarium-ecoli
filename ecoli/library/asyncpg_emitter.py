@@ -190,6 +190,14 @@ class AsyncpgEmitter(Emitter):
             new_seq.append(next_val[0][0])
         return new_seq
     
+    def _create_indexes(self, table_id, fullnames):
+        for fullname in fullnames:
+            col_seq = self._tables_created[table_id][fullname]
+            create_index_cmd = (
+                f'CREATE INDEX IF NOT EXISTS "{table_id}_{col_seq}"'
+                f'ON "{table_id}" ("{col_seq}")')
+            asyncio.run(async_query(self.connection_args, create_index_cmd))
+    
     def _create_table(self, table_id, col_types):
         # Create sequence table to get new column names from
         asyncio.run(async_query(self.connection_args,
@@ -199,8 +207,7 @@ class AsyncpgEmitter(Emitter):
         fields = [f'"{s}" {c}' for s, c in zip(new_seq, col_types.values())]
         fields = (', ').join(fields)
         create_table_cmd = f'CREATE TABLE IF NOT EXISTS "{table_id}" ({fields})'
-        asyncio.run(async_query(
-            self.connection_args, create_table_cmd, (), False))
+        asyncio.run(async_query(self.connection_args, create_table_cmd))
         
         # PostgreSQL has 63 character limit for column names. Use sequential
         # column names in the main table and create a separate table
@@ -239,6 +246,12 @@ class AsyncpgEmitter(Emitter):
                 col_types[k] = pg_type 
             if table_id not in self._tables_created:
                 self._create_table(table_id, col_types)
+                if table_id == 'configuration':
+                    fullnames = ['experiment_id']
+                elif table_id == 'history':
+                    # TODO: Add seed and variant information
+                    fullnames = ['experiment_id', 'time', 'generation']
+                self._create_indexes(table_id, fullnames)
             self.write_emit(new_dict, table_id, col_types)
 
     def write_emit(self, flat_data: dict[str, Any], table_id: str, col_types) -> None:
@@ -279,7 +292,18 @@ class AsyncpgMPEmitter(AsyncpgEmitter):
 
     def __init__(self, config: dict[str, Any]) -> None:
         """config may have 'host' and 'database' items."""
-        super().__init__(config)
+        self.experiment_id = config.get('experiment_id')
+        # Collect connection arguments
+        self.connection_args = {
+            'host': config.get('host', None),
+            'port': config.get('port', None),
+            'user': config.get('user', 'postgres'),
+            'database': config.get('database', 'postgres'),
+            'password': config.get('password', None)
+        }
+        self.inc_lists = config.get('inc_lists', False)
+        self._tables_created = {}
+        self.fallback_serializer = make_fallback_serializer_function()
         self.main_queue = Queue()
         self.db_process = Process(target=main_process, args=(self.main_queue,))
         self.db_process.start()
