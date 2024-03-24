@@ -2,12 +2,28 @@ import threading
 from typing import Any, Mapping, Optional
 import itertools
 from multiprocessing import Process, Queue
+import atexit
 
 import orjson
 import asyncio
 import asyncpg
 from vivarium.core.emitter import Emitter
 from vivarium.core.serialize import make_fallback_serializer_function
+
+
+class PropagatingThread(threading.Thread):
+    def run(self):
+        self.exc = None
+        try:
+            self.ret = self._target(*self._args, **self._kwargs)
+        except BaseException as e:
+            self.exc = e
+
+    def join(self, timeout=None):
+        super(PropagatingThread, self).join(timeout)
+        if self.exc:
+            raise self.exc
+        return self.ret
 
 
 async def async_query(conn_args, query, query_args=(), return_val=False):
@@ -23,35 +39,36 @@ async def async_copy_records(conn_args, table_name, records, columns=None):
     await con.copy_records_to_table(table_name, records=records, columns=columns)
 
 
-def run_queries(records, colnames, table_id, conn_args):
-    filled_records = []
-    for record in records:
-        filled_records.append([record.get(v, None) for v in colnames.values()])
-    asyncio.run(async_copy_records(conn_args, table_id, filled_records, list(colnames.keys())))
+async def async_queue_listener(conn_args, queue):
+    async with asyncpg.create_pool(**conn_args) as pool:
+        while True:
+            query = await queue.get()
+            if query == 'Shutting down...':
+                break
+            async with pool.acquire() as con:
+                await con.copy_records_to_table(
+                    query[0], records=query[1], columns=query[2])
+
+def async_thread(loop, conn_args, cmd_queue):
+    loop.run_until_complete(async_queue_listener(conn_args, cmd_queue))
 
 
 def main_process(q, conn_args):
-    all_colnames = {}
-    collected_records = []
-    table_id = None
-    while True:
-        query = q.get()
-        if query == 'Shutting down...':
-            run_queries(collected_records, all_colnames, table_id, conn_args)
-            break
-        if table_id is None:
-            table_id = query[0]
-        elif query[0] != table_id:
-            run_queries(collected_records, all_colnames, table_id, conn_args)
-            collected_records = []
-            all_colnames = {}
-            table_id = query[0]
-        all_colnames.update(query[2])
-        collected_records.append(query[1])
-        if len(collected_records) > 5:
-            run_queries(collected_records, all_colnames, table_id, conn_args)
-            collected_records = []
-            all_colnames = {}
+    asyncio_queue = asyncio.Queue()
+    loop = asyncio.new_event_loop()
+    t = PropagatingThread(target=async_thread, args=(loop, conn_args, asyncio_queue))
+    try:
+        t.start()
+        while True:
+            query = q.get()
+            if query == 'Shutting down...':
+                break
+            loop.call_soon_threadsafe(asyncio_queue.put_nowait, query)
+            if not t.is_alive():
+                break
+    finally:
+        loop.call_soon_threadsafe(asyncio_queue.put_nowait, 'Shutting down...')
+        t.join()
 
 
 _FLAG_FIRST = object()
@@ -142,7 +159,6 @@ class AsyncpgEmitter(Emitter):
             'database': config.get('database', 'postgres'),
             'password': config.get('password', None)
         }
-        self.inc_lists = config.get('inc_lists', False)
         self._tables_created = {}
         self.fallback_serializer = make_fallback_serializer_function()
         self.async_event_loop = asyncio.new_event_loop()
@@ -261,7 +277,7 @@ class AsyncpgEmitter(Emitter):
                 bin_val = orjson.dumps(v, option=orjson.OPT_SERIALIZE_NUMPY,
                     default=self.fallback_serializer)
                 py_val = orjson.loads(bin_val)
-                pg_type = get_pg_type(py_val, self.inc_lists)  
+                pg_type = get_pg_type(py_val)  
                 if pg_type == 'bytea':
                     new_dict[k] = bin_val
                 else:
@@ -332,8 +348,9 @@ class AsyncpgMPEmitter(AsyncpgEmitter):
             args=(self.main_queue, self.connection_args))
         self.db_process.start()
         self.inc_lists = True
+        atexit.register(self._cleanup)
 
-    def __del__(self):
+    def _cleanup(self):
         self.main_queue.put('Shutting down...')
         self.db_process.join()
 
@@ -344,7 +361,9 @@ class AsyncpgMPEmitter(AsyncpgEmitter):
         # Add new columns if necessary (e.g. if new Stores were created)
         new_keys = set(flat_data) - set(self._tables_created[table_id])
         if len(new_keys) > 0:
-            self.add_new_keys(new_keys, table_id, col_types)
+            self._add_new_keys(new_keys, table_id, col_types)
 
-        seq_to_full = {str(v): k for k, v in self._tables_created[table_id].items()}
-        self.main_queue.put((table_id, flat_data, seq_to_full))
+        if not self.db_process.is_alive():
+            raise Exception('DB process was killed.')
+        colnames = [str(self._tables_created[table_id][k]) for k in flat_data]
+        self.main_queue.put((table_id, (list(flat_data.values()),), colnames))
