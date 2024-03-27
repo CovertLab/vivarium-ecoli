@@ -1,6 +1,9 @@
 import asyncio
+import atexit
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Iterable, Mapping
+from datetime import datetime, timedelta
+import pytz
 
 import asyncpg
 import orjson
@@ -10,35 +13,52 @@ from vivarium.core.serialize import make_fallback_serializer_function
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-INDEXES_TO_CREATE = {
-    'history': ['cell_id', 'time'],
-    'configuration': [
-        'experiment_id', 'variant', 'seed', 'generation', 'agent_id']
-}
-"""Default indexes to create for each table."""
+INDEXES_TO_CREATE = [
+    'experiment_id', 'variant', 'seed', 'generation', 'agent_id']
+"""Default indexes to create for ``configuration`` table."""
 
 
-async def create_indexes(conn_args: dict[str, Any], table_id: str,
+async def compress_chunk(conn_args, cell_id):
+    con = await asyncpg.connect(**conn_args)
+    newer_than = datetime(
+        cell_id, 1, 1, tzinfo=pytz.timezone('Africa/Abidjan'))
+    older_than = datetime(
+        cell_id+1, 1, 1, tzinfo=pytz.timezone('Africa/Abidjan'))
+    cell_chunk = await con.fetchval(
+        "SELECT show_chunks('history', newer_than => $1,"
+        "older_than => $2)", newer_than, older_than)
+    await con.execute('SELECT compress_chunk($1)', cell_chunk)
+    await con.close()
+
+
+async def create_hypertable(conn_args):
+    con = await asyncpg.connect(**conn_args)
+    await con.execute(
+        "SELECT create_hypertable('history', "
+        "by_range('cell_id_time', INTERVAL '1 year'), "
+        "if_not_exists => TRUE)")
+    await con.execute(
+        "ALTER TABLE 'history' SET (timescaledb.compress = TRUE, "
+        "timescaledb.compress_orderby = 'cell_id_time ASC')")
+    await con.close()
+
+
+async def create_indexes(conn_args: dict[str, Any],
                          field_to_placeholder: dict[str, int]):
     """
     Create indexes for faster queries.
 
     Args:
         conn_args: Keyword arguments for :py:func:`asyncpg.connect`
-        table_id: Name of table to create indexes for
         field_to_placeholder: Mapping of field names to placeholder
             column names (from :py:func:`~.map_field_to_placeholder`)
     """
     con = await asyncpg.connect(**conn_args)
-    for index in INDEXES_TO_CREATE[table_id]:
-        # Cell ID does not use a placeholder name
-        if index == 'cell_id':
-            placeholder = 'cell_id'
-        else:
-            placeholder = field_to_placeholder[table_id][index]
+    for index in INDEXES_TO_CREATE:
+        placeholder = field_to_placeholder['configuration'][index]
         await con.execute(
-            f'CREATE INDEX IF NOT EXISTS "{table_id}_{placeholder}"'
-            f'ON "{table_id}" ("{placeholder}")')
+            f'CREATE INDEX IF NOT EXISTS "configuration_{placeholder}"'
+            f'ON configuration ("{placeholder}")')
     await con.close()
 
 
@@ -103,8 +123,7 @@ async def initialize_tables(conn_args: dict[str, Any], table_id: str):
         '(seqname SERIAL PRIMARY KEY, fullname TEXT UNIQUE)')
     if table_id == 'history':
         await con.execute(
-            f'CREATE TABLE IF NOT EXISTS "{table_id}" (cell_id INT '
-            'REFERENCES configuration(cell_id) ON DELETE CASCADE)')
+            f'CREATE TABLE IF NOT EXISTS "{table_id}" (cell_id_time TIMESTAMPTZ)')
     elif table_id == 'configuration':
         await con.execute(
             f'CREATE TABLE IF NOT EXISTS "{table_id}" (cell_id SERIAL '
@@ -142,7 +161,8 @@ def serialize_with_types(d: dict[str, Any], default: Callable):
 
 
 async def insert_data(conn_args: dict[str, Any], cell_id: int,
-                      inserts: tuple[str, Iterable, list[str]]):
+                      table_id: str, insert_dict: dict[str, Any],
+                      field_to_placeholder: dict[str, int]):
     """
     Called by :py:func:`~.executor_proc` to insert data.
 
@@ -164,17 +184,19 @@ async def insert_data(conn_args: dict[str, Any], cell_id: int,
         schema="pg_catalog",
         format="binary"
     )
-    table_id, records, columns = inserts
+    columns = [str(field_to_placeholder[k]) for k in insert_dict]
     if cell_id is None and table_id == 'configuration':
         # Inserting the configuration row should generate a unique cell ID
         quoted_columns = ', '.join((f'"{c}"' for c in columns))
         cmd_params = ', '.join((f'${i+1}' for i in range(len(columns))))
         insert_cmd = (f"INSERT INTO {table_id} ({quoted_columns})"
             f" VALUES ({cmd_params}) RETURNING cell_id")
-        cell_id = await conn.fetchval(insert_cmd, *records)
+        cell_id = await conn.fetchval(insert_cmd, *insert_dict.values())
     else:
-        records = [(cell_id, *records)]
-        columns = ['cell_id', *columns]
+        cell_id_time = datetime(cell_id, 1, 1) + timedelta(
+            seconds=insert_dict['time'])
+        records = [(cell_id_time, *insert_dict.values())]
+        columns = ['cell_id_time', *columns]
         await conn.copy_records_to_table(
             table_id, records=records, columns=columns)
     await conn.close()
@@ -182,7 +204,8 @@ async def insert_data(conn_args: dict[str, Any], cell_id: int,
 
 
 def executor_proc(conn_args: dict[str, Any], cell_id: int,
-                  inserts: tuple[str, Iterable, list[str]]):
+                  table_id: str, insert_dict: dict[str, Any],
+                  field_to_placeholder: dict[str, int]):
     """
     Called by ThreadPoolExecutor insert data.
 
@@ -195,7 +218,8 @@ def executor_proc(conn_args: dict[str, Any], cell_id: int,
     Returns:
         Cell ID used to identify all rows from this simulation.
     """
-    return asyncio.run(insert_data(conn_args, cell_id, inserts))
+    return asyncio.run(insert_data(
+        conn_args, cell_id, table_id, insert_dict, field_to_placeholder))
 
 
 _FLAG_FIRST = object()
@@ -291,15 +315,19 @@ class PgtablesEmitter(Emitter):
         self.connection_args = {
             'host': config.get('host', None),
             'port': config.get('port', None),
-            'user': config.get('user', 'postgres'),
-            'database': config.get('database', 'postgres'),
+            'user': config.get('user', 'seancheah'),
+            'database': config.get('database', 'tsdb'),
             'password': config.get('password', None)
         }
         self.executor = ThreadPoolExecutor()
         self.field_to_placeholder = {}
-        self.indexes_created = {}
+        self.hypertable_created = False
         self.cell_id = None
         self.fallback_serializer = make_fallback_serializer_function()
+        atexit.register(self._compress_chunk)
+
+    def _compress_chunk(self):
+        asyncio.run(compress_chunk(self.connection_args, self.cell_id))
 
     def emit(self, data: dict[str, Any]):
         """Adds data to queue to be handled by :py:func:`~.main_process`"""
@@ -321,16 +349,15 @@ class PgtablesEmitter(Emitter):
                 self.field_to_placeholder[table_id] = asyncio.run(
                     add_new_fields(self.connection_args, table_id, new_cols))
                 # If starting from a fresh DB, we need to add new cols so
-                # take this opportunity to create indexes
-                if not self.indexes_created.get(table_id):
+                # take this opportunity to create TimescaleDB hypertable
+                # from history table and indexes for configuration table
+                if table_id == 'history' and not self.hypertable_created:
+                    asyncio.run(create_hypertable(self.connection_args))
                     asyncio.run(create_indexes(
-                        self.connection_args, table_id, self.field_to_placeholder))
-                    self.indexes_created[table_id] = True
-            # Need placeholder names in order of field names to insert
-            colnames = [str(self.field_to_placeholder[table_id][k])
-                        for k in insert_dict]
+                        self.connection_args, self.field_to_placeholder))
+                    self.hypertable_created = True
             cell_id_future = self.executor.submit(executor_proc,
-                self.connection_args, self.cell_id,
-                (table_id, insert_dict.values(), colnames))
+                self.connection_args, self.cell_id, table_id,
+                insert_dict, self.field_to_placeholder[table_id])
             if self.cell_id is None:
                 self.cell_id = cell_id_future.result()
