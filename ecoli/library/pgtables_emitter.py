@@ -1,6 +1,5 @@
 import asyncio
-import atexit
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from typing import Any, Callable, Iterable, Mapping
 from datetime import datetime, timedelta
 import pytz
@@ -24,10 +23,10 @@ async def compress_chunk(conn_args, cell_id):
         cell_id, 1, 1, tzinfo=pytz.timezone('Africa/Abidjan'))
     older_than = datetime(
         cell_id+1, 1, 1, tzinfo=pytz.timezone('Africa/Abidjan'))
-    cell_chunk = await con.fetchval(
-        "SELECT show_chunks('history', newer_than => $1,"
-        "older_than => $2)", newer_than, older_than)
-    await con.execute('SELECT compress_chunk($1)', cell_chunk)
+    cell_chunks = await con.fetch("SELECT show_chunks('history', "
+        f"newer_than => TIMESTAMPTZ '{newer_than}', "
+        f"older_than => TIMESTAMPTZ '{older_than}')")
+    await con.executemany('SELECT compress_chunk($1)', cell_chunks)
     await con.close()
 
 
@@ -35,11 +34,14 @@ async def create_hypertable(conn_args):
     con = await asyncpg.connect(**conn_args)
     await con.execute(
         "SELECT create_hypertable('history', "
-        "by_range('cell_id_time', INTERVAL '1 year'), "
+        "by_range('cell_id_time', INTERVAL '3000 seconds'), "
         "if_not_exists => TRUE)")
     await con.execute(
-        "ALTER TABLE 'history' SET (timescaledb.compress = TRUE, "
+        "ALTER TABLE history SET (timescaledb.compress = TRUE, "
         "timescaledb.compress_orderby = 'cell_id_time ASC')")
+    await con.execute(
+        "SELECT add_compression_policy('history', "
+        "compress_created_before => INTERVAL '10 minutes')")
     await con.close()
 
 
@@ -123,10 +125,10 @@ async def initialize_tables(conn_args: dict[str, Any], table_id: str):
         '(seqname SERIAL PRIMARY KEY, fullname TEXT UNIQUE)')
     if table_id == 'history':
         await con.execute(
-            f'CREATE TABLE IF NOT EXISTS "{table_id}" (cell_id_time TIMESTAMPTZ)')
+            'CREATE TABLE IF NOT EXISTS history (cell_id_time TIMESTAMPTZ)')
     elif table_id == 'configuration':
         await con.execute(
-            f'CREATE TABLE IF NOT EXISTS "{table_id}" (cell_id SERIAL '
+            'CREATE TABLE IF NOT EXISTS configuration (cell_id SERIAL '
             'PRIMARY KEY)')
     else:
         raise NameError(f'Unrecognized table_id: {table_id}.')
@@ -135,7 +137,7 @@ async def initialize_tables(conn_args: dict[str, Any], table_id: str):
     return field_to_placeholder
 
 
-def serialize_with_types(d: dict[str, Any], default: Callable):
+def serialize_with_types(d: dict[str, Any], default: Callable, first_emit: bool, config_table: bool):
     """
     Serialize flattened dictionary with orjson and get PostgreSQL types for
     each field.
@@ -154,6 +156,11 @@ def serialize_with_types(d: dict[str, Any], default: Callable):
             default=default)
         py_val = orjson.loads(bin_val)
         pg_type = get_pg_type(py_val)
+        if first_emit and 'empty list' in pg_type:
+            if not config_table:
+                raise TypeError(f'({field}) contains an empty list. PostgreSQL '
+                                'cannot infer correct column type to create.')
+            pg_type = 'jsonb'
         # PostgreSQL JSONB is just binary string with "1" byte prepended
         insert_dict[field] = b"\x01" + bin_val if pg_type == 'jsonb' else py_val
         col_types[field] = pg_type
@@ -187,11 +194,12 @@ async def insert_data(conn_args: dict[str, Any], cell_id: int,
     columns = [str(field_to_placeholder[k]) for k in insert_dict]
     if cell_id is None and table_id == 'configuration':
         # Inserting the configuration row should generate a unique cell ID
+        # Python dates cannot be year 0, so increment by 1
         quoted_columns = ', '.join((f'"{c}"' for c in columns))
         cmd_params = ', '.join((f'${i+1}' for i in range(len(columns))))
         insert_cmd = (f"INSERT INTO {table_id} ({quoted_columns})"
             f" VALUES ({cmd_params}) RETURNING cell_id")
-        cell_id = await conn.fetchval(insert_cmd, *insert_dict.values())
+        cell_id = await conn.fetchval(insert_cmd, *insert_dict.values()) + 1
     else:
         cell_id_time = datetime(cell_id, 1, 1) + timedelta(
             seconds=insert_dict['time'])
@@ -257,11 +265,16 @@ def get_pg_type(py_val: Any):
     elif isinstance(py_val, int):
         return 'bigint'
     elif isinstance(py_val, float):
-        return 'numeric'
+        return 'double precision'
     if isinstance(py_val, str):
         return 'text'
-    else:
-        return 'jsonb'
+    elif isinstance(py_val, list):
+        if len(py_val) > 0:
+            inner_pg_type = get_pg_type(py_val[0])
+            if 'jsonb' not in inner_pg_type:
+                return  inner_pg_type + '[]'
+        return 'empty list'
+    return 'jsonb'
 
 
 def reorganize_data(d: dict, experiment_id: str):
@@ -319,15 +332,13 @@ class PgtablesEmitter(Emitter):
             'database': config.get('database', 'tsdb'),
             'password': config.get('password', None)
         }
-        self.executor = ThreadPoolExecutor()
+        # self.executor = ThreadPoolExecutor()
+        self.executor = ProcessPoolExecutor(1)
         self.field_to_placeholder = {}
         self.hypertable_created = False
+        self.first_emit = set()
         self.cell_id = None
         self.fallback_serializer = make_fallback_serializer_function()
-        atexit.register(self._compress_chunk)
-
-    def _compress_chunk(self):
-        asyncio.run(compress_chunk(self.connection_args, self.cell_id))
 
     def emit(self, data: dict[str, Any]):
         """Adds data to queue to be handled by :py:func:`~.main_process`"""
@@ -341,7 +352,8 @@ class PgtablesEmitter(Emitter):
         for d in emit_dicts:
             flat_dict = dict(flatten_dict(d))
             insert_dict, col_types = serialize_with_types(
-                flat_dict, self.fallback_serializer)
+                flat_dict, self.fallback_serializer, table_id not in self.first_emit, table_id == 'configuration')
+            self.first_emit.add(table_id)
             # New columns needed when new Stores are created
             new_cols = set(insert_dict) - set(self.field_to_placeholder[table_id])
             if len(new_cols) > 0:
