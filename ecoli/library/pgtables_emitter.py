@@ -17,54 +17,30 @@ INDEXES_TO_CREATE = [
 """Default indexes to create for ``configuration`` table."""
 
 
-async def compress_chunk(conn_args, cell_id):
-    con = await asyncpg.connect(**conn_args)
-    newer_than = datetime(
-        cell_id, 1, 1, tzinfo=pytz.timezone('Africa/Abidjan'))
-    older_than = datetime(
-        cell_id+1, 1, 1, tzinfo=pytz.timezone('Africa/Abidjan'))
-    cell_chunks = await con.fetch("SELECT show_chunks('history', "
-        f"newer_than => TIMESTAMPTZ '{newer_than}', "
-        f"older_than => TIMESTAMPTZ '{older_than}')")
-    await con.executemany('SELECT compress_chunk($1)', cell_chunks)
-    await con.close()
-
-
 async def create_hypertable(conn_args):
     con = await asyncpg.connect(**conn_args)
+    await con.execute('CREATE TABLE IF NOT EXISTS history_colnames ('
+        'seqname SERIAL PRIMARY KEY, fieldname TEXT UNIQUE)')
+    await con.execute('CREATE TABLE IF NOT EXISTS history ('
+        'exp_id_time TIMESTAMPTZ, agent_id TEXT)')
     await con.execute(
         "SELECT create_hypertable('history', "
-        "by_range('cell_id_time', INTERVAL '3000 seconds'), "
+        "by_range('exp_id_time', INTERVAL '400 seconds'), "
         "if_not_exists => TRUE)")
+    await con.execute('CREATE INDEX IF NOT EXISTS agent_exp_id_idx '
+        'ON history (agent_id, exp_id_time)')
     await con.execute(
         "ALTER TABLE history SET (timescaledb.compress = TRUE, "
-        "timescaledb.compress_orderby = 'cell_id_time ASC')")
+        "timescaledb.compress_orderby = 'exp_id_time',"
+        "timescaledb.compress_segmentby = 'agent_id')")
     await con.execute(
         "SELECT add_compression_policy('history', "
-        "compress_created_before => INTERVAL '10 minutes')")
+        "compress_created_before => INTERVAL '5 minutes', "
+        "if_not_exists => TRUE)")
     await con.close()
 
 
-async def create_indexes(conn_args: dict[str, Any],
-                         field_to_placeholder: dict[str, int]):
-    """
-    Create indexes for faster queries.
-
-    Args:
-        conn_args: Keyword arguments for :py:func:`asyncpg.connect`
-        field_to_placeholder: Mapping of field names to placeholder
-            column names (from :py:func:`~.map_field_to_placeholder`)
-    """
-    con = await asyncpg.connect(**conn_args)
-    for index in INDEXES_TO_CREATE:
-        placeholder = field_to_placeholder['configuration'][index]
-        await con.execute(
-            f'CREATE INDEX IF NOT EXISTS "configuration_{placeholder}"'
-            f'ON configuration ("{placeholder}")')
-    await con.close()
-
-
-async def add_new_fields(conn_args: dict[str, Any], table_id: str,
+async def add_new_fields(conn_args: dict[str, Any],
                          field_types: dict[str, str]) -> dict[str, str]:
     """
     Create new fields in a table.
@@ -79,97 +55,31 @@ async def add_new_fields(conn_args: dict[str, Any], table_id: str,
         Mapping of fields to placeholder names after any new fields added.
     """
     con = await asyncpg.connect(**conn_args)
-    # fullname has UNIQUE constraint and should raise a conflict for
+    # fieldname has UNIQUE constraint and should raise a conflict for
     # duplicates. We tell PostgreSQL to skip inserting these duplicates.
-    cmd_prefix = f'INSERT INTO "{table_id}_colnames" (fullname) VALUES '
+    cmd_prefix = f'INSERT INTO history_colnames (fieldname) VALUES '
     col_values = []
     for i in range(len(field_types)):
         col_values.append(f'(${i+1})')
     col_values = ", ".join(col_values)
     cmd = ''.join([cmd_prefix, col_values, ' ON CONFLICT DO NOTHING'])
     await con.execute(cmd, *field_types)
-    field_to_placeholder = await map_field_to_placeholder(con, table_id)
+    res = await con.fetch(
+        f"SELECT (fieldname, seqname) FROM history_colnames")
+    field_to_placeholder = dict(tuple(i)[0] for i in res)
     col_str = [f'"{field_to_placeholder[k]}" {v}'
                     for k, v in field_types.items()]
     # If any new column names are duplicates, nothing should happen.
     add_cols = ', '.join([f'ADD COLUMN IF NOT EXISTS {i}' for i in col_str])
-    await con.execute(f'ALTER TABLE "{table_id}" {add_cols}')
+    await con.execute(f'ALTER TABLE history {add_cols}')
     await con.close()
     return field_to_placeholder
-
-
-async def map_field_to_placeholder(con: asyncpg.Connection, table_id: str):
-    """
-    Get mapping of full field names to placeholder column names.
-    """
-    res = await con.fetch(
-        f"SELECT (fullname, seqname) FROM {table_id}_colnames")
-    return dict(tuple(i)[0] for i in res)
-
-
-async def initialize_tables(conn_args: dict[str, Any], table_id: str):
-    """
-    Create table with given name. Also creates a helper table that maps
-    field names potentially longer than PostgreSQL's 63 char limit to a
-    much shorter placeholder column name used in the actual table.
-
-    Args:
-        conn_args: Keyword arguments for :py:func:`asyncpg.connect`
-        table_id: Name of table to create
-
-    Returns:
-        Mapping of fields to placeholder names.
-    """
-    con = await asyncpg.connect(**conn_args)
-    await con.execute(f'CREATE TABLE IF NOT EXISTS "{table_id}_colnames" '
-        '(seqname SERIAL PRIMARY KEY, fullname TEXT UNIQUE)')
-    if table_id == 'history':
-        await con.execute(
-            'CREATE TABLE IF NOT EXISTS history (cell_id_time TIMESTAMPTZ)')
-    elif table_id == 'configuration':
-        await con.execute(
-            'CREATE TABLE IF NOT EXISTS configuration (cell_id SERIAL '
-            'PRIMARY KEY)')
-    else:
-        raise NameError(f'Unrecognized table_id: {table_id}.')
-    field_to_placeholder = await map_field_to_placeholder(con, table_id)
-    await con.close()
-    return field_to_placeholder
-
-
-def serialize_with_types(d: dict[str, Any], default: Callable, first_emit: bool, config_table: bool):
-    """
-    Serialize flattened dictionary with orjson and get PostgreSQL types for
-    each field.
-
-    Args:
-        d: Flattened dictionary
-        default: Fallback serializer function for orjson
-
-    Returns:
-        Serialized dictionary, mapping of field names to PostgreSQL types
-    """
-    insert_dict = {}
-    col_types = {}
-    for field, v in d.items():
-        bin_val = orjson.dumps(v, option=orjson.OPT_SERIALIZE_NUMPY,
-            default=default)
-        py_val = orjson.loads(bin_val)
-        pg_type = get_pg_type(py_val)
-        if first_emit and 'empty list' in pg_type:
-            if not config_table:
-                raise TypeError(f'({field}) contains an empty list. PostgreSQL '
-                                'cannot infer correct column type to create.')
-            pg_type = 'jsonb'
-        # PostgreSQL JSONB is just binary string with "1" byte prepended
-        insert_dict[field] = b"\x01" + bin_val if pg_type == 'jsonb' else py_val
-        col_types[field] = pg_type
-    return insert_dict, col_types
 
 
 async def insert_data(conn_args: dict[str, Any], cell_id: int,
-                      table_id: str, insert_dict: dict[str, Any],
-                      field_to_placeholder: dict[str, int]):
+                      insert_dict: dict[str, Any],
+                      field_to_placeholder: dict[str, int],
+                      time: float, agent_id: str):
     """
     Called by :py:func:`~.executor_proc` to insert data.
 
@@ -177,43 +87,22 @@ async def insert_data(conn_args: dict[str, Any], cell_id: int,
         conn_args: Keyword arguments for :py:func:`asyncpg.connect`
         cell_id: Unique identifier for data emitted by one simulated cell
         inserts: Tuples ``(table_id, values, columns)``
-
-    Returns:
-        Cell ID that was either just generated (first insert into
-        ``configuration`` table) or propagated through simulation
     """
+    cell_id_time = datetime(cell_id, 1, 1) + timedelta(
+        seconds=time)
+    records = [(cell_id_time, agent_id, *insert_dict.values())]
+    columns = (str(field_to_placeholder[k]) for k in insert_dict)
+    columns = ['exp_id_time', 'agent_id', *columns]
     conn = await asyncpg.connect(**conn_args)
-    # We've already serialized JSONB using orjson
-    await conn.set_type_codec(
-        "jsonb",
-        encoder=lambda data: data,
-        decoder=lambda data: orjson.loads(data[1:]),
-        schema="pg_catalog",
-        format="binary"
-    )
-    columns = [str(field_to_placeholder[k]) for k in insert_dict]
-    if cell_id is None and table_id == 'configuration':
-        # Inserting the configuration row should generate a unique cell ID
-        # Python dates cannot be year 0, so increment by 1
-        quoted_columns = ', '.join((f'"{c}"' for c in columns))
-        cmd_params = ', '.join((f'${i+1}' for i in range(len(columns))))
-        insert_cmd = (f"INSERT INTO {table_id} ({quoted_columns})"
-            f" VALUES ({cmd_params}) RETURNING cell_id")
-        cell_id = await conn.fetchval(insert_cmd, *insert_dict.values()) + 1
-    else:
-        cell_id_time = datetime(cell_id, 1, 1) + timedelta(
-            seconds=insert_dict['time'])
-        records = [(cell_id_time, *insert_dict.values())]
-        columns = ['cell_id_time', *columns]
-        await conn.copy_records_to_table(
-            table_id, records=records, columns=columns)
+    await conn.copy_records_to_table(
+        'history', records=records, columns=columns)
     await conn.close()
-    return cell_id
 
 
 def executor_proc(conn_args: dict[str, Any], cell_id: int,
-                  table_id: str, insert_dict: dict[str, Any],
-                  field_to_placeholder: dict[str, int]):
+                  insert_dict: dict[str, Any],
+                  field_to_placeholder: dict[str, int],
+                  time: float, agent_id: str):
     """
     Called by ThreadPoolExecutor insert data.
 
@@ -227,27 +116,37 @@ def executor_proc(conn_args: dict[str, Any], cell_id: int,
         Cell ID used to identify all rows from this simulation.
     """
     return asyncio.run(insert_data(
-        conn_args, cell_id, table_id, insert_dict, field_to_placeholder))
+        conn_args, cell_id, insert_dict, field_to_placeholder, time, agent_id))
 
 
 _FLAG_FIRST = object()
 
-def flatten_dict(d: dict):
+def flatten_and_serialize(d: dict, default: Callable, first_run: bool):
     """
     Flatten nested dictionary down to key-value pairs where each key
     concatenates all the keys needed to reach the corresponding value
     in the input into comma-separated string. Prunes empty dicts.
     """
     results = []
-    def visit(subdict, results, partialKey):
-        for k,v in subdict.items():
+    result_types = []
+    def visit(subdict, results, result_types, partialKey):
+        for k, v in subdict.items():
             newKey = k if partialKey==_FLAG_FIRST else f'{partialKey}, {k}'
             if isinstance(v, Mapping):
-                visit(v, results, newKey)
+                visit(v, results, result_types, newKey)
             else:
-                results.append((newKey, v))
-    visit(d, results, _FLAG_FIRST)
-    return results
+                py_val = orjson.loads(orjson.dumps(
+                    v, option=orjson.OPT_SERIALIZE_NUMPY, default=default))
+                results.append((newKey, py_val))
+                pg_type = get_pg_type(py_val)
+                if first_run and 'empty list' in pg_type:
+                    raise TypeError(f'({newKey}) contains an empty list. PostgreSQL '
+                                    'cannot infer correct column type to create.')
+                elif 'unsupported' in pg_type:
+                    raise TypeError(f'({newKey}) contains unsupported type.')
+                result_types.append((newKey, pg_type))
+    visit(d, results, result_types, _FLAG_FIRST)
+    return dict(results), dict(result_types)
 
 
 def get_pg_type(py_val: Any):
@@ -257,8 +156,8 @@ def get_pg_type(py_val: Any):
 
     Args:
         py_val: Output from calling :py:func:`orjson.dumps` then
-            `orjson.loads` on an object. Everything that is not
-            a scalar built-in type is emitted to a JSONB column.
+            `orjson.loads` on an object. Must be a scalar Python
+            type or a non-empty list.
     """
     if isinstance(py_val, bool):
         return 'boolean'
@@ -271,40 +170,41 @@ def get_pg_type(py_val: Any):
     elif isinstance(py_val, list):
         if len(py_val) > 0:
             inner_pg_type = get_pg_type(py_val[0])
-            if 'jsonb' not in inner_pg_type:
-                return  inner_pg_type + '[]'
+            return  inner_pg_type + '[]'
         return 'empty list'
-    return 'jsonb'
+    return 'unsupported'
 
 
-def reorganize_data(d: dict, experiment_id: str):
-    """
-    Put agent data on top level and add metadata keys ``agent_id``,
-    ``generation``, ``time``, and ``experiment_id`` for querying.
-
-    TODO: Figure out how to handle colony emit data.
-
-    Returns:
-        List of dictionaries. If ``d`` contains multiple agents,
-        each agent gets its own dictionary.
-    """
-    new_dicts = []
-    if 'agents' in d:
-        for agent_data in d['agents'].values():
-            agent_data_copy = dict(agent_data)
-            agent_data_copy['time'] = d['time']
-            new_dicts.append(agent_data_copy)
-    else:
-        metadata = d.pop('metadata', None)
-        if metadata is not None:
-            d = {**metadata, **d}
-        d['experiment_id'] = experiment_id
-        d['generation'] = len(d['agent_id'])
-        # TODO: These keys need to be added
-        d['variant'] = None
-        d['seed'] = None
-        new_dicts.append(d)
-    return new_dicts
+async def emit_config(conn_args, d, default):
+    metadata = d.pop('metadata', None)
+    if metadata is not None:
+        d = {**metadata, **d}
+    # TODO: These keys need to be added
+    d['generation'] = None
+    d['variant'] = None
+    d['seed'] = None
+    conn = await asyncpg.connect(**conn_args)
+    await conn.execute(f'CREATE TABLE IF NOT EXISTS configuration '
+        '(cell_id SERIAL PRIMARY KEY, config JSONB)')
+    for index in INDEXES_TO_CREATE:
+        await conn.execute(f"CREATE INDEX IF NOT EXISTS {index}_idx ON "
+            f"configuration((config->>'{index}'))")
+    # PostgreSQL JSONB is binary string with "1" byte prepended
+    await conn.set_type_codec(
+        "jsonb",
+        encoder=lambda data: b"\x01" + orjson.dumps(data,
+            option=orjson.OPT_SERIALIZE_NUMPY, default=default),
+        decoder=lambda data: orjson.loads(data[1:]),
+        schema="pg_catalog",
+        format="binary"
+    )
+    # Inserting the configuration should generate a unique cell ID
+    # that we can use to set the year for the cell_id_time column
+    # used to uniquely identify each data point in the history table
+    insert_cmd = ("INSERT INTO configuration (config)"
+        " VALUES ($1) RETURNING cell_id")
+    # Python years cannot be year 0, so increment by 1
+    return await conn.fetchval(insert_cmd, d) + 1
 
 
 class PgtablesEmitter(Emitter):
@@ -328,48 +228,42 @@ class PgtablesEmitter(Emitter):
         self.connection_args = {
             'host': config.get('host', None),
             'port': config.get('port', None),
-            'user': config.get('user', 'seancheah'),
+            'user': config.get('user', 'covertlab'),
             'database': config.get('database', 'tsdb'),
             'password': config.get('password', None)
         }
         # self.executor = ThreadPoolExecutor()
         self.executor = ProcessPoolExecutor(1)
         self.field_to_placeholder = {}
-        self.hypertable_created = False
-        self.first_emit = set()
         self.cell_id = None
+        self.first_history_emit = True
         self.fallback_serializer = make_fallback_serializer_function()
 
     def emit(self, data: dict[str, Any]):
-        """Adds data to queue to be handled by :py:func:`~.main_process`"""
-        table_id = data['table']
-        # First time this is run, create tables if needed and cache
-        # mapping of field names to placeholder names
-        if not self.field_to_placeholder.get(table_id, False):
-            self.field_to_placeholder[table_id] = asyncio.run(
-                initialize_tables(self.connection_args, table_id))
-        emit_dicts = reorganize_data(data['data'], self.experiment_id)
-        for d in emit_dicts:
-            flat_dict = dict(flatten_dict(d))
-            insert_dict, col_types = serialize_with_types(
-                flat_dict, self.fallback_serializer, table_id not in self.first_emit, table_id == 'configuration')
-            self.first_emit.add(table_id)
+        # Config will always be first emit
+        if data['table'] == 'configuration':
+            self.cell_id = asyncio.run(emit_config(
+                self.connection_args, data, self.fallback_serializer))
+            return
+        time = data['data']['time']
+        for agent_id, agent_data in data['data']['agents'].items():
+            agent_data['generation'] = len(agent_id)
+            agent_data, data_types = flatten_and_serialize(
+                agent_data, self.fallback_serializer, self.first_history_emit)
+            self.first_history_emit = False
             # New columns needed when new Stores are created
-            new_cols = set(insert_dict) - set(self.field_to_placeholder[table_id])
+            new_cols = set(agent_data) - set(self.field_to_placeholder)
             if len(new_cols) > 0:
-                new_cols = {k: col_types[k] for k in new_cols}
-                self.field_to_placeholder[table_id] = asyncio.run(
-                    add_new_fields(self.connection_args, table_id, new_cols))
                 # If starting from a fresh DB, we need to add new cols so
                 # take this opportunity to create TimescaleDB hypertable
-                # from history table and indexes for configuration table
-                if table_id == 'history' and not self.hypertable_created:
-                    asyncio.run(create_hypertable(self.connection_args))
-                    asyncio.run(create_indexes(
-                        self.connection_args, self.field_to_placeholder))
-                    self.hypertable_created = True
-            cell_id_future = self.executor.submit(executor_proc,
-                self.connection_args, self.cell_id, table_id,
-                insert_dict, self.field_to_placeholder[table_id])
-            if self.cell_id is None:
-                self.cell_id = cell_id_future.result()
+                asyncio.run(create_hypertable(self.connection_args))
+                new_col_types = {k: data_types[k] for k in new_cols}
+                self.field_to_placeholder = asyncio.run(
+                    add_new_fields(self.connection_args, new_col_types))
+            # asyncio.run(
+            #     insert_data(self.connection_args, self.cell_id,
+            #     agent_data, self.field_to_placeholder, time, agent_id)
+            # )
+            self.executor.submit(executor_proc,
+                self.connection_args, self.cell_id,
+                agent_data, self.field_to_placeholder, time, agent_id)
