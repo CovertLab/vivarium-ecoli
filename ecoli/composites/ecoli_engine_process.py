@@ -399,7 +399,7 @@ def run_simulation(config):
         progress_bar=config['progress_bar'],
         metadata=metadata,
         profile=config['profile'],
-        initial_global_time=config.get('start_time', 0)
+        initial_global_time=config.get('start_time', 0.)
     )
     # Unnecessary reference to initial_state
     engine.initial_state = None

@@ -382,7 +382,7 @@ class MetabolismRedux(Step):
                 })
             },
 
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']},
             'next_update_time': {
                 '_default': self.parameters['time_step'],

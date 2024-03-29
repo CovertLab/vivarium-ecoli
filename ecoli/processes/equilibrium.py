@@ -89,7 +89,7 @@ class Equilibrium(PartitionedProcess):
                 'mass': listener_schema({
                     'cell_mass': 0}),
                 'equilibrium_listener': {**listener_schema({
-                    'reaction_rates': ([0] * len(self.reaction_ids),
+                    'reaction_rates': ([0.] * len(self.reaction_ids),
                         self.reaction_ids)})}},
             'timestep': {'_default': self.parameters['time_step']}
         }

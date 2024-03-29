@@ -250,7 +250,7 @@ class Metabolism(Step):
                         self.conc_update_molecules),
                     'catalyst_counts': ([0] * len(self.model.catalyst_ids),
                         self.model.catalyst_ids),
-                    'translation_gtp': 0,
+                    'translation_gtp': 0.,
                     'coefficient': 0.0,
                     'unconstrained_molecules': (
                         [False] * len(self.exchange_molecules),
@@ -328,19 +328,19 @@ class Metabolism(Step):
                     '_updater': 'set',
                     '_divider': 'empty_dict'},
                 'gtp_to_hydrolyze': {
-                    '_default': 0,
+                    '_default': 0.,
                     '_emit': True,
                     '_updater': 'set',
                     '_divider': 'zero',
                 },
                 'aa_exchange_rates': {
-                    '_default': 0,
+                    '_default': 0.,
                     '_emit': True,
                     '_updater': 'set',
                     '_divider': 'zero'
                 },
             },
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']},
             'next_update_time': {
                 '_default': self.parameters['time_step'],

@@ -130,7 +130,7 @@ class MonomerCounts(Step):
                 'active_replisome': numpy_schema('active_replisomes',
                     emit=self.parameters['emit_unique']),
             },
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']}
         }
     

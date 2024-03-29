@@ -188,7 +188,7 @@ class RnaMaturation(PartitionedProcess):
             'listeners': {
                 'rna_maturation_listener': {
                     'total_maturation_events': unprocessed_rna_counts.sum(),
-                    'total_degraded_ntps': n_added_bases_from_maturation.sum(),
+                    'total_degraded_ntps': n_added_bases_from_maturation.sum(dtype=int),
                     'unprocessed_rnas_consumed': unprocessed_rna_counts,
                     'mature_rnas_generated': n_mature_rnas,
                     'maturation_enzyme_counts': counts(

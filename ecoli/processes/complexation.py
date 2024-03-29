@@ -106,7 +106,7 @@ class Complexation(PartitionedProcess):
             'bulk': [(self.molecule_idx, outcome)],
             'listeners': {
                 'complexation_listener': {
-                    'complexation_events': complexationEvents
+                    'complexation_events': complexationEvents.astype(int)
                 }
             }
         }

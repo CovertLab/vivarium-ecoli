@@ -54,13 +54,13 @@ class RnaSynthProb(Step):
                 'bound_TF_indexes': ([], self.tf_ids),
                 'bound_TF_coordinates': [],
                 'bound_TF_domains': [],
-                'target_rna_synth_prob': ([0] * self.n_TU, self.rna_ids),
-                'actual_rna_synth_prob': ([0] * self.n_TU, self.rna_ids),
-                'actual_rna_synth_prob_per_cistron': ([0] * self.n_cistron,
+                'target_rna_synth_prob': ([0.] * self.n_TU, self.rna_ids),
+                'actual_rna_synth_prob': ([0.] * self.n_TU, self.rna_ids),
+                'actual_rna_synth_prob_per_cistron': ([0.] * self.n_cistron,
                     self.cistron_ids),
-                'target_rna_synth_prob_per_cistron': ([0] * self.n_cistron,
+                'target_rna_synth_prob_per_cistron': ([0.] * self.n_cistron,
                     self.cistron_ids),
-                'expected_rna_init_per_cistron': ([0] * self.n_cistron,
+                'expected_rna_init_per_cistron': ([0.] * self.n_cistron,
                     self.cistron_ids),
                 'n_bound_TF_per_TU': (
                     [[0] * self.n_TF] * self.n_TU, self.rna_ids),
@@ -71,7 +71,7 @@ class RnaSynthProb(Step):
                 emit=self.parameters['emit_unique']),
             'genes': numpy_schema('genes',
                 emit=self.parameters['emit_unique']),
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']},
         }
     

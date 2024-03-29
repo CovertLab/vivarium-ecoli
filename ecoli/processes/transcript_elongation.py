@@ -194,7 +194,7 @@ class TranscriptElongation(PartitionedProcess):
                     'count_rna_synthesized': (
                         [0] * len(self.rnaIds), self.rnaIds),
                     'attenuation_probability': (
-                        [0] * len(self.attenuated_rnas), self.attenuated_rnas),
+                        [0.] * len(self.attenuated_rnas), self.attenuated_rnas),
                     'counts_attenuated': (
                         [0] * len(self.attenuated_rnas), self.attenuated_rnas)}),
                 'growth_limits': listener_schema({
@@ -272,7 +272,7 @@ class TranscriptElongation(PartitionedProcess):
             'growth_limits': {
                 'ntp_pool_size': counts(states['bulk'], self.ntps_idx),
                 'ntp_request_size': (maxFractionalReactionLimit 
-                    * sequenceComposition)
+                    * sequenceComposition).astype(int)
             }
         }
 
@@ -465,7 +465,7 @@ class TranscriptElongation(PartitionedProcess):
         }
 
         # Attenuation removes RNAs and RNAPs
-        counts_attenuated = np.zeros(len(self.attenuated_rna_indices))
+        counts_attenuated = np.zeros(len(self.attenuated_rna_indices), dtype=int)
         if np.any(rna_to_attenuate):
             for idx in TU_index_partial_RNAs[rna_to_attenuate]:
                 counts_attenuated[self.attenuated_rna_indices_lookup[idx]] += 1

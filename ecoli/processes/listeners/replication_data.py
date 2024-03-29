@@ -54,7 +54,7 @@ class ReplicationData(Step):
                 emit=self.parameters['emit_unique']),
             'DnaA_boxes': numpy_schema('DnaA_boxes',
                 emit=self.parameters['emit_unique']),
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']}
         }
     

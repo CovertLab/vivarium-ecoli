@@ -61,7 +61,7 @@ class RnapData(Step):
                     'active_rnap_unique_indexes': [2**31],
                     'active_rnap_on_stable_RNA_indexes': [2**31],
                     'active_rnap_n_bound_ribosomes': [-1],
-                    'rna_init_event_per_cistron': ([0] * len(self.cistron_ids),
+                    'rna_init_event_per_cistron': ([0.] * len(self.cistron_ids),
                         self.cistron_ids)
                 })
             },
@@ -71,7 +71,7 @@ class RnapData(Step):
                 emit=self.parameters['emit_unique']),
             'active_ribosomes': numpy_schema('active_ribosome',
                 emit=self.parameters['emit_unique']),
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']},
             'next_update_time': {
                 '_default': self.parameters['time_step'],

@@ -80,7 +80,7 @@ class RibosomeData(Step):
                 emit=self.parameters['emit_unique']),
             'active_ribosomes': numpy_schema('active_ribosome',
                 emit=self.parameters['emit_unique']),
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']},
             'next_update_time': {
                 '_default': self.parameters['time_step'],
@@ -137,11 +137,11 @@ class RibosomeData(Step):
             rRNA_initiated_TU)
         rRNA_cistrons_init_prob = self.rRNA_cistron_tu_mapping_matrix.dot(
             rRNA_init_prob_TU)
-        total_rRNA_initiated = np.sum(rRNA_initiated_TU)
+        total_rRNA_initiated = np.sum(rRNA_initiated_TU, dtype=int)
         total_rRNA_init_prob = np.sum(rRNA_init_prob_TU)
-        rRNA5S_initiated = np.sum(rRNA_cistrons_produced[self.rRNA_is_5S])
-        rRNA16S_initiated = np.sum(rRNA_cistrons_produced[self.rRNA_is_16S])
-        rRNA23S_initiated = np.sum(rRNA_cistrons_produced[self.rRNA_is_23S])
+        rRNA5S_initiated = np.sum(rRNA_cistrons_produced[self.rRNA_is_5S], dtype=int)
+        rRNA16S_initiated = np.sum(rRNA_cistrons_produced[self.rRNA_is_16S], dtype=int)
+        rRNA23S_initiated = np.sum(rRNA_cistrons_produced[self.rRNA_is_23S], dtype=int)
         rRNA5S_init_prob = np.sum(rRNA_cistrons_init_prob[self.rRNA_is_5S])
         rRNA16S_init_prob = np.sum(rRNA_cistrons_init_prob[self.rRNA_is_16S])
         rRNA23S_init_prob = np.sum(rRNA_cistrons_init_prob[self.rRNA_is_23S])

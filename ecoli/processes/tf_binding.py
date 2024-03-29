@@ -134,7 +134,7 @@ class TfBinding(Step):
 
             'listeners': {
                 'rna_synth_prob': listener_schema({
-                    'p_promoter_bound': ([0] * self.n_TF, self.tf_ids),
+                    'p_promoter_bound': ([0.] * self.n_TF, self.tf_ids),
                     'n_promoter_bound': ([0] * self.n_TF, self.tf_ids),
                     'n_actual_bound': ([0] * self.n_TF, self.tf_ids),
                     'n_available_promoters': ([0] * self.n_TF, self.tf_ids),
@@ -145,7 +145,7 @@ class TfBinding(Step):
                 '_default': self.parameters['time_step'],
                 '_updater': 'set',
                 '_divider': 'set'},
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']},
         }
     
@@ -195,9 +195,9 @@ class TfBinding(Step):
 
         # Create vectors for storing values
         pPromotersBound = np.zeros(self.n_TF, dtype=np.float64)
-        nPromotersBound = np.zeros(self.n_TF, dtype=np.float64)
-        nActualBound = np.zeros(self.n_TF, dtype=np.float64)
-        n_promoters = np.zeros(self.n_TF, dtype=np.float64)
+        nPromotersBound = np.zeros(self.n_TF, dtype=int)
+        nActualBound = np.zeros(self.n_TF, dtype=int)
+        n_promoters = np.zeros(self.n_TF, dtype=int)
         n_bound_TF_per_TU = np.zeros((self.n_TU, self.n_TF), dtype=np.int16)
 
         update = {'bulk': []}

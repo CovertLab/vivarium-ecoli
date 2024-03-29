@@ -127,9 +127,9 @@ class PolypeptideInitiation(PartitionedProcess):
                 'ribosome_data': listener_schema({
                     'did_initialize': 0,
                     'target_prob_translation_per_transcript': (
-                        [0] * len(self.monomer_ids), self.monomer_ids),
+                        [0.] * len(self.monomer_ids), self.monomer_ids),
                     'actual_prob_translation_per_transcript': (
-                        [0] * len(self.monomer_ids), self.monomer_ids),
+                        [0.] * len(self.monomer_ids), self.monomer_ids),
                     'mRNA_is_overcrowded': ([False] * len(self.monomer_ids),
                         self.monomer_ids),
                     'ribosome_init_event_per_monomer': (

@@ -190,9 +190,9 @@ class RnaDegradation(PartitionedProcess):
                     'cell_mass': 0.0,
                     'dry_mass': 0.0}),
                 'rna_degradation_listener': listener_schema({
-                    'fraction_active_endornases': 0,
-                    'diff_relative_first_order_decay': 0,
-                    'fract_endo_rrna_counts': 0,
+                    'fraction_active_endornases': 0.,
+                    'diff_relative_first_order_decay': 0.,
+                    'fract_endo_rrna_counts': 0.,
                     'count_rna_degraded': ([0] * len(self.all_rna_ids),
                         self.all_rna_ids),
                     'count_RNA_degraded_per_cistron': (

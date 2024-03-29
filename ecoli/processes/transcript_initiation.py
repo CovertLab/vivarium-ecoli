@@ -554,7 +554,7 @@ class TranscriptInitiation(PartitionedProcess):
 
         # Write outputs to listeners
         update['listeners']['ribosome_data'] = {
-            'rRNA_initiated_TU': rRNA_initiations,
+            'rRNA_initiated_TU': rRNA_initiations.astype(int),
             'rRNA_init_prob_TU': rRNA_initiations / float(n_RNAPs_to_activate),
             'total_rna_init': n_RNAPs_to_activate}
 

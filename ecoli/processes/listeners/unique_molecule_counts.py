@@ -51,7 +51,7 @@ class UniqueMoleculeCounts(Step):
                     for mol_id in self.unique_ids
                 })
             },
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']}
         }
         ports['unique'].update({

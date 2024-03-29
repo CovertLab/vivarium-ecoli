@@ -31,7 +31,7 @@ class MarkDPeriod(Step):
         return {
             'full_chromosome': {},
             'global_time': {
-                '_default': 0
+                '_default': 0.
             },
             'divide': {
                 '_default': False,

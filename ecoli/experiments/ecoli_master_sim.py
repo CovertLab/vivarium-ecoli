@@ -706,6 +706,7 @@ class EcoliSim:
             'emit_processes': self.emit_processes,
             'emit_config': self.emit_config,
             'emitter': self.emitter,
+            'initial_global_time': self.initial_global_time
         }
         if self.experiment_id:
             # Store backup of base experiment ID,
@@ -898,7 +899,7 @@ def main():
         introduced that makes the model faster to run in parallel 
         instead of sequentially.
     """
-    import multiprocessing; multiprocessing.set_start_method('spawn')
+    # import multiprocessing; multiprocessing.set_start_method('spawn')
     ecoli_sim = EcoliSim.from_cli()
     ecoli_sim.build_ecoli()
     ecoli_sim.run()

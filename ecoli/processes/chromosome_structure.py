@@ -158,7 +158,7 @@ class ChromosomeStructure(Step):
                 emit=self.parameters['emit_unique']),
             'genes': numpy_schema('genes',
                 emit=self.parameters['emit_unique']),
-            'global_time': {'_default': 0},
+            'global_time': {'_default': 0.},
             'timestep': {'_default': self.parameters['time_step']},
             'next_update_time': {
                 '_default': self.parameters['time_step'],
