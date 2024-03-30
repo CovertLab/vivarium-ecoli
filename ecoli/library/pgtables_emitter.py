@@ -2,7 +2,6 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from typing import Any, Callable, Iterable, Mapping
 from datetime import datetime, timedelta
-import pytz
 
 import asyncpg
 import orjson
@@ -121,7 +120,7 @@ def executor_proc(conn_args: dict[str, Any], cell_id: int,
 
 _FLAG_FIRST = object()
 
-def flatten_and_serialize(d: dict, default: Callable, first_run: bool):
+def flatten_and_serialize(d: dict, default: Callable):
     """
     Flatten nested dictionary down to key-value pairs where each key
     concatenates all the keys needed to reach the corresponding value
@@ -129,27 +128,29 @@ def flatten_and_serialize(d: dict, default: Callable, first_run: bool):
     """
     results = []
     result_types = []
+
     def visit(subdict, results, result_types, partialKey):
         for k, v in subdict.items():
-            newKey = k if partialKey==_FLAG_FIRST else f'{partialKey}, {k}'
+            newKey = k if partialKey==_FLAG_FIRST else f'{partialKey}__{k}'
             if isinstance(v, Mapping):
                 visit(v, results, result_types, newKey)
             else:
                 py_val = orjson.loads(orjson.dumps(
                     v, option=orjson.OPT_SERIALIZE_NUMPY, default=default))
-                results.append((newKey, py_val))
-                pg_type = get_pg_type(py_val)
-                if first_run and 'empty list' in pg_type:
-                    raise TypeError(f'({newKey}) contains an empty list. PostgreSQL '
-                                    'cannot infer correct column type to create.')
-                elif 'unsupported' in pg_type:
-                    raise TypeError(f'({newKey}) contains unsupported type.')
+                # Skip empty lists and None values
+                if isinstance(py_val, list) and len(py_val) == 0:
+                    continue
+                elif py_val is None:
+                    continue
+                pg_type = get_pg_type(py_val, newKey)
                 result_types.append((newKey, pg_type))
+                results.append((newKey, py_val))
+
     visit(d, results, result_types, _FLAG_FIRST)
     return dict(results), dict(result_types)
 
 
-def get_pg_type(py_val: Any):
+def get_pg_type(py_val: Any, fieldname: str):
     """
     Return PostgreSQL type to figure out what column type to create
     for an emit value.
@@ -168,11 +169,9 @@ def get_pg_type(py_val: Any):
     if isinstance(py_val, str):
         return 'text'
     elif isinstance(py_val, list):
-        if len(py_val) > 0:
-            inner_pg_type = get_pg_type(py_val[0])
-            return  inner_pg_type + '[]'
-        return 'empty list'
-    return 'unsupported'
+        inner_pg_type = get_pg_type(py_val[0], fieldname)
+        return  inner_pg_type + '[]'
+    raise TypeError(f'({fieldname}) contains unsupported type.')
 
 
 async def emit_config(conn_args, d, default):
@@ -236,7 +235,6 @@ class PgtablesEmitter(Emitter):
         self.executor = ProcessPoolExecutor(1)
         self.field_to_placeholder = {}
         self.cell_id = None
-        self.first_history_emit = True
         self.fallback_serializer = make_fallback_serializer_function()
 
     def emit(self, data: dict[str, Any]):
@@ -249,8 +247,7 @@ class PgtablesEmitter(Emitter):
         for agent_id, agent_data in data['data']['agents'].items():
             agent_data['generation'] = len(agent_id)
             agent_data, data_types = flatten_and_serialize(
-                agent_data, self.fallback_serializer, self.first_history_emit)
-            self.first_history_emit = False
+                agent_data, self.fallback_serializer)
             # New columns needed when new Stores are created
             new_cols = set(agent_data) - set(self.field_to_placeholder)
             if len(new_cols) > 0:
@@ -260,10 +257,6 @@ class PgtablesEmitter(Emitter):
                 new_col_types = {k: data_types[k] for k in new_cols}
                 self.field_to_placeholder = asyncio.run(
                     add_new_fields(self.connection_args, new_col_types))
-            # asyncio.run(
-            #     insert_data(self.connection_args, self.cell_id,
-            #     agent_data, self.field_to_placeholder, time, agent_id)
-            # )
             self.executor.submit(executor_proc,
                 self.connection_args, self.cell_id,
                 agent_data, self.field_to_placeholder, time, agent_id)
