@@ -1,14 +1,18 @@
+import atexit
+import csv
+import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Mapping
-from clickhouse_driver import Client
 
+import clickhouse_connect
 import orjson
+from clickhouse_connect.driver.tools import insert_file
 from vivarium.core.emitter import Emitter
 from vivarium.core.serialize import make_fallback_serializer_function
 
-
 json_enable = {
-    'allow_experimental_object_type': 1
+    'allow_experimental_object_type': 1,
+    'input_format_null_as_default': 1
 }
 
 
@@ -63,23 +67,26 @@ def add_new_fields(conn_args: dict[str, Any],
         ch_type, ch_codec = get_ch_type(k, v)
         col_spec[k] = f'`{k}` {ch_type} CODEC({ch_codec})'
     create_col_spec = ','.join(col_spec.values())
-    client = Client(**conn_args, settings=json_enable, compression='zstd')
-    client.execute(CREATE_CMD.format(table_id, create_col_spec))
+    client = clickhouse_connect.get_client(**conn_args, settings=json_enable)
+    client.command(CREATE_CMD.format(table_id, create_col_spec))
     # Get current columns before we decide to make expensive alterations
-    curr_cols = client.execute(f"SELECT name from system.columns WHERE table='{table_id}'")
-    curr_cols = set(i[0] for i in curr_cols)
-    actual_new_cols = set(new_fields) - curr_cols
+    curr_cols = client.query_np(
+        f"SELECT name from system.columns WHERE table='{table_id}' ORDER BY position")
+    curr_cols = curr_cols[:, 0].tolist()
+    actual_new_cols = set(new_fields) - set(curr_cols)
     if len(actual_new_cols) == 0:
-        return
+        return curr_cols
     add_col_spec = ', ADD COLUMN IF NOT EXISTS '.join(
         [col_spec[k] for k in actual_new_cols])
-    client.execute(
+    client.command(
         f"ALTER TABLE {table_id} ADD COLUMN IF NOT EXISTS {add_col_spec}")
+    curr_cols = client.query_np(
+        f"SELECT name from system.columns WHERE table='{table_id}' ORDER BY position")
+    return curr_cols[:, 0].tolist()
 
 
-def insert_data(conn_args: dict[str, Any],
-                insert_dict: dict[str, Any],
-                table_id: str):
+def insert_data(emit_data: dict[str, Any],
+                column_names: list[str]):
     """
     Called by :py:func:`~.executor_proc` to insert data.
 
@@ -88,13 +95,9 @@ def insert_data(conn_args: dict[str, Any],
         cell_id: Unique identifier for data emitted by one simulated cell
         inserts: Tuples ``(table_id, values, columns)``
     """
-    client = Client(**conn_args, settings=json_enable, compression='zstd')
-    column_names = '`, `'.join(insert_dict.keys())
-    column_names = '`' + column_names + '`'
-    client.execute(
-        f'INSERT INTO {table_id} ({column_names}) VALUES',
-        (list(insert_dict.values()),)
-    )
+    with open('temp_out.tsv', 'a+', newline='') as f:
+        tsv_writer = csv.writer(f, delimiter='\t', lineterminator='\n')
+        tsv_writer.writerow((emit_data.get(k, r'\N') for k in column_names))
 
 _FLAG_FIRST = object()
 
@@ -142,15 +145,26 @@ class ChEmitter(Emitter):
         # Collect connection arguments
         self.connection_args = {
             'host': config.get('host', 'localhost'),
-            'port': config.get('port', 9000),
+            'port': config.get('port', 8123),
             'user': config.get('user', 'default'),
             'database': config.get('database', 'default'),
             'password': config.get('password', '')
         }
         self.executor = ProcessPoolExecutor(1)
-        self.curr_fields = set()
+        self.curr_fields = []
         self.fallback_serializer = make_fallback_serializer_function()
-        self.batched_emits = []
+        atexit.register(self._push_to_db)
+
+    def _push_to_db(self):
+        subprocess.run(
+            ['zstd', 'temp_out.tsv', '-o', 'temp_out.gz', '--rm', '-f'],
+            check=True)
+        client = clickhouse_connect.get_client(
+            **self.connection_args, settings=json_enable)
+        insert_file(client, 'history', 'temp_out.gz', 'TSV', 
+            self.curr_fields, settings=json_enable,
+            compression='zstd')
+        subprocess.run(['rm', 'temp_out.gz'], check=True)
 
     def emit(self, data: dict[str, Any]):
         data = orjson.loads(orjson.dumps(
@@ -167,9 +181,12 @@ class ChEmitter(Emitter):
             # TODO: These keys need to be added
             data['variant'] = 0
             data['time'] = 0
-            add_new_fields(self.connection_args, data, 'configuration')
-            self.executor.submit(insert_data,
+            curr_config_fields = add_new_fields(
                 self.connection_args, data, 'configuration')
+            data = [data[k] for k in curr_config_fields]
+            client = clickhouse_connect.get_client(
+                **self.connection_args, settings=json_enable)
+            client.insert('configuration', [data])
             return
         for agent_id, agent_data in data['data']['agents'].items():
             agent_data['generation'] = len(agent_id)
@@ -179,10 +196,8 @@ class ChEmitter(Emitter):
             agent_data['variant'] = ''
             agent_data['experiment_id'] = self.experiment_id
             agent_data = flatten_dict(agent_data)
-            new_cols = set(agent_data) - self.curr_fields
+            new_cols = set(agent_data) - set(self.curr_fields)
             if len(new_cols) > 0:
-                add_new_fields(self.connection_args,
+                self.curr_fields = add_new_fields(self.connection_args,
                     {k: agent_data[k] for k in new_cols}, 'history')
-                self.curr_fields.update(set(agent_data))
-            self.executor.submit(insert_data,
-                self.connection_args, agent_data, 'history')
+            self.executor.submit(insert_data, agent_data, self.curr_fields)
