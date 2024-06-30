@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.make_media &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.make_media</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.make_media</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions for making media</span>
+
+<span class="sd"># Example use of make_media</span>
+
+<span class="sd">### Create media object</span>
+<span class="sd">&gt; media_obj = Media(raw_data)</span>
+
+<span class="sd">### Retrieve stock media</span>
+<span class="sd">&gt; base_media = media_obj.stock_media[&#39;M9_GLC&#39;]</span>
+<span class="sd">&gt; base_media2 = media_obj.stock_media[&#39;5X_supplement_EZ&#39;]</span>
+
+<span class="sd">### Define a dict of ingredients</span>
+<span class="sd">Ingredients is a dict with molecule ids as the keys.</span>
+<span class="sd">Each ingredient&#39;s value is a dict with {&#39;weight&#39;: value * (units.g), &#39;counts&#39;: value * (units.mmol), &#39;volume&#39;: value *  (units.L)}.</span>
+<span class="sd">Only one of &#39;weights&#39; (in units.g) or &#39;counts&#39; (in units.mmol) is required; if both are specified, it will use weight.</span>
+<span class="sd">If weight or counts is Infinity, it sets the final concentration to inf.</span>
+<span class="sd">If weight or counts is -Infinity, it sets the final concentration to 0.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">&gt; ingredients = {</span>
+<span class="sd">        &#39;L-ALPHA-ALANINE&#39;: {&#39;weight&#39;: 1.78 * units.g, &#39;volume&#39;: 0.025 * units.L},</span>
+<span class="sd">        &#39;ARG&#39;: {&#39;weight&#39;: 8.44 * units.g, &#39;volume&#39;: 0.1 * units.L},</span>
+<span class="sd">        &#39;UREA&#39;: {&#39;counts&#39;: 102.0 * units.mmol, &#39;volume&#39;: 1.0 * units.L},</span>
+<span class="sd">        &#39;LEU&#39;: {&#39;weight&#39;: float(&quot;inf&quot;) * units.g, &#39;volume&#39;: 0 * units.L},</span>
+<span class="sd">        &#39;OXYGEN-MOLECULE&#39;: {&#39;weight&#39;: float(&quot;-inf&quot;) * units.g, &#39;volume&#39;: 0 * units.L},</span>
+<span class="sd">    }</span>
+
+<span class="sd">### Add ingredients directly into an existing media</span>
+<span class="sd">&gt; new_media1 = media_obj.add_ingredients(base_media, 0.8 * units.L, ingredients)</span>
+
+<span class="sd">### Combine two medias</span>
+<span class="sd">&gt; new_media2 = media_obj.combine_media(base_media, 0.8 * units.L, base_media2, 0.2 * units.L)</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="n">INF</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
+<span class="n">NEG_INF</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">)</span>
+
+<span class="n">COUNTS_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">mmol</span>
+<span class="n">VOLUME_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+<span class="n">MASS_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span>
+<span class="n">CONC_UNITS</span> <span class="o">=</span> <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+
+
+<div class="viewcode-block" id="AddIngredientsError">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.AddIngredientsError">[docs]</a>
+<span class="k">class</span> <span class="nc">AddIngredientsError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Media">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media">[docs]</a>
+<span class="k">class</span> <span class="nc">Media</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A media object is a factory for making new media by either combining</span>
+<span class="sd">    two saved media at different volumes (with self.combine_media(), or</span>
+<span class="sd">    adding ingredients to a saved media (with self.add_ingredients()).</span>
+<span class="sd">    Ingredients can be added by either specifying their weight (in grams)</span>
+<span class="sd">    or the counts (in mmol) in addition to the volume. The new media dicts</span>
+<span class="sd">    are returned to the caller, and are not saved in this object. A media</span>
+<span class="sd">    object holds dicts about stock media in ```self.stock_media``` and the</span>
+<span class="sd">    formula weight of environmental molecules in</span>
+<span class="sd">    ```self.environment_molecules_fw```, which is needed for mixing in</span>
+<span class="sd">    ingredients at weights.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+        <span class="c1"># get dicts from knowledge base</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">environment_molecules_fw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_environment_molecules_fw</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stock_media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_stock_media</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recipes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_recipes</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Media._get_environment_molecules_fw">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media._get_environment_molecules_fw">[docs]</a>
+    <span class="k">def</span> <span class="nf">_get_environment_molecules_fw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;get formula weight (units.g / units.mol) for all environmental molecules&quot;&quot;&quot;</span>
+
+        <span class="n">environment_molecules_fw</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">environment_molecules</span><span class="p">:</span>
+            <span class="n">mol</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;molecule id&quot;</span><span class="p">]</span>
+            <span class="n">fw</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;formula weight&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">fw</span> <span class="o">==</span> <span class="s2">&quot;None&quot;</span><span class="p">:</span>
+                <span class="n">environment_molecules_fw</span><span class="p">[</span><span class="n">mol</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">environment_molecules_fw</span><span class="p">[</span><span class="n">mol</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">fw</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">environment_molecules_fw</span></div>
+
+
+<div class="viewcode-block" id="Media._get_stock_media">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media._get_stock_media">[docs]</a>
+    <span class="k">def</span> <span class="nf">_get_stock_media</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;load all stock media&quot;&quot;&quot;</span>
+
+        <span class="n">stock_media</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">media</span><span class="p">):</span>
+            <span class="c1"># initiate all molecules with 0 concentrations</span>
+            <span class="n">stock_media</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">row</span><span class="p">[</span><span class="s2">&quot;molecule id&quot;</span><span class="p">]:</span> <span class="mf">0.0</span> <span class="o">*</span> <span class="n">CONC_UNITS</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">environment_molecules</span>
+            <span class="p">}</span>
+
+            <span class="c1"># get non-zero concentrations (assuming units.mmol / units.L)</span>
+            <span class="n">molecule_concentrations</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">media</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+
+            <span class="n">environment_non_zero_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">row</span><span class="p">[</span><span class="s2">&quot;molecule id&quot;</span><span class="p">]:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;concentration&quot;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">molecule_concentrations</span>
+            <span class="p">}</span>
+
+            <span class="c1"># update saved_media with non zero concentrations</span>
+            <span class="n">stock_media</span><span class="p">[</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">environment_non_zero_dict</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">stock_media</span></div>
+
+
+<div class="viewcode-block" id="Media._get_recipes">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media._get_recipes">[docs]</a>
+    <span class="k">def</span> <span class="nf">_get_recipes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;load recipes&quot;&quot;&quot;</span>
+
+        <span class="n">recipes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">media_recipes</span><span class="p">:</span>
+            <span class="n">new_media_id</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;media id&quot;</span><span class="p">]</span>
+
+            <span class="n">recipe</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;base media&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;base media&quot;</span><span class="p">]</span>
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;added media&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;added media&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;ingredients&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ingredients&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;base media volume&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;base media volume&quot;</span><span class="p">,</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">)</span>
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;added media volume&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;added media volume&quot;</span><span class="p">,</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">)</span>
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;ingredients weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ingredients weight&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;ingredients counts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ingredients counts&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;ingredients volume&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ingredients volume&quot;</span><span class="p">,</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">)</span>
+
+            <span class="n">recipes</span><span class="p">[</span><span class="n">new_media_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">recipe</span>
+
+        <span class="k">return</span> <span class="n">recipes</span></div>
+
+
+<div class="viewcode-block" id="Media.make_saved_media">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media.make_saved_media">[docs]</a>
+    <span class="k">def</span> <span class="nf">make_saved_media</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;make all the media recipes in self.recipes&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">saved_media</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">new_media_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">recipes</span><span class="p">:</span>
+            <span class="n">new_media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_recipe</span><span class="p">(</span><span class="n">new_media_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_media</span><span class="p">[</span><span class="n">new_media_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_media</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">saved_media</span></div>
+
+
+<div class="viewcode-block" id="Media.make_recipe">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media.make_recipe">[docs]</a>
+    <span class="k">def</span> <span class="nf">make_recipe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;make a single media recipe from self.recipes&quot;&quot;&quot;</span>
+
+        <span class="n">recipe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">recipes</span><span class="p">[</span><span class="n">media_id</span><span class="p">]</span>
+        <span class="n">base_id</span> <span class="o">=</span> <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;base media&quot;</span><span class="p">]</span>
+        <span class="n">added_media_id</span> <span class="o">=</span> <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;added media&quot;</span><span class="p">]</span>
+        <span class="n">ingredient_ids</span> <span class="o">=</span> <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;ingredients&quot;</span><span class="p">]</span>
+        <span class="n">base_media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stock_media</span><span class="p">[</span><span class="n">base_id</span><span class="p">]</span>
+        <span class="n">base_vol</span> <span class="o">=</span> <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;base media volume&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">added_media_id</span><span class="p">:</span>
+            <span class="n">added_media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stock_media</span><span class="p">[</span><span class="n">added_media_id</span><span class="p">]</span>
+            <span class="n">added_vol</span> <span class="o">=</span> <span class="n">recipe</span><span class="p">[</span><span class="s2">&quot;added media volume&quot;</span><span class="p">]</span>
+            <span class="n">new_media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_media</span><span class="p">(</span><span class="n">base_media</span><span class="p">,</span> <span class="n">base_vol</span><span class="p">,</span> <span class="n">added_media</span><span class="p">,</span> <span class="n">added_vol</span><span class="p">)</span>
+            <span class="n">base_media</span> <span class="o">=</span> <span class="n">new_media</span>
+            <span class="n">base_vol</span> <span class="o">+=</span> <span class="n">added_vol</span>
+
+        <span class="k">if</span> <span class="n">ingredient_ids</span><span class="p">:</span>
+            <span class="n">added_weight</span> <span class="o">=</span> <span class="n">recipe</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ingredients weight&quot;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="n">added_counts</span> <span class="o">=</span> <span class="n">recipe</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ingredients counts&quot;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="n">added_vol</span> <span class="o">=</span> <span class="n">recipe</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;ingredients volume&quot;</span>
+            <span class="p">)</span>  <span class="c1"># the row is a list with units.L, even an empty list is read.</span>
+            <span class="n">ingredients</span> <span class="o">=</span> <span class="p">{</span><span class="n">ingred_id</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">ingred_id</span> <span class="ow">in</span> <span class="n">ingredient_ids</span><span class="p">}</span>
+            <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">ingred_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ingredient_ids</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">added_weight</span><span class="p">):</span>
+                    <span class="n">ingredients</span><span class="p">[</span><span class="n">ingred_id</span><span class="p">][</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">added_weight</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">added_counts</span><span class="p">):</span>
+                    <span class="n">ingredients</span><span class="p">[</span><span class="n">ingred_id</span><span class="p">][</span><span class="s2">&quot;counts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">added_counts</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">added_vol</span><span class="p">):</span>
+                    <span class="n">ingredients</span><span class="p">[</span><span class="n">ingred_id</span><span class="p">][</span><span class="s2">&quot;volume&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">added_vol</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ingredients</span><span class="p">[</span><span class="n">ingred_id</span><span class="p">][</span><span class="s2">&quot;volume&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+            <span class="n">new_media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_ingredients</span><span class="p">(</span><span class="n">base_media</span><span class="p">,</span> <span class="n">base_vol</span><span class="p">,</span> <span class="n">ingredients</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">added_media_id</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ingredient_ids</span><span class="p">:</span>
+            <span class="n">new_media</span> <span class="o">=</span> <span class="n">base_media</span>
+
+        <span class="c1"># remove concentration units, setting at CONC_UNITS</span>
+        <span class="n">unitless_new_media</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">mol</span><span class="p">:</span> <span class="n">conc</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">CONC_UNITS</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">conc</span> <span class="ow">in</span> <span class="n">new_media</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">unitless_new_media</span></div>
+
+
+<div class="viewcode-block" id="Media.combine_media">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media.combine_media">[docs]</a>
+    <span class="k">def</span> <span class="nf">combine_media</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_media</span><span class="p">,</span> <span class="n">base_media_volume</span><span class="p">,</span> <span class="n">mix_media</span><span class="p">,</span> <span class="n">mix_media_volume</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Combines two medias and returns a new media</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                base_media, mix_media (dict): dicts with {molecule_id: concentration}</span>
+<span class="sd">                base_media_volume, mix_media_volume (unum): the volumes of base_media and mix_media (floats) with a volume units (i.e. units.L)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">                new_media (dict): {molecule_id: concentrations}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># intialize new_media</span>
+        <span class="n">new_media</span> <span class="o">=</span> <span class="p">{</span><span class="n">mol_id</span><span class="p">:</span> <span class="mf">0.0</span> <span class="o">*</span> <span class="n">CONC_UNITS</span> <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">conc</span> <span class="ow">in</span> <span class="n">base_media</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># get new_media volume</span>
+        <span class="n">new_volume</span> <span class="o">=</span> <span class="n">base_media_volume</span> <span class="o">+</span> <span class="n">mix_media_volume</span>
+
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">base_conc</span> <span class="ow">in</span> <span class="n">base_media</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">mix_conc</span> <span class="o">=</span> <span class="n">mix_media</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">base_conc</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">==</span> <span class="n">INF</span> <span class="ow">or</span> <span class="n">mix_conc</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">==</span> <span class="n">INF</span><span class="p">:</span>
+                <span class="n">new_media</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">INF</span> <span class="o">*</span> <span class="n">CONC_UNITS</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">base_counts</span> <span class="o">=</span> <span class="n">base_conc</span> <span class="o">*</span> <span class="n">base_media_volume</span>
+                <span class="n">mix_counts</span> <span class="o">=</span> <span class="n">mix_conc</span> <span class="o">*</span> <span class="n">mix_media_volume</span>
+                <span class="n">new_counts</span> <span class="o">=</span> <span class="n">base_counts</span> <span class="o">+</span> <span class="n">mix_counts</span>
+                <span class="n">new_conc</span> <span class="o">=</span> <span class="n">new_counts</span> <span class="o">/</span> <span class="n">new_volume</span>
+
+                <span class="c1"># update media</span>
+                <span class="n">new_media</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_conc</span>
+
+        <span class="k">return</span> <span class="n">new_media</span></div>
+
+
+<div class="viewcode-block" id="Media.add_ingredients">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media.add_ingredients">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_ingredients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_media</span><span class="p">,</span> <span class="n">base_media_volume</span><span class="p">,</span> <span class="n">ingredients</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Combines ingredients to existing media to make new media.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                base_media (dict): {molecule_id: concentrations}</span>
+<span class="sd">                base_media_volume:</span>
+<span class="sd">                ingredients (dict): keys are ingredient ids, values are dicts with weight, counts, volume.</span>
+<span class="sd">                        Only one of weights (in g) or counts (in mmol) is needed; if both are specified, it will use weight.</span>
+<span class="sd">                        If weight or counts is Infinity, the new concentration is set to inf. If the weight or counts is -Infinity,</span>
+<span class="sd">                        the new concentration is set to 0.</span>
+<span class="sd">                        Example format of ingredients:</span>
+<span class="sd">                                {mol_id_1: {&#39;weight&#39;: 1.78 * units.g, &#39;volume&#39;: 0.025 * units.L),</span>
+<span class="sd">                                mol_id_2: {&#39;counts&#39;: 0.2 * units.mmol, &#39;volume&#39;: 0.1 * units.L),</span>
+<span class="sd">                                }</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">                new_media (dict): {molecule_id: concentrations}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># intialize new_media</span>
+        <span class="n">new_media</span> <span class="o">=</span> <span class="p">{</span><span class="n">mol_id</span><span class="p">:</span> <span class="mf">0.0</span> <span class="o">*</span> <span class="n">CONC_UNITS</span> <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">conc</span> <span class="ow">in</span> <span class="n">base_media</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># get new_media volume</span>
+        <span class="n">ingredients_volume</span> <span class="o">=</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">VOLUME_UNITS</span>
+        <span class="k">for</span> <span class="n">quantities</span> <span class="ow">in</span> <span class="n">ingredients</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">ingredients_volume</span> <span class="o">+=</span> <span class="n">quantities</span><span class="p">[</span><span class="s2">&quot;volume&quot;</span><span class="p">]</span>
+        <span class="n">new_volume</span> <span class="o">=</span> <span class="n">base_media_volume</span> <span class="o">+</span> <span class="n">ingredients_volume</span>
+
+        <span class="c1"># get new_media concentrations from mixing ingredients</span>
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">base_conc</span> <span class="ow">in</span> <span class="n">base_media</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">ingredients</span><span class="p">:</span>
+                <span class="n">base_counts</span> <span class="o">=</span> <span class="n">base_conc</span> <span class="o">*</span> <span class="n">base_media_volume</span>
+                <span class="n">quantities</span> <span class="o">=</span> <span class="n">ingredients</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+                <span class="n">weight</span> <span class="o">=</span> <span class="n">quantities</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;weight&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">mix_counts</span> <span class="o">=</span> <span class="n">quantities</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;counts&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+                <span class="c1"># calculate mix_counts from weight.</span>
+                <span class="c1"># This will overwrite added counts if those were specified</span>
+                <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">weight</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">==</span> <span class="n">INF</span><span class="p">:</span>
+                        <span class="n">mix_counts</span> <span class="o">=</span> <span class="n">INF</span> <span class="o">*</span> <span class="n">COUNTS_UNITS</span>
+                    <span class="k">elif</span> <span class="n">weight</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">==</span> <span class="n">NEG_INF</span><span class="p">:</span>
+                        <span class="n">mix_counts</span> <span class="o">=</span> <span class="n">NEG_INF</span> <span class="o">*</span> <span class="n">COUNTS_UNITS</span>
+                    <span class="k">elif</span> <span class="n">weight</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">environment_molecules_fw</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">fw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">environment_molecules_fw</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+                            <span class="n">mix_counts</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">/</span> <span class="n">fw</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="n">AddIngredientsError</span><span class="p">(</span>
+                                <span class="s2">&quot;No fw defined for </span><span class="si">{}</span><span class="s2"> in environment_molecules.tsv&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="n">mol_id</span>
+                                <span class="p">)</span>
+                            <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">AddIngredientsError</span><span class="p">(</span>
+                            <span class="s2">&quot;Negative weight given for </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)</span>
+                        <span class="p">)</span>
+                <span class="k">elif</span> <span class="n">mix_counts</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">AddIngredientsError</span><span class="p">(</span>
+                        <span class="s2">&quot;No added added weight or counts for </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># get new concentration</span>
+                <span class="c1"># make infinite concentration of ingredient if mix_counts is Infinity</span>
+                <span class="k">if</span> <span class="n">mix_counts</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">==</span> <span class="n">INF</span><span class="p">:</span>
+                    <span class="n">new_media</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">INF</span> <span class="o">*</span> <span class="n">CONC_UNITS</span>
+
+                <span class="c1"># remove ingredient from media if mix_counts is -Infinity</span>
+                <span class="c1"># this will override infinite concentrations in base_media</span>
+                <span class="k">elif</span> <span class="n">mix_counts</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">==</span> <span class="n">NEG_INF</span><span class="p">:</span>
+                    <span class="n">new_media</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="o">*</span> <span class="n">CONC_UNITS</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_counts</span> <span class="o">=</span> <span class="n">base_counts</span> <span class="o">+</span> <span class="n">mix_counts</span>
+                    <span class="n">new_conc</span> <span class="o">=</span> <span class="n">new_counts</span> <span class="o">/</span> <span class="n">new_volume</span>
+                    <span class="n">new_media</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_conc</span>
+
+            <span class="c1"># if mol_id is not in ingredients, dilute its concentration in new_media</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">base_counts</span> <span class="o">=</span> <span class="n">base_conc</span> <span class="o">*</span> <span class="n">base_media_volume</span>
+                <span class="n">new_conc</span> <span class="o">=</span> <span class="n">base_counts</span> <span class="o">/</span> <span class="n">new_volume</span>
+                <span class="n">new_media</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_conc</span>
+
+        <span class="k">return</span> <span class="n">new_media</span></div>
+
+
+<div class="viewcode-block" id="Media.make_timeline">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.make_media.html#wholecell.utils.make_media.Media.make_timeline">[docs]</a>
+    <span class="k">def</span> <span class="nf">make_timeline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeline_str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make a timeline from a string</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                timeline_str (str): &#39;time1 media_id1, time2 media_id2&#39;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">                timeline (list[tuple]): a list of tuples with (time (float), media_id (str))</span>
+
+<span class="sd">        TODO (Eran) make a parsing expression grammar for this: https://github.com/erikrose/parsimonious</span>
+<span class="sd">        TODO (Eran) expand capabilities to also pass in ingredients to be added from the prior event</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">timeline</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">events_str</span> <span class="o">=</span> <span class="n">timeline_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;, &quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events_str</span><span class="p">:</span>
+            <span class="n">time</span><span class="p">,</span> <span class="n">media</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="n">timeline</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">time</span><span class="p">),</span> <span class="n">media</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">timeline</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

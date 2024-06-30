@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.tests.utils.test_polymerize &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.tests.utils.test_polymerize</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.tests.utils.test_polymerize</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Test polymerize.py</span>
+
+<span class="sd">        cd wcEcoli</span>
+<span class="sd">        pytest wholecell/tests/utils/test_polymerize.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils.polymerize</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">buildSequences</span><span class="p">,</span>
+    <span class="n">polymerize</span><span class="p">,</span>
+    <span class="n">computeMassIncrease</span><span class="p">,</span>
+    <span class="n">sum_monomers</span><span class="p">,</span>
+    <span class="n">sum_monomers_reference_implementation</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy.testing</span> <span class="kn">import</span> <span class="n">assert_equal</span>
+
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="n">P</span> <span class="o">=</span> <span class="n">polymerize</span><span class="o">.</span><span class="n">PAD_VALUE</span>
+
+<span class="c1"># Silence Sphinx autodoc warning</span>
+<span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="s2">&quot;unittest&quot;</span>
+
+
+<div class="viewcode-block" id="Test_polymerize">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_polymerize.html#wholecell.tests.utils.test_polymerize.Test_polymerize">[docs]</a>
+<span class="k">class</span> <span class="nc">Test_polymerize</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="Test_polymerize.setUpClass">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_polymerize.html#wholecell.tests.utils.test_polymerize.Test_polymerize.setUpClass">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Test_polymerize.tearDownClass">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_polymerize.html#wholecell.tests.utils.test_polymerize.Test_polymerize.tearDownClass">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Test_polymerize.setUp">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_polymerize.html#wholecell.tests.utils.test_polymerize.Test_polymerize.setUp">[docs]</a>
+    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Test_polymerize.tearDown">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_polymerize.html#wholecell.tests.utils.test_polymerize.Test_polymerize.tearDown">[docs]</a>
+    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Test_polymerize.makeSequenceMonomers">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_polymerize.html#wholecell.tests.utils.test_polymerize.Test_polymerize.makeSequenceMonomers">[docs]</a>
+    <span class="k">def</span> <span class="nf">makeSequenceMonomers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sequences</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set self.sequences, self.nSequences, self.sequenceLength, self.nMonomers,</span>
+<span class="sd">        self.sequenceMonomers, self.activeSequences from sequences.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequences</span> <span class="o">=</span> <span class="n">sequences</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nSequences</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequenceLength</span> <span class="o">=</span> <span class="n">sequences</span><span class="o">.</span><span class="n">shape</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nMonomers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">sequences</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># [0 .. max(monomer #)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequenceMonomers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nMonomers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">nSequences</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequenceLength</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">monomerIndex</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nMonomers</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sequenceMonomers</span><span class="p">[</span><span class="n">monomerIndex</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">sequences</span> <span class="o">==</span> <span class="n">monomerIndex</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nSequences</span><span class="p">))</span></div>
+
+
+    <span class="k">def</span> <span class="nf">test_sum_monomers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">P</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">P</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">makeSequenceMonomers</span><span class="p">(</span><span class="n">sequences</span><span class="p">)</span>
+        <span class="n">immediate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">tot</span> <span class="o">=</span> <span class="n">sum_monomers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequenceMonomers</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">indexes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span><span class="p">)</span>
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">tot</span><span class="p">,</span> <span class="n">immediate</span><span class="p">)</span>
+
+        <span class="n">tot2</span> <span class="o">=</span> <span class="n">sum_monomers_reference_implementation</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sequenceMonomers</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span>
+        <span class="p">)</span>
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">tot2</span><span class="p">,</span> <span class="n">immediate</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_partial_sum_monomers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">P</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">P</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">makeSequenceMonomers</span><span class="p">(</span><span class="n">sequences</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>  <span class="c1"># 2/4 sequences active</span>
+        <span class="n">currentStep</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="n">immediate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">currentStep</span><span class="p">)</span>
+        <span class="n">tot</span> <span class="o">=</span> <span class="n">sum_monomers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequenceMonomers</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">indexes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span><span class="p">)</span>
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">tot</span><span class="p">,</span> <span class="n">immediate</span><span class="p">)</span>
+
+        <span class="n">tot2</span> <span class="o">=</span> <span class="n">sum_monomers_reference_implementation</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sequenceMonomers</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">currentStep</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">activeSequences</span>
+        <span class="p">)</span>
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">tot2</span><span class="p">,</span> <span class="n">immediate</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_polymerize_functionCall</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+        <span class="n">baseAmounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">])</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="mi">100</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Good calls test</span>
+        <span class="n">polymerize</span><span class="p">(</span><span class="n">sequences</span><span class="p">,</span> <span class="n">baseAmounts</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(),</span> <span class="n">rates</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_polymerize_testEnergyLimited</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+        <span class="n">baseAmounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">])</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="mi">6</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">polymerize</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span> <span class="n">baseAmounts</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(),</span> <span class="n">rates</span>
+        <span class="p">)</span>
+
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">monomerUsages</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">nReactions</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_polymerize_testFairness</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span> <span class="p">[</span><span class="n">P</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">baseAmounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">11</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">baseAmountsOriginal</span> <span class="o">=</span> <span class="n">baseAmounts</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="mi">30</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">polymerize</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span> <span class="n">baseAmounts</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(),</span> <span class="n">rates</span>
+        <span class="p">)</span>
+
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">monomerUsages</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">28</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">nReactions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">baseAmounts</span> <span class="o">==</span> <span class="n">baseAmountsOriginal</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(),</span>
+            <span class="s2">&quot;should not modify monomerLimits&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_polymerize_testAllAvailableBases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span> <span class="p">[</span><span class="n">P</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">baseAmounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">11</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="mi">30</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">polymerize</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span> <span class="n">baseAmounts</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(),</span> <span class="n">rates</span>
+        <span class="p">)</span>
+
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">12</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">monomerUsages</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">11</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">nReactions</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_polymerize_testVariableSequenceLength</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span>
+                <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span>
+                <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">P</span><span class="p">]</span> <span class="o">*</span> <span class="mi">9</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">baseAmounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="mi">50</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">polymerize</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span> <span class="n">baseAmounts</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(),</span> <span class="n">rates</span>
+        <span class="p">)</span>
+
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span>
+
+    <span class="k">def</span> <span class="nf">test_polymerize_testVariableElongation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span>
+                <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">12</span><span class="p">,</span>
+                <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">P</span><span class="p">]</span> <span class="o">*</span> <span class="mi">9</span><span class="p">,</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">baseAmounts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">energy</span> <span class="o">=</span> <span class="mi">20</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">polymerize</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span>
+            <span class="n">baseAmounts</span><span class="p">,</span>
+            <span class="n">energy</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(),</span>
+            <span class="n">rates</span><span class="p">,</span>
+            <span class="n">variable_elongation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">]))</span>
+
+    <span class="k">def</span> <span class="nf">test_buildSequences</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Base case</span>
+        <span class="n">padding</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">20</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">padding</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
+        <span class="n">allSequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">10</span><span class="p">)),</span> <span class="n">padding</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="n">sequenceIndexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
+        <span class="n">polymerizedLengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">])</span>
+        <span class="n">elongationRate</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">allSequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">elongationRate</span><span class="p">)</span>
+
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">buildSequences</span><span class="p">(</span>
+            <span class="n">allSequences</span><span class="p">,</span> <span class="n">sequenceIndexes</span><span class="p">,</span> <span class="n">polymerizedLengths</span><span class="p">,</span> <span class="n">rates</span>
+        <span class="p">)</span>
+
+        <span class="n">comparison_sequence</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="n">elongationRate</span><span class="p">))</span>
+        <span class="n">comparison_sequence</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">allSequences</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="n">elongationRate</span><span class="p">]</span>
+        <span class="n">comparison_sequence</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">allSequences</span><span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">4</span> <span class="p">:</span> <span class="p">(</span><span class="mi">4</span> <span class="o">+</span> <span class="n">elongationRate</span><span class="p">)]</span>
+        <span class="n">comparison_sequence</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">allSequences</span><span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span> <span class="p">:</span> <span class="p">(</span><span class="mi">9</span> <span class="o">+</span> <span class="n">elongationRate</span><span class="p">)]</span>
+
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">sequences</span><span class="p">,</span> <span class="n">comparison_sequence</span><span class="p">)</span>
+
+        <span class="n">rates</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1000</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span>
+            <span class="ne">IndexError</span><span class="p">,</span>
+            <span class="n">buildSequences</span><span class="p">,</span>
+            <span class="n">allSequences</span><span class="p">,</span>
+            <span class="n">sequenceIndexes</span><span class="p">,</span>
+            <span class="n">polymerizedLengths</span><span class="p">,</span>
+            <span class="n">rates</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Un-padded case should throw exception</span>
+        <span class="n">allSequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">sequenceIndexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">])</span>
+        <span class="n">polymerizedLengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">])</span>
+        <span class="n">elongationRate</span> <span class="o">=</span> <span class="mi">5</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span>
+            <span class="ne">TypeError</span><span class="p">,</span>
+            <span class="n">buildSequences</span><span class="p">,</span>
+            <span class="n">allSequences</span><span class="p">,</span>
+            <span class="n">sequenceIndexes</span><span class="p">,</span>
+            <span class="n">polymerizedLengths</span><span class="p">,</span>
+            <span class="n">elongationRate</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_computeMassIncrease</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sequences</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">sequenceElongations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="n">monomerWeights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="n">massIncrease</span> <span class="o">=</span> <span class="n">computeMassIncrease</span><span class="p">(</span>
+            <span class="n">sequences</span><span class="p">,</span> <span class="n">sequenceElongations</span><span class="p">,</span> <span class="n">monomerWeights</span>
+        <span class="p">)</span>
+
+        <span class="n">comparison_massIncrease</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">comparison_massIncrease</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                <span class="n">monomerWeights</span><span class="p">[</span><span class="n">sequences</span><span class="p">[</span><span class="n">i</span><span class="p">][:</span> <span class="n">sequenceElongations</span><span class="p">[</span><span class="n">i</span><span class="p">]]]</span>
+            <span class="p">)</span>
+
+        <span class="n">assert_equal</span><span class="p">(</span><span class="n">massIncrease</span><span class="p">,</span> <span class="n">comparison_massIncrease</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

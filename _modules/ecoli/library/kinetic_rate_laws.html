@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.library.kinetic_rate_laws &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.library.kinetic_rate_laws</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.library.kinetic_rate_laws</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Kinetic rate law generation using the Convenience Kinetics formulation of Michaelis-Menten kinetics</span>
+
+<span class="sd">Formulation provided in:</span>
+<span class="sd">    Liebermeister, Wolfram, and Edda Klipp. &quot;Bringing metabolic networks to life:</span>
+<span class="sd">    convenience rate law and thermodynamic constraints.&quot;</span>
+<span class="sd">    Theoretical Biology and Medical Modelling 3.1 (2006): 41.</span>
+
+<span class="sd"># TODO -- make a vmax options if enzyme kcats not available</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.library.dict_utils</span> <span class="kn">import</span> <span class="n">tuplify_port_dicts</span>
+
+
+<div class="viewcode-block" id="get_molecules">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.get_molecules">[docs]</a>
+<span class="k">def</span> <span class="nf">get_molecules</span><span class="p">(</span><span class="n">reactions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get a list of all molecules used by reactions</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        reaction: all reactions that will be used by transport</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        all molecules used by these reactions</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">molecule_ids</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">reaction_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">reactions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span>
+        <span class="n">substrates</span> <span class="o">=</span> <span class="n">stoichiometry</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="n">enzymes</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;catalyzed by&quot;</span><span class="p">]</span>
+        <span class="c1"># Add all relevant molecules_ids</span>
+        <span class="n">molecule_ids</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">substrates</span><span class="p">)</span>
+        <span class="n">molecule_ids</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">enzymes</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">molecule_ids</span><span class="p">))</span></div>
+
+
+
+<span class="c1"># Helper functions</span>
+<div class="viewcode-block" id="make_configuration">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.make_configuration">[docs]</a>
+<span class="k">def</span> <span class="nf">make_configuration</span><span class="p">(</span><span class="n">reactions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make the rate law configuration, which tells the parameters where to be placed.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        reactions: all reactions that will be made into rate laws, in the same format as all_reactions (above).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary of partition and reaction_cofactor entries for each reaction</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">rate_law_configuration</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="c1"># gets all potential interactions between the reactions</span>
+    <span class="k">for</span> <span class="n">reaction_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">reactions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">enzymes</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;catalyzed by&quot;</span><span class="p">]</span>
+        <span class="c1"># initialize all enzymes</span>
+        <span class="k">for</span> <span class="n">enzyme</span> <span class="ow">in</span> <span class="n">enzymes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">enzyme</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rate_law_configuration</span><span class="p">:</span>
+                <span class="n">rate_law_configuration</span><span class="p">[</span><span class="n">enzyme</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;partition&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s2">&quot;reaction_cofactors&quot;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="p">}</span>
+
+    <span class="c1"># identify parameters for reactions</span>
+    <span class="k">for</span> <span class="n">reaction_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">reactions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">stoich</span> <span class="o">=</span> <span class="n">specs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">)</span>
+        <span class="n">enzymes</span> <span class="o">=</span> <span class="n">specs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;catalyzed by&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">reversibility</span> <span class="o">=</span> <span class="n">specs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;is reversible&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># get sets of cofactors driving this reaction</span>
+        <span class="n">forward_cofactors</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol</span> <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">stoich</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">coeff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">cofactors</span> <span class="o">=</span> <span class="p">[</span><span class="n">forward_cofactors</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">reversibility</span><span class="p">:</span>
+            <span class="n">reverse_cofactors</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol</span> <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">stoich</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">coeff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">cofactors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reverse_cofactors</span><span class="p">)</span>
+
+        <span class="c1"># get partition, reactions, and parameter indices for each enzyme, and save to rate_law_configuration dictionary</span>
+        <span class="k">for</span> <span class="n">enzyme</span> <span class="ow">in</span> <span class="n">enzymes</span><span class="p">:</span>
+            <span class="c1"># get competition for this enzyme from all other reactions</span>
+            <span class="n">competing_reactions</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">rxn</span>
+                <span class="k">for</span> <span class="n">rxn</span><span class="p">,</span> <span class="n">specs2</span> <span class="ow">in</span> <span class="n">reactions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">rxn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">reaction_id</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">enzyme</span> <span class="ow">in</span> <span class="n">specs2</span><span class="p">[</span><span class="s2">&quot;catalyzed by&quot;</span><span class="p">])</span>
+            <span class="p">]</span>
+
+            <span class="n">competitors</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">reaction2</span> <span class="ow">in</span> <span class="n">competing_reactions</span><span class="p">:</span>
+                <span class="n">stoich2</span> <span class="o">=</span> <span class="n">reactions</span><span class="p">[</span><span class="n">reaction2</span><span class="p">][</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span>
+                <span class="n">reactants2</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol</span> <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">stoich2</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">coeff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="n">competitors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reactants2</span><span class="p">)</span>
+
+            <span class="c1"># partition includes both competitors and cofactors.</span>
+            <span class="n">partition</span> <span class="o">=</span> <span class="n">competitors</span> <span class="o">+</span> <span class="n">cofactors</span>
+            <span class="n">rate_law_configuration</span><span class="p">[</span><span class="n">enzyme</span><span class="p">][</span><span class="s2">&quot;partition&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">partition</span>
+            <span class="n">rate_law_configuration</span><span class="p">[</span><span class="n">enzyme</span><span class="p">][</span><span class="s2">&quot;reaction_cofactors&quot;</span><span class="p">][</span><span class="n">reaction_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">cofactors</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">rate_law_configuration</span></div>
+
+
+
+<div class="viewcode-block" id="cofactor_numerator">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.cofactor_numerator">[docs]</a>
+<span class="k">def</span> <span class="nf">cofactor_numerator</span><span class="p">(</span><span class="n">concentration</span><span class="p">,</span> <span class="n">km</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">concentration</span> <span class="o">/</span> <span class="n">km</span> <span class="k">if</span> <span class="n">km</span> <span class="k">else</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="cofactor_denominator">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.cofactor_denominator">[docs]</a>
+<span class="k">def</span> <span class="nf">cofactor_denominator</span><span class="p">(</span><span class="n">concentration</span><span class="p">,</span> <span class="n">km</span><span class="p">):</span>
+    <span class="k">return</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">concentration</span> <span class="o">/</span> <span class="n">km</span> <span class="k">if</span> <span class="n">km</span> <span class="k">else</span> <span class="mi">1</span></div>
+
+
+
+<div class="viewcode-block" id="construct_convenience_rate_law">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.construct_convenience_rate_law">[docs]</a>
+<span class="k">def</span> <span class="nf">construct_convenience_rate_law</span><span class="p">(</span>
+    <span class="n">stoichiometry</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">enzyme</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">cofactors_sets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+    <span class="n">partition</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+    <span class="n">parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make a convenience kinetics rate law for one enzyme</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        stoichiometry: the stoichiometry for the given reaction</span>
+<span class="sd">        enzyme: the current enzyme</span>
+<span class="sd">        cofactors_sets: a list of lists with the required cofactors, grouped by</span>
+<span class="sd">            [[cofactor set 1], [cofactor set 2]], each pair needs a kcat.</span>
+<span class="sd">        partition: a list of lists. each sublist is the set of cofactors for a</span>
+<span class="sd">            given partition. [[C1, C2],[C3, C4], [C5]]</span>
+<span class="sd">        parameters: all the parameters with ``{parameter_id: value}``</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        a kinetic rate law function that returns flux through the given reaction</span>
+<span class="sd">        with a dictionary of molecule concentrations as input</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">kcat_f</span> <span class="o">=</span> <span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kcat_f&quot;</span><span class="p">)</span>
+    <span class="n">kcat_r</span> <span class="o">=</span> <span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kcat_r&quot;</span><span class="p">)</span>
+
+    <span class="c1"># remove km parameters with None as their value</span>
+    <span class="k">for</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="s2">&quot;kcat&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parameter</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">partition</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="n">part</span><span class="p">:</span>
+                        <span class="n">part</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">cofactors_set</span> <span class="ow">in</span> <span class="n">cofactors_sets</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="n">cofactors_set</span><span class="p">:</span>
+                        <span class="n">cofactors_set</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
+                <span class="c1"># print(&#39;removing parameter: {}&#39;.format(parameter))</span>
+
+    <span class="c1"># if reversible, determine direction by looking at stoichiometry</span>
+    <span class="k">if</span> <span class="n">kcat_r</span><span class="p">:</span>
+        <span class="n">coeff</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">stoichiometry</span><span class="p">[</span><span class="n">mol</span><span class="p">]</span> <span class="k">for</span> <span class="n">cofactors</span> <span class="ow">in</span> <span class="n">cofactors_sets</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">cofactors</span>
+        <span class="p">]</span>
+        <span class="n">positive_coeff</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coeff</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">positive_coeff</span><span class="p">):</span>  <span class="c1"># if all coeffs are positive</span>
+            <span class="n">kcat</span> <span class="o">=</span> <span class="o">-</span><span class="n">kcat_r</span>  <span class="c1"># use reverse rate</span>
+        <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span><span class="ow">not</span> <span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">positive_coeff</span><span class="p">):</span>  <span class="c1"># if all coeffs are negative</span>
+            <span class="n">kcat</span> <span class="o">=</span> <span class="n">kcat_f</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">kcat</span> <span class="o">=</span> <span class="n">kcat_f</span>
+
+    <span class="k">def</span> <span class="nf">rate_law</span><span class="p">(</span><span class="n">concentrations</span><span class="p">):</span>
+        <span class="c1"># construct numerator</span>
+        <span class="n">enzyme_concentration</span> <span class="o">=</span> <span class="n">concentrations</span><span class="p">[</span><span class="n">enzyme</span><span class="p">]</span>
+
+        <span class="n">numerator</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">cofactors</span> <span class="ow">in</span> <span class="n">cofactors_sets</span><span class="p">:</span>
+            <span class="c1"># multiply the affinities of all cofactors</span>
+            <span class="n">term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">cofactor_numerator</span><span class="p">(</span>
+                        <span class="n">concentrations</span><span class="p">[</span><span class="n">molecule</span><span class="p">],</span> <span class="n">parameters</span><span class="p">[</span><span class="n">molecule</span><span class="p">]</span>
+                    <span class="p">)</span>  <span class="c1"># km of molecule</span>
+                    <span class="k">for</span> <span class="n">molecule</span> <span class="ow">in</span> <span class="n">cofactors</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">numerator</span> <span class="o">+=</span> <span class="n">kcat</span> <span class="o">*</span> <span class="n">term</span>  <span class="c1"># TODO (if there is no kcat, need an exception)</span>
+        <span class="n">numerator</span> <span class="o">*=</span> <span class="n">enzyme_concentration</span>
+
+        <span class="c1"># construct denominator, with all competing terms in the partition</span>
+        <span class="c1"># denominator starts at +1 for the unbound state</span>
+        <span class="n">denominator</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">cofactors_set</span> <span class="ow">in</span> <span class="n">partition</span><span class="p">:</span>
+            <span class="c1"># multiply the affinities of all cofactors in this partition</span>
+            <span class="n">term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">cofactor_denominator</span><span class="p">(</span><span class="n">concentrations</span><span class="p">[</span><span class="n">molecule</span><span class="p">],</span> <span class="n">parameters</span><span class="p">[</span><span class="n">molecule</span><span class="p">])</span>
+                    <span class="k">for</span> <span class="n">molecule</span> <span class="ow">in</span> <span class="n">cofactors_set</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">denominator</span> <span class="o">+=</span> <span class="n">term</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">flux</span> <span class="o">=</span> <span class="n">numerator</span> <span class="o">/</span> <span class="n">denominator</span>
+
+        <span class="k">return</span> <span class="n">flux</span>
+
+    <span class="k">return</span> <span class="n">rate_law</span></div>
+
+
+
+<span class="c1"># Make rate laws</span>
+<div class="viewcode-block" id="make_rate_laws">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.make_rate_laws">[docs]</a>
+<span class="k">def</span> <span class="nf">make_rate_laws</span><span class="p">(</span>
+    <span class="n">reactions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">rate_law_configuration</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">kinetic_parameters</span><span class="p">:</span> <span class="nb">dict</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make a rate law for each reaction</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        reactions: in the same format as all_reactions, described above</span>
+
+<span class="sd">        rate_law_configuration: with an embedded structure::</span>
+
+<span class="sd">            {enzyme_id: {</span>
+<span class="sd">                &#39;reaction_cofactors&#39;: {</span>
+<span class="sd">                    reaction_id: [cofactors list]</span>
+<span class="sd">                    }</span>
+<span class="sd">                &#39;partition&#39;: [partition list]</span>
+<span class="sd">                }</span>
+<span class="sd">            }</span>
+
+<span class="sd">        kinetic_parameters: with an embedded structure::</span>
+
+<span class="sd">            {reaction_id: {</span>
+<span class="sd">                &#39;enzyme_id&#39;: {</span>
+<span class="sd">                    parameter_id: value</span>
+<span class="sd">                    }</span>
+<span class="sd">                }</span>
+<span class="sd">            }</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dictionary where each reaction_id is a key and each value is a</span>
+<span class="sd">            sub-dictionary with kinetic rate law functions for each enzyme</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">rate_laws</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">reaction_id</span><span class="p">:</span> <span class="p">{}</span> <span class="k">for</span> <span class="n">reaction_id</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">reactions</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="p">}</span>
+    <span class="k">for</span> <span class="n">reaction_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">reactions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">specs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">)</span>
+        <span class="c1"># reversible = specs.get(&#39;is reversible&#39;) # TODO (eran) -- add reversibility based on specs</span>
+        <span class="n">enzymes</span> <span class="o">=</span> <span class="n">specs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;catalyzed by&quot;</span><span class="p">)</span>
+
+        <span class="c1"># rate law for each enzyme</span>
+        <span class="k">for</span> <span class="n">enzyme</span> <span class="ow">in</span> <span class="n">enzymes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">enzyme</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kinetic_parameters</span><span class="p">[</span><span class="n">reaction_id</span><span class="p">]:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> not in reaction </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">enzyme</span><span class="p">,</span> <span class="n">reaction_id</span><span class="p">))</span>
+                <span class="k">continue</span>
+
+            <span class="n">cofactors_sets</span> <span class="o">=</span> <span class="n">rate_law_configuration</span><span class="p">[</span><span class="n">enzyme</span><span class="p">][</span><span class="s2">&quot;reaction_cofactors&quot;</span><span class="p">][</span>
+                <span class="n">reaction_id</span>
+            <span class="p">]</span>
+            <span class="n">partition</span> <span class="o">=</span> <span class="n">rate_law_configuration</span><span class="p">[</span><span class="n">enzyme</span><span class="p">][</span><span class="s2">&quot;partition&quot;</span><span class="p">]</span>
+
+            <span class="n">rate_law</span> <span class="o">=</span> <span class="n">construct_convenience_rate_law</span><span class="p">(</span>
+                <span class="n">stoichiometry</span><span class="p">,</span>
+                <span class="n">enzyme</span><span class="p">,</span>
+                <span class="n">cofactors_sets</span><span class="p">,</span>
+                <span class="n">partition</span><span class="p">,</span>
+                <span class="n">kinetic_parameters</span><span class="p">[</span><span class="n">reaction_id</span><span class="p">][</span><span class="n">enzyme</span><span class="p">],</span>
+            <span class="p">)</span>
+
+            <span class="c1"># save the rate law for each enzyme in this reaction</span>
+            <span class="n">rate_laws</span><span class="p">[</span><span class="n">reaction_id</span><span class="p">][</span><span class="n">enzyme</span><span class="p">]</span> <span class="o">=</span> <span class="n">rate_law</span>
+
+    <span class="k">return</span> <span class="n">rate_laws</span></div>
+
+
+
+<div class="viewcode-block" id="KineticFluxModel">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.KineticFluxModel">[docs]</a>
+<span class="k">class</span> <span class="nc">KineticFluxModel</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A kinetic rate law class</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        all_reactions: all metabolic reactions, with::</span>
+
+<span class="sd">            {reaction_id: {</span>
+<span class="sd">                &#39;catalyzed by&#39;: list,</span>
+<span class="sd">                &#39;is reversible&#39;: bool,</span>
+<span class="sd">                &#39;stoichiometry&#39;: dict,</span>
+<span class="sd">                }}</span>
+
+<span class="sd">        kinetic_parameters: a dictionary of parameters a nested format::</span>
+
+<span class="sd">            {reaction_id: {</span>
+<span class="sd">                enzyme_id : {</span>
+<span class="sd">                    param_id: param_value}}}</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        rate_laws: Dictionary where each reaction_id is a key and each value is a</span>
+<span class="sd">            sub-dictionary with kinetic rate law functions for each enzyme</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">all_reactions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">kinetic_parameters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_parameters</span> <span class="o">=</span> <span class="n">kinetic_parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reaction_ids</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kinetic_parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reactions</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">reaction_id</span><span class="p">:</span> <span class="n">all_reactions</span><span class="p">[</span><span class="n">reaction_id</span><span class="p">]</span> <span class="k">for</span> <span class="n">reaction_id</span> <span class="ow">in</span> <span class="n">all_reactions</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">molecule_ids</span> <span class="o">=</span> <span class="n">get_molecules</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reactions</span><span class="p">)</span>
+
+        <span class="c1"># make the rate laws</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rate_law_configuration</span> <span class="o">=</span> <span class="n">make_configuration</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reactions</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">rate_laws</span> <span class="o">=</span> <span class="n">make_rate_laws</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reactions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rate_law_configuration</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kinetic_parameters</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="KineticFluxModel.get_fluxes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.kinetic_rate_laws.html#ecoli.library.kinetic_rate_laws.KineticFluxModel.get_fluxes">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_fluxes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concentrations_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use rate law functions to calculate flux</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            concentrations_dict: all relevant molecules and their concentrations, in mmol/L.</span>
+<span class="sd">                ``{molecule_id: concentration}``</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of fluxes for all reactions</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Initialize reaction_fluxes and exchange_fluxes dictionaries</span>
+        <span class="n">reaction_fluxes</span> <span class="o">=</span> <span class="p">{</span><span class="n">reaction_id</span><span class="p">:</span> <span class="mf">0.0</span> <span class="k">for</span> <span class="n">reaction_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reaction_ids</span><span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">reaction_id</span><span class="p">,</span> <span class="n">enzymes</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rate_laws</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">enzyme</span><span class="p">,</span> <span class="n">rate_law</span> <span class="ow">in</span> <span class="n">enzymes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">flux</span> <span class="o">=</span> <span class="n">rate_law</span><span class="p">(</span><span class="n">concentrations_dict</span><span class="p">)</span>
+                <span class="n">reaction_fluxes</span><span class="p">[</span><span class="n">reaction_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">flux</span>
+
+        <span class="k">return</span> <span class="n">reaction_fluxes</span></div>
+</div>
+
+
+
+<span class="n">toy_reactions</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;ABC-13-RXN&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;stoichiometry&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;PI&quot;</span><span class="p">):</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;ADP&quot;</span><span class="p">):</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;GLT&quot;</span><span class="p">):</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTON&quot;</span><span class="p">):</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">):</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;WATER&quot;</span><span class="p">):</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;GLT&quot;</span><span class="p">):</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;is reversible&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;catalyzed by&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;membrane&quot;</span><span class="p">,</span> <span class="s2">&quot;ABC-13-CPLX&quot;</span><span class="p">)],</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;TRANS-RXN-122&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;stoichiometry&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;GLT&quot;</span><span class="p">):</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;GLT&quot;</span><span class="p">):</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;NA+&quot;</span><span class="p">):</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;NA+&quot;</span><span class="p">):</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;is reversible&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;catalyzed by&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;membrane&quot;</span><span class="p">,</span> <span class="s2">&quot;GLTP-MONOMER&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;membrane&quot;</span><span class="p">,</span> <span class="s2">&quot;DCTA-MONOMER&quot;</span><span class="p">)],</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+
+
+<span class="n">toy_kinetics</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;ABC-13-RXN&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="p">(</span><span class="s2">&quot;membrane&quot;</span><span class="p">,</span> <span class="s2">&quot;ABC-13-CPLX&quot;</span><span class="p">):</span> <span class="p">{</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">):</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;GLT&quot;</span><span class="p">):</span> <span class="mf">1e-3</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;cytoplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;WATER&quot;</span><span class="p">):</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;kcat_f&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;TRANS-RXN-122&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="p">(</span><span class="s2">&quot;membrane&quot;</span><span class="p">,</span> <span class="s2">&quot;DCTA-MONOMER&quot;</span><span class="p">):</span> <span class="p">{</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;GLT&quot;</span><span class="p">):</span> <span class="mf">1e-3</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;NA+&quot;</span><span class="p">):</span> <span class="mf">1e-5</span><span class="p">,</span>
+            <span class="s2">&quot;kcat_f&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="p">(</span><span class="s2">&quot;membrane&quot;</span><span class="p">,</span> <span class="s2">&quot;GLTP-MONOMER&quot;</span><span class="p">):</span> <span class="p">{</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;GLT&quot;</span><span class="p">):</span> <span class="mf">1e-3</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;NA+&quot;</span><span class="p">):</span> <span class="mf">1e-5</span><span class="p">,</span>
+            <span class="p">(</span><span class="s2">&quot;periplasm&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTON&quot;</span><span class="p">):</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;kcat_f&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+
+<span class="n">toy_initial_state</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;cytoplasm&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;PI&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;ADP&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;GLT&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;PROTON&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;ATP&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;WATER&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;NA+&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;periplasm&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;GLT&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;NA+&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span>
+    <span class="s2">&quot;membrane&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;ABC-13-CPLX&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;GLTP-MONOMER&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;DCTA-MONOMER&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span> <span class="nf">test_kinetics</span><span class="p">():</span>
+    <span class="n">kinetic_rate_laws</span> <span class="o">=</span> <span class="n">KineticFluxModel</span><span class="p">(</span><span class="n">toy_reactions</span><span class="p">,</span> <span class="n">toy_kinetics</span><span class="p">)</span>
+    <span class="n">flattened_toy_states</span> <span class="o">=</span> <span class="n">tuplify_port_dicts</span><span class="p">(</span><span class="n">toy_initial_state</span><span class="p">)</span>
+    <span class="n">flux</span> <span class="o">=</span> <span class="n">kinetic_rate_laws</span><span class="o">.</span><span class="n">get_fluxes</span><span class="p">(</span><span class="n">flattened_toy_states</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="n">flux</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">test_kinetics</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

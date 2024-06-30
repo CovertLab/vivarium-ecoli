@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.io.tsv &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.io.tsv</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.io.tsv</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">CSV reader and writer that default to TAB delimiters.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">csv</span>
+
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">TextIOWrapper</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">cast</span><span class="p">,</span>
+    <span class="n">Collection</span><span class="p">,</span>
+    <span class="n">IO</span><span class="p">,</span>
+    <span class="n">Iterable</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Sequence</span><span class="p">,</span>
+    <span class="n">Text</span><span class="p">,</span>
+    <span class="n">Type</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="n">DIALECT</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">csv</span><span class="o">.</span><span class="n">Dialect</span><span class="p">,</span> <span class="n">Type</span><span class="p">[</span><span class="n">csv</span><span class="o">.</span><span class="n">Dialect</span><span class="p">]]</span>
+
+
+<div class="viewcode-block" id="reader">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.io.tsv.html#wholecell.io.tsv.reader">[docs]</a>
+<span class="k">class</span> <span class="nc">reader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">csvfile</span><span class="p">:</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span>
+        <span class="n">dialect</span><span class="p">:</span> <span class="n">DIALECT</span> <span class="o">=</span> <span class="s2">&quot;excel&quot;</span><span class="p">,</span>
+        <span class="n">delimiter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">fmtparams</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open a csv reader() defaulting to TAB delimiters.</span>
+
+<span class="sd">        REQUIRES: `csvfile` must be a buffered byte reader, e.g. from</span>
+<span class="sd">        io.open(filename, &#39;rb&#39;) or io.BytesIO(buffer).</span>
+
+<span class="sd">        This does Unicode by constructing the csv.reader with a TextIO.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_file</span> <span class="o">=</span> <span class="n">TextIOWrapper</span><span class="p">(</span><span class="n">csvfile</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="n">dialect</span><span class="o">=</span><span class="n">dialect</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="n">delimiter</span><span class="p">,</span> <span class="o">**</span><span class="n">fmtparams</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Text</span><span class="p">]:</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reader</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">row</span>
+
+    <span class="nb">next</span> <span class="o">=</span> <span class="fm">__next__</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dialect</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DIALECT</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reader</span><span class="o">.</span><span class="n">dialect</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">line_num</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reader</span><span class="o">.</span><span class="n">line_num</span></div>
+
+
+
+<div class="viewcode-block" id="writer">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.io.tsv.html#wholecell.io.tsv.writer">[docs]</a>
+<span class="k">class</span> <span class="nc">writer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">csvfile</span><span class="p">:</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span>
+        <span class="n">dialect</span><span class="p">:</span> <span class="n">DIALECT</span> <span class="o">=</span> <span class="s2">&quot;excel&quot;</span><span class="p">,</span>
+        <span class="n">delimiter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">fmtparams</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Open a csv writer() defaulting to TAB delimiters.</span>
+
+<span class="sd">        REQUIRES: `csvfile` must be a buffered byte writer, e.g. from</span>
+<span class="sd">        io.open(filename, &#39;wb&#39;) or io.BytesIO(buffer).</span>
+
+<span class="sd">        This does Unicode by constructing the csv.writer with a TextIO.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_file</span> <span class="o">=</span> <span class="n">TextIOWrapper</span><span class="p">(</span>
+            <span class="n">csvfile</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">line_buffering</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_file</span><span class="p">,</span> <span class="n">dialect</span><span class="o">=</span><span class="n">dialect</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="n">delimiter</span><span class="p">,</span> <span class="o">**</span><span class="n">fmtparams</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="writer.writerow">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.io.tsv.html#wholecell.io.tsv.writer.writerow">[docs]</a>
+    <span class="k">def</span> <span class="nf">writerow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="writer.writerows">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.io.tsv.html#wholecell.io.tsv.writer.writerows">[docs]</a>
+    <span class="k">def</span> <span class="nf">writerows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rows</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]]):</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dialect</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DIALECT</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">dialect</span></div>
+
+
+
+<div class="viewcode-block" id="dict_reader">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.io.tsv.html#wholecell.io.tsv.dict_reader">[docs]</a>
+<span class="k">class</span> <span class="nc">dict_reader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span> <span class="n">fieldnames</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Open a csv DictReader() defaulting to TAB delimiters. Fields whose</span>
+<span class="sd">        names start with an underscore are removed from self._fieldnames, and</span>
+<span class="sd">        discarded from each row during iteration.</span>
+
+<span class="sd">        REQUIRES: `f` must be a buffered byte reader, e.g. from</span>
+<span class="sd">        io.open(filename, &#39;rb&#39;) or io.BytesIO(buffer).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tsv_reader</span> <span class="o">=</span> <span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span>
+            <span class="n">tsv_reader</span><span class="o">.</span><span class="n">input_file</span><span class="p">,</span> <span class="n">fieldnames</span><span class="o">=</span><span class="n">fieldnames</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span><span class="o">.</span><span class="n">reader</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">tsv_reader</span><span class="p">)</span>
+
+        <span class="c1"># Discard private field names that begin with underscore</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fieldnames</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">fieldname</span>
+            <span class="k">for</span> <span class="n">fieldname</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span><span class="o">.</span><span class="n">fieldnames</span> <span class="ow">or</span> <span class="p">[])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">fieldname</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__next__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span><span class="o">.</span><span class="fm">__next__</span><span class="p">()</span>
+
+        <span class="c1"># Discard entries with private field names</span>
+        <span class="n">new_row</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fieldnames</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">new_row</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fieldnames</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fieldnames</span>
+
+    <span class="nd">@fieldnames</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">fieldnames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span><span class="o">.</span><span class="n">fieldnames</span> <span class="o">=</span> <span class="n">values</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fieldnames</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">fieldname</span>
+            <span class="k">for</span> <span class="n">fieldname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span><span class="o">.</span><span class="n">fieldnames</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">fieldname</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+        <span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dialect</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DIALECT</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span><span class="o">.</span><span class="n">dialect</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">line_num</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tsv_dict_reader</span><span class="o">.</span><span class="n">line_num</span></div>
+
+
+
+<div class="viewcode-block" id="dict_writer">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.io.tsv.html#wholecell.io.tsv.dict_writer">[docs]</a>
+<span class="k">def</span> <span class="nf">dict_writer</span><span class="p">(</span>
+    <span class="n">f</span><span class="p">:</span> <span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">],</span> <span class="n">fieldnames</span><span class="p">:</span> <span class="n">Collection</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">dialect</span><span class="p">:</span> <span class="n">DIALECT</span> <span class="o">=</span> <span class="s2">&quot;excel&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictWriter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Open a csv DictWriter() defaulting to TAB delimiters.</span>
+
+<span class="sd">    REQUIRES: `csvfile` must be a buffered byte writer, e.g. from</span>
+<span class="sd">    io.open(filename, &#39;wb&#39;) or io.BytesIO(buffer).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tsv_writer</span> <span class="o">=</span> <span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">dialect</span><span class="o">=</span><span class="n">dialect</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">tsv_dict_writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictWriter</span><span class="p">(</span>
+        <span class="n">tsv_writer</span><span class="o">.</span><span class="n">output_file</span><span class="p">,</span> <span class="n">fieldnames</span><span class="p">,</span> <span class="n">dialect</span><span class="o">=</span><span class="n">dialect</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span>
+    <span class="n">tsv_dict_writer</span><span class="o">.</span><span class="n">writer</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">tsv_writer</span><span class="p">)</span>
+    <span class="c1"># TODO(jerry): Call `tsv_dict_writer.writeheader()` for convenience?</span>
+
+    <span class="k">return</span> <span class="n">tsv_dict_writer</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

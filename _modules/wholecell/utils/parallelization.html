@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.parallelization &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.parallelization</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.parallelization</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Parallelization utilities.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">multiprocessing.pool</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Optional</span>
+
+
+<div class="viewcode-block" id="is_macos">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.is_macos">[docs]</a>
+<span class="k">def</span> <span class="nf">is_macos</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if this is running on macOS.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">uname</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;darwin&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="cpus">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.cpus">[docs]</a>
+<span class="k">def</span> <span class="nf">cpus</span><span class="p">(</span><span class="n">requested_num_processes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the usable number of worker processes for a multiprocessing Pool,</span>
+<span class="sd">    up to `requested_num_processes` (default = max available), considering SLURM</span>
+<span class="sd">    and any other environment-specific limitations.</span>
+<span class="sd">    `1` means do all work in-process rather than forking subprocesses.</span>
+
+<span class="sd">    On SLURM: This reads the environment variable &#39;SLURM_CPUS_PER_TASK&#39;</span>
+<span class="sd">    containing the number of CPUs requested per task but since that&#39;s only set</span>
+<span class="sd">    if the --cpus-per-task option was specified, this falls back to</span>
+<span class="sd">    &#39;SLURM_JOB_CPUS_PER_NODE&#39; containing the number of processors available to</span>
+<span class="sd">    the job on this node.</span>
+
+<span class="sd">    By default, srun sets:</span>
+<span class="sd">        SLURM_CPUS_ON_NODE=1</span>
+<span class="sd">        SLURM_JOB_CPUS_PER_NODE=1</span>
+
+<span class="sd">    srun -p mcovert --cpus-per-task=2:</span>
+<span class="sd">        SLURM_CPUS_PER_TASK=2</span>
+<span class="sd">        SLURM_CPUS_ON_NODE=2</span>
+<span class="sd">        SLURM_JOB_CPUS_PER_NODE=2</span>
+
+<span class="sd">    srun --ntasks-per-node=3 --cpus-per-task=4:</span>
+<span class="sd">        SLURM_CPUS_PER_TASK=4</span>
+<span class="sd">        SLURM_CPUS_ON_NODE=12</span>
+<span class="sd">        SLURM_JOB_CPUS_PER_NODE=12</span>
+
+<span class="sd">    srun --ntasks-per-node=3:</span>
+<span class="sd">        SLURM_CPUS_ON_NODE=3</span>
+<span class="sd">        SLURM_JOB_CPUS_PER_NODE=3</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        requested_num_processes: the requested number of worker</span>
+<span class="sd">                processes; None or 0 means return the max usable number</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        num_cpus: the usable number of worker processes for a Pool, as limited</span>
+<span class="sd">                by the hardware, OS, SLURM, and `requested_num_processes`.</span>
+
+<span class="sd">                ==&gt; 1 means DO NOT CREATE WORKER SUBPROCESSES.</span>
+
+<span class="sd">    See also `pool()`.</span>
+
+<span class="sd">    See https://slurm.schedmd.com/sbatch.html</span>
+
+<span class="sd">    See https://github.com/CovertLab/wcEcoli/issues/392</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">os_cpus</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+
+    <span class="n">value</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="s2">&quot;SLURM_CPUS_PER_TASK&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SLURM_JOB_CPUS_PER_NODE&quot;</span><span class="p">,</span> <span class="n">os_cpus</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">slurm_cpus</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="n">available</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">os_cpus</span><span class="p">,</span> <span class="n">slurm_cpus</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">requested_num_processes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">requested_num_processes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">requested_num_processes</span> <span class="o">&gt;</span> <span class="n">available</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s2">&quot;Warning: Request for </span><span class="si">{}</span><span class="s2"> worker processes got limited to </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">requested_num_processes</span><span class="p">,</span> <span class="n">available</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">requested_num_processes</span> <span class="o">&lt;</span> <span class="n">available</span><span class="p">:</span>
+            <span class="n">available</span> <span class="o">=</span> <span class="n">requested_num_processes</span>
+
+    <span class="k">return</span> <span class="n">available</span></div>
+
+
+
+<div class="viewcode-block" id="ApplyResult">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.ApplyResult">[docs]</a>
+<span class="k">class</span> <span class="nc">ApplyResult</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A substitute for multiprocessing.ApplyResult() to return with apply_async.</span>
+<span class="sd">    Will get created after a successful function call so ready() and</span>
+<span class="sd">    successful() are always True.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_result</span> <span class="o">=</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="ApplyResult.ready">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.ApplyResult.ready">[docs]</a>
+    <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="ApplyResult.successful">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.ApplyResult.successful">[docs]</a>
+    <span class="k">def</span> <span class="nf">successful</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="ApplyResult.wait">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.ApplyResult.wait">[docs]</a>
+    <span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ApplyResult.get">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.ApplyResult.get">[docs]</a>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="InlinePool">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.InlinePool">[docs]</a>
+<span class="k">class</span> <span class="nc">InlinePool</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A substitute for multiprocessing.Pool() that runs the work inline in the</span>
+<span class="sd">    current process. This is important because (1) a regular Pool worker cannot</span>
+<span class="sd">    construct a nested Pool (even with processes=1) since daemon processes are</span>
+<span class="sd">    not allowed to have children, and (2) it&#39;s easier to debug code running in</span>
+<span class="sd">    the main process.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="InlinePool.map">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.InlinePool.map">[docs]</a>
+    <span class="k">def</span> <span class="nf">map</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">iterable</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Any</span><span class="p">],</span>
+        <span class="n">chunksize</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map the function over the iterable.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">iterable</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="InlinePool.apply_async">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.InlinePool.apply_async">[docs]</a>
+    <span class="k">def</span> <span class="nf">apply_async</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">args</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+        <span class="n">kwds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">callback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ApplyResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply the function to the args serially (not asynchronously since</span>
+<span class="sd">        only one process available).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">kwds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">kwds</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+            <span class="n">callback</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ApplyResult</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InlinePool.close">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.InlinePool.close">[docs]</a>
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="InlinePool.terminate">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.InlinePool.terminate">[docs]</a>
+    <span class="k">def</span> <span class="nf">terminate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="InlinePool.join">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.InlinePool.join">[docs]</a>
+    <span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="NoDaemonProcess">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.NoDaemonProcess">[docs]</a>
+<span class="k">class</span> <span class="nc">NoDaemonProcess</span><span class="p">(</span><span class="n">mp</span><span class="o">.</span><span class="n">Process</span><span class="p">):</span>
+    <span class="nd">@property</span>  <span class="c1"># type: ignore[override]</span>
+    <span class="k">def</span> <span class="nf">daemon</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@daemon</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">daemon</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="NoDaemonContext">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.NoDaemonContext">[docs]</a>
+<span class="k">class</span> <span class="nc">NoDaemonContext</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">())):</span>  <span class="c1"># type: ignore</span>
+    <span class="n">Process</span> <span class="o">=</span> <span class="n">NoDaemonProcess</span></div>
+
+
+
+<div class="viewcode-block" id="NoDaemonPool">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.NoDaemonPool">[docs]</a>
+<span class="k">class</span> <span class="nc">NoDaemonPool</span><span class="p">(</span><span class="n">mp</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">Pool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A substitute for multiprocessing.Pool() that creates a pool that is not a</span>
+<span class="sd">    daemonic process. This allows for nesting pool calls that would otherwise</span>
+<span class="sd">    be prevented with an assertion error (AssertionError: daemonic processes</span>
+<span class="sd">    are not allowed to have children).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;context&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">NoDaemonContext</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="pool">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.parallelization.html#wholecell.utils.parallelization.pool">[docs]</a>
+<span class="k">def</span> <span class="nf">pool</span><span class="p">(</span>
+    <span class="n">num_processes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nestable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">mp</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">Pool</span> <span class="o">|</span> <span class="n">InlinePool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return an `InlinePool` if `cpus(num_processes) == 1`, else a</span>
+<span class="sd">    multiprocessing `Pool(cpus(num_processes))`, as suitable for the current</span>
+<span class="sd">    runtime environment.</span>
+
+<span class="sd">    This uses the &#39;spawn&#39; process start method to create a fresh python</span>
+<span class="sd">    interpreter process, avoiding threading problems and cross-platform</span>
+<span class="sd">    inconsistencies.</span>
+
+<span class="sd">    nestable can create a pool of non-daemon worker processes that can spawn</span>
+<span class="sd">    nested processes and have have nested pools.</span>
+
+<span class="sd">    See `cpus()` on figuring the number of usable processes.</span>
+<span class="sd">    See `InlinePool` about why running in-process is important.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">usable</span> <span class="o">=</span> <span class="n">cpus</span><span class="p">(</span><span class="n">num_processes</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">usable</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">InlinePool</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">nestable</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">NoDaemonPool</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_context</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;spawn&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="n">usable</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

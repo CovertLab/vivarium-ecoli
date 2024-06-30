@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.fitting &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.fitting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.fitting</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">import</span> <span class="nn">unum</span>  <span class="c1"># Imported here to be used in getCountsFromMassAndExpression assertions</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+
+<span class="n">FUNCTIONS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;none&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
+    <span class="s2">&quot;sqrt&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+    <span class="s2">&quot;exp&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+    <span class="s2">&quot;log&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+    <span class="s2">&quot;log2&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">),</span>
+    <span class="s2">&quot;logsqrt&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>
+    <span class="s2">&quot;2&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;3&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">**</span><span class="mi">3</span><span class="p">,</span>
+    <span class="s2">&quot;1/sqrt&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+    <span class="s2">&quot;1/x&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">x</span><span class="p">,</span>
+    <span class="s2">&quot;1/x2&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">INVERSE_FUNCTIONS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;none&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
+    <span class="s2">&quot;sqrt&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;exp&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+    <span class="s2">&quot;log&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+    <span class="s2">&quot;log2&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>
+    <span class="s2">&quot;logsqrt&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;2&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+    <span class="s2">&quot;3&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">),</span>
+    <span class="s2">&quot;1/sqrt&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">x</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;1/x&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">x</span><span class="p">,</span>
+    <span class="s2">&quot;1/x2&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">x</span><span class="p">),</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="normalize">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.normalize">[docs]</a>
+<span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="n">array</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="countsFromMassAndExpression">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.countsFromMassAndExpression">[docs]</a>
+<span class="k">def</span> <span class="nf">countsFromMassAndExpression</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="n">mws</span><span class="p">,</span> <span class="n">relativeExpression</span><span class="p">,</span> <span class="n">nAvogadro</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    countsFromMassAndExpression</span>
+
+<span class="sd">    mass 				- float -				Total mass you want counts to sum to</span>
+<span class="sd">    mws					- ndarray of floats -	Molecular weights of each species</span>
+<span class="sd">    relativeExpression	- ndarray of floats	-	Relative expres`sion of each species</span>
+<span class="sd">    nAvogadro 			- float -				Avogadro&#39;s number</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">            mass = 10.</span>
+<span class="sd">            mws = [10., 5.]</span>
+<span class="sd">            relativeExpression = [0.33, 0.66]</span>
+<span class="sd">            countsFromMassAndExpression(mass, mws, relativeExpression, nAvogadro) = 1.93e23</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">relativeExpression</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">mass</span><span class="p">)</span> <span class="o">!=</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span>
+    <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">mws</span><span class="p">)</span> <span class="o">!=</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span>
+    <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">relativeExpression</span><span class="p">)</span> <span class="o">!=</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span>
+    <span class="k">assert</span> <span class="nb">type</span><span class="p">(</span><span class="n">nAvogadro</span><span class="p">)</span> <span class="o">!=</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span>
+    <span class="k">return</span> <span class="n">mass</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mws</span> <span class="o">/</span> <span class="n">nAvogadro</span><span class="p">,</span> <span class="n">relativeExpression</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="masses_and_counts_for_homeostatic_target">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.masses_and_counts_for_homeostatic_target">[docs]</a>
+<span class="k">def</span> <span class="nf">masses_and_counts_for_homeostatic_target</span><span class="p">(</span>
+    <span class="n">dry_mass_of_non_small_molecules</span><span class="p">,</span>
+    <span class="n">concentrations</span><span class="p">,</span>
+    <span class="n">weights</span><span class="p">,</span>
+    <span class="n">cell_density</span><span class="p">,</span>
+    <span class="n">avogadros_number</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the dry mass fractions and counts associated with small molecules to maintain</span>
+<span class="sd">    concentrations consistent with targets.  (Also includes water.)</span>
+
+<span class="sd">    The cell is composed of a number of &#39;mass fractions&#39; i.e. DNA, RNA, protein, water, and</span>
+<span class="sd">    the less specific &quot;small molecules&quot; which includes both inorganic and organic molecular species</span>
+<span class="sd">    that form part of a cell.  While we take many of the former calculations as ground truth, we</span>
+<span class="sd">    chose to adjust (recompute) the small molecule mass fraction according to per-molecule</span>
+<span class="sd">    observations of small molecule concentrations (compiled from various sources).</span>
+
+<span class="sd">    However, this creates a potential issue: we need the small molecule mass to compute the volume,</span>
+<span class="sd">    and the volume in turn is used to compute the counts (and therefore masses) of the small</span>
+<span class="sd">    molecules.  We denote the first small molecule mass as Ms, and the second as Ms&#39;.</span>
+
+<span class="sd">    The total mass of the cell, Mt, is the sum of the small and non-small molecule masses:</span>
+
+<span class="sd">    Mt = Ms + Mns</span>
+
+<span class="sd">    The volume of the cell V times the density of the cell rho is Mt, and therefore</span>
+
+<span class="sd">    rho * V = Ms + Mns</span>
+
+<span class="sd">    Ms = rho * V - Mns</span>
+
+<span class="sd">    This gives us our first calculation of the small molecule mass.  For the second calculation, we</span>
+<span class="sd">    first find the abundance of each small molecule species (count n_i) as</span>
+
+<span class="sd">    n_i = V * c_i</span>
+
+<span class="sd">    where c_i is the concentration of each species.  Then the mass associated with each species is</span>
+
+<span class="sd">    m_i = V * w_i * c_i</span>
+
+<span class="sd">    where w_i is the molecular weight of a given species,.  Finally, the total small molecule mass,</span>
+<span class="sd">    estimated from small molecule counts, is</span>
+
+<span class="sd">    Ms&#39; = sum_i m_i = V * w^T c</span>
+
+<span class="sd">    where w^T c is the dot-product between the two vectors.</span>
+
+<span class="sd">    Equating Ms&#39; and Ms, and solving for V:</span>
+
+<span class="sd">    V = Mns / (rho - w^Tc)</span>
+
+<span class="sd">    This allows us to compute the new volume, from which we can also compute and return all n_i and</span>
+<span class="sd">    m_i.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dry_mass_of_non_small_molecules: float unit&#39;d scalar, dimensions of mass</span>
+<span class="sd">            The total mass of the cell, minus the &#39;wet&#39; mass (water) and the dry mass of other small</span>
+<span class="sd">            molecules.</span>
+<span class="sd">    concentrations: 1-D float unit&#39;d array, with dimensions of concentration</span>
+<span class="sd">            The target concentrations of the small molecules.</span>
+<span class="sd">    weights: 1-D float unit&#39;d array, with dimensions of mass per mol</span>
+<span class="sd">            The molecular weights of the small molecules.</span>
+<span class="sd">    cell_density: float unit&#39;d scalar, dimensions of mass per volume</span>
+<span class="sd">            The total density of the cell (wet and dry mass).</span>
+<span class="sd">    avogadros_number: float unit&#39;d scalar, dimensions of per mol</span>
+<span class="sd">            The number of molecules per mole.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    masses: 1-D float unit&#39;d array, with dimensions of mass</span>
+<span class="sd">            The mass associated with each molecular species.</span>
+<span class="sd">    counts: 1-D float unit&#39;d array, dimensionless (i.e. counts)</span>
+<span class="sd">            The counts associated with each molecular species.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Compute the total mass concentration of the small molecules</span>
+
+    <span class="n">total_small_mol_mass_conc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">concentrations</span><span class="p">)</span>
+
+    <span class="c1"># Compute the new total cell volume that accomodates the small molecule concentrations</span>
+
+    <span class="n">cell_volume</span> <span class="o">=</span> <span class="n">dry_mass_of_non_small_molecules</span> <span class="o">/</span> <span class="p">(</span>
+        <span class="n">cell_density</span> <span class="o">-</span> <span class="n">total_small_mol_mass_conc</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cell_volume</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Could not achieve concentration targets with the expected dry mass.&quot;</span>
+            <span class="s2">&quot; Check for any unusually high concentrations.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Calculate and return the counts of molecules and their associated masses</span>
+
+    <span class="n">mols</span> <span class="o">=</span> <span class="n">cell_volume</span> <span class="o">*</span> <span class="n">concentrations</span>
+
+    <span class="n">counts</span> <span class="o">=</span> <span class="n">mols</span> <span class="o">*</span> <span class="n">avogadros_number</span>
+    <span class="n">masses</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">mols</span>
+
+    <span class="k">return</span> <span class="n">masses</span><span class="p">,</span> <span class="n">counts</span></div>
+
+
+
+<div class="viewcode-block" id="calcProteinCounts">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.calcProteinCounts">[docs]</a>
+<span class="k">def</span> <span class="nf">calcProteinCounts</span><span class="p">(</span><span class="n">sim_data</span><span class="p">,</span> <span class="n">monomerMass</span><span class="p">):</span>
+    <span class="n">monomerExpression</span> <span class="o">=</span> <span class="n">calcProteinDistribution</span><span class="p">(</span><span class="n">sim_data</span><span class="p">)</span>
+
+    <span class="n">nMonomers</span> <span class="o">=</span> <span class="n">calcProteinTotalCounts</span><span class="p">(</span><span class="n">sim_data</span><span class="p">,</span> <span class="n">monomerMass</span><span class="p">,</span> <span class="n">monomerExpression</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">nMonomers</span> <span class="o">*</span> <span class="n">monomerExpression</span></div>
+
+
+
+<div class="viewcode-block" id="calcProteinTotalCounts">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.calcProteinTotalCounts">[docs]</a>
+<span class="k">def</span> <span class="nf">calcProteinTotalCounts</span><span class="p">(</span><span class="n">sim_data</span><span class="p">,</span> <span class="n">monomerMass</span><span class="p">,</span> <span class="n">monomerExpression</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">countsFromMassAndExpression</span><span class="p">(</span>
+        <span class="n">monomerMass</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span><span class="p">),</span>
+        <span class="n">sim_data</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">translation</span><span class="o">.</span><span class="n">monomer_data</span><span class="p">[</span><span class="s2">&quot;mw&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">),</span>
+        <span class="n">monomerExpression</span><span class="p">,</span>
+        <span class="n">sim_data</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">n_avogadro</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="calcProteinDistribution">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.calcProteinDistribution">[docs]</a>
+<span class="k">def</span> <span class="nf">calcProteinDistribution</span><span class="p">(</span><span class="n">sim_data</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">normalize</span><span class="p">(</span>
+        <span class="n">sim_data</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">transcription</span><span class="o">.</span><span class="n">rna_data</span><span class="p">[</span><span class="s2">&quot;expression&quot;</span><span class="p">][</span>
+            <span class="n">sim_data</span><span class="o">.</span><span class="n">relation</span><span class="o">.</span><span class="n">cistron_to_monomer_mapping</span>
+        <span class="p">]</span>
+        <span class="o">/</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span>
+            <span class="o">+</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">translation</span><span class="o">.</span><span class="n">monomer_data</span><span class="p">[</span><span class="s2">&quot;deg_rate&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+                <span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="cosine_similarity">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.cosine_similarity">[docs]</a>
+<span class="k">def</span> <span class="nf">cosine_similarity</span><span class="p">(</span><span class="n">samples</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Finds the cosine similarity between samples.</span>
+
+<span class="sd">    samples is a matrix of size (n_samples, sample_size)</span>
+
+<span class="sd">    The output is a matrix of size (n_samples, n_samples).</span>
+
+<span class="sd">    The cosine similarity is the normalized dot product between two</span>
+<span class="sd">    vectors.  The name originates from the fact that the normalized dot</span>
+<span class="sd">    product between two vectors is equal to the cosine of the angle</span>
+<span class="sd">    formed by the two vectors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">magnitudes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">samples</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="n">normed</span> <span class="o">=</span> <span class="n">samples</span> <span class="o">/</span> <span class="n">magnitudes</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">normed</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">normed</span><span class="o">.</span><span class="n">T</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="fit_linearized_transforms">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.fit_linearized_transforms">[docs]</a>
+<span class="k">def</span> <span class="nf">fit_linearized_transforms</span><span class="p">(</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">x_fun</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">y_fun</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">r_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.99</span><span class="p">,</span>
+    <span class="n">p_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-2</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Transforms x and y data based on a set of functions and finds the transforms</span>
+<span class="sd">    that lead to the best linear fit of the data.  Can use the return values</span>
+<span class="sd">    as args to interpolate_linearized_fit in order to interpolate new x values.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            x: x data to fit</span>
+<span class="sd">            y: y data to fit</span>
+<span class="sd">            x_fun: list of functions to try for transforming x data</span>
+<span class="sd">            y_fun: list of functions to try for transforming y data</span>
+<span class="sd">            r_tol: best fit r value needs to be higher than this value</span>
+<span class="sd">            p_tol: best fit p value needs to be lower than this value</span>
+<span class="sd">            verbose: if given, prints the r and p value for each function pair that</span>
+<span class="sd">                    results in an r value higher than this</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            x_transform: name of the best transformation function for x data</span>
+<span class="sd">            y_transform: name of the best transformation function for y data</span>
+<span class="sd">            slope: best fit slope for the transformed data</span>
+<span class="sd">            intercept: best fit intercept for the transformed data</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Check all possible functions if none are given</span>
+    <span class="k">if</span> <span class="n">x_fun</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">x_fun</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">FUNCTIONS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">y_fun</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">y_fun</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">FUNCTIONS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="c1"># Start with worst case r and p</span>
+    <span class="n">best_r</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">best_p</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">x_name</span> <span class="ow">in</span> <span class="n">x_fun</span><span class="p">:</span>
+        <span class="n">fx</span> <span class="o">=</span> <span class="n">FUNCTIONS</span><span class="p">[</span><span class="n">x_name</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">y_name</span> <span class="ow">in</span> <span class="n">y_fun</span><span class="p">:</span>
+            <span class="n">fy</span> <span class="o">=</span> <span class="n">FUNCTIONS</span><span class="p">[</span><span class="n">y_name</span><span class="p">]</span>
+            <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">invalid</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">over</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">):</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">linregress</span><span class="p">(</span><span class="n">fx</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">fy</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+            <span class="n">abs_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">rvalue</span><span class="p">)</span>
+
+            <span class="c1"># If this is a new best fit, save the parameters</span>
+            <span class="k">if</span> <span class="n">abs_r</span> <span class="o">&gt;</span> <span class="n">best_r</span><span class="p">:</span>
+                <span class="n">best_r</span> <span class="o">=</span> <span class="n">abs_r</span>
+                <span class="n">best_p</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">pvalue</span>
+                <span class="n">x_transform</span> <span class="o">=</span> <span class="n">x_name</span>
+                <span class="n">y_transform</span> <span class="o">=</span> <span class="n">y_name</span>
+                <span class="n">slope</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">slope</span>
+                <span class="n">intercept</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">intercept</span>
+
+            <span class="k">if</span> <span class="n">verbose</span> <span class="ow">and</span> <span class="n">abs_r</span> <span class="o">&gt;</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2">: </span><span class="si">{:.3f}</span><span class="s2"> </span><span class="si">{:.1e}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">x_name</span><span class="p">,</span> <span class="n">y_name</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">rvalue</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">pvalue</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Selected functions (r=</span><span class="si">{</span><span class="n">best_r</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> p=</span><span class="si">{</span><span class="n">best_p</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2">):</span><span class="se">\n\t</span><span class="s2">x: </span><span class="si">{</span><span class="n">x_transform</span><span class="si">}</span><span class="se">\n\t</span><span class="s2">y: </span><span class="si">{</span><span class="n">y_transform</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Check tolerances to make sure the fit is as expected</span>
+    <span class="k">if</span> <span class="n">best_r</span> <span class="o">&lt;</span> <span class="n">r_tol</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not fit to the desired r: </span><span class="si">{</span><span class="n">best_r</span><span class="si">}</span><span class="s2"> &lt; </span><span class="si">{</span><span class="n">r_tol</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">best_p</span> <span class="o">&gt;</span> <span class="n">p_tol</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not fit to the desired p: </span><span class="si">{</span><span class="n">best_p</span><span class="si">}</span><span class="s2"> &lt; </span><span class="si">{</span><span class="n">p_tol</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">x_transform</span><span class="p">,</span> <span class="n">y_transform</span><span class="p">,</span> <span class="n">slope</span><span class="p">,</span> <span class="n">intercept</span></div>
+
+
+
+<div class="viewcode-block" id="interpolate_linearized_fit">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fitting.html#wholecell.utils.fitting.interpolate_linearized_fit">[docs]</a>
+<span class="k">def</span> <span class="nf">interpolate_linearized_fit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x_transform</span><span class="p">,</span> <span class="n">y_transform</span><span class="p">,</span> <span class="n">slope</span><span class="p">,</span> <span class="n">intercept</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Interpolate one or more values based on the linearized fit parameters.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">INVERSE_FUNCTIONS</span><span class="p">[</span><span class="n">y_transform</span><span class="p">](</span><span class="n">FUNCTIONS</span><span class="p">[</span><span class="n">x_transform</span><span class="p">](</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">slope</span> <span class="o">+</span> <span class="n">intercept</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

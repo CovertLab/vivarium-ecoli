@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Validation against 2001 ICP-MS data &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Validation against 2001 ICP-MS data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/notebooks/cofactors/final_paper_validation.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import polars as pl
+import itertools
+import warnings
+from scipy.sparse import csr_matrix
+
+import pandas as pd
+import statsmodels.api as sm
+
+sns.set(style=&quot;darkgrid&quot;, palette=&quot;Set2&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># dont ignore the first line of the csv files. Keep variable as np array
+
+def read_names(file_path):
+    return np.genfromtxt(file_path, dtype=str, delimiter=&quot;\n&quot;)
+
+unwrapped_complex_names = read_names(&quot;data/complex_names.txt&quot;)
+unwrapped_monomer_names = read_names(&quot;data/protein_names.txt&quot;)
+unwrapped_cofactor_names = read_names(&quot;data/cofactor_names.txt&quot;)
+unwrapped_element_names = read_names(&quot;data/element_ids.txt&quot;)
+unwrapped_pathway_names = read_names(&quot;data/pathway_names.txt&quot;)
+
+complex_ids = read_names(&quot;data/complex_ids.txt&quot;)
+monomer_ids = read_names(&quot;data/protein_ids.txt&quot;)
+cofactor_ids = read_names(&quot;data/cofactor_ids.txt&quot;)
+element_ids = read_names(&quot;data/element_ids.txt&quot;)
+pathway_ids = read_names(&quot;data/pathway_ids.txt&quot;)
+aa_ids = read_names(&quot;data/amino_acid_ids.txt&quot;)
+
+unwrapped_protein_names = np.concatenate([unwrapped_complex_names, unwrapped_monomer_names])
+protein_ids = np.concatenate([complex_ids, monomer_ids])
+
+# Reading the matrix CSV files
+def read_matrix(file_path, sparse=False):
+    # add sparse matrix reading
+    if sparse:
+        return csr_matrix(pl.read_csv(file_path, has_header=False).to_numpy())
+    else:
+        return pl.read_csv(file_path, has_header=False).to_numpy()
+
+C = read_matrix(&quot;data/C_matrix.csv&quot;, sparse=True)
+P = read_matrix(&quot;data/P_matrix.csv&quot;, sparse=True)
+E = read_matrix(&quot;data/E_matrix.csv&quot;, sparse=True)
+W = read_matrix(&quot;data/W_matrix.csv&quot;, sparse=True)
+W2 = read_matrix(&quot;data/W2_matrix.csv&quot;, sparse=True)
+W1 = read_matrix(&quot;data/W1_matrix.csv&quot;, sparse=True)
+A = read_matrix(&quot;data/A_matrix.csv&quot;)
+Tree = read_matrix(&quot;data/tree_matrix.csv&quot;, sparse=True)
+
+total_counts_min = read_matrix(&quot;data/counts.csv&quot;)
+total_counts = read_matrix(&quot;data/rich_counts.csv&quot;)
+total_counts_anaero = read_matrix(&quot;data/anaerobic_counts.csv&quot;)
+total_counts_big = read_matrix(&quot;data/rich_counts_big.csv&quot;)
+
+monomer_masses = read_matrix(&quot;data/monomer_masses.csv&quot;).flatten()
+monomer_areas = read_matrix(&quot;data/monomer_areas.csv&quot;).flatten()
+complex_areas = read_matrix(&quot;data/complex_areas.csv&quot;).flatten()
+protein_areas = np.concatenate([complex_areas, monomer_areas])
+</pre></div>
+</div>
+</div>
+<section id="Validation-against-2001-ICP-MS-data">
+<h1>Validation against 2001 ICP-MS data<a class="headerlink" href="#Validation-against-2001-ICP-MS-data" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># find the indices of &quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;:
+elements = [&quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;]
+element_indices = [np.where(element_ids == element)[0][0] for element in elements]
+
+# compute the timeseries for the elements
+element_timeseries = total_counts @ C @ P @ E[:, element_indices]
+
+# convert to polars dataframe
+element_df = pl.DataFrame(element_timeseries, schema=elements)
+
+# melt to long form
+element_df = element_df.melt(id_vars=None, value_name=&quot;Atoms/cell&quot;, variable_name=&quot;Element&quot;)
+sns.histplot(element_df, x=&quot;Atoms/cell&quot;, hue=&quot;Element&quot;, element=&quot;step&quot;)
+
+# plt.xscale(&quot;log&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1075: FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas. Pass `(name,)` instead of `name` to silence this warning.
+  data_subset = grouped_data.get_group(pd_key)
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Axes: xlabel=&#39;Atoms/cell&#39;, ylabel=&#39;Count&#39;&gt;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_final_paper_validation_3_2.png" src="../../_images/notebooks_cofactors_final_paper_validation_3_2.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>elements = [&quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;, &quot;V&quot;, &quot;CR&quot;]
+
+val_orig_df = pl.read_csv(&#39;external_data/distances.csv&#39;)
+
+val_orig_df = val_orig_df.with_columns((   (-9* ( 1 - pl.col(&quot;Distance&quot;) / pl.col(&quot;ScaleDist&quot;)))  ).alias(&quot;Log concentration&quot;))
+val_orig_df = val_orig_df.with_columns(   (10**(pl.col(&quot;Log concentration&quot;))).alias(&quot;Concentration (M)&quot;)  )
+val_orig_df = val_orig_df.with_columns( (pl.col(&quot;Concentration (M)&quot;) *  (10**pl.col(&quot;ScaleCounts&quot;)) ).alias(&quot;Atoms/cell&quot;))
+val_orig_df
+
+# filter out the elements
+val_df = val_orig_df.filter(pl.col(&quot;Element&quot;).is_in(elements) &amp; pl.col(&quot;Cell&quot;) == True)
+
+# val_df = val_df.filter(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;)
+
+val_df.to_pandas()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Condition</th>
+      <th>Below LOD</th>
+      <th>Cell</th>
+      <th>Element</th>
+      <th>Distance</th>
+      <th>ScaleDist</th>
+      <th>ScaleCounts</th>
+      <th>Error</th>
+      <th>Log concentration</th>
+      <th>Concentration (M)</th>
+      <th>Atoms/cell</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>1</td>
+      <td>MO</td>
+      <td>138.225817</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>1000.000000</td>
+      <td>-5.485784</td>
+      <td>3.267501e-06</td>
+      <td>3983.324414</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>1</td>
+      <td>ZN</td>
+      <td>205.106947</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>55212.922173</td>
+      <td>-3.785417</td>
+      <td>1.639017e-04</td>
+      <td>199808.236064</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>1</td>
+      <td>CU</td>
+      <td>149.815832</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>1000.000000</td>
+      <td>-5.191123</td>
+      <td>6.439870e-06</td>
+      <td>7850.676467</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>1</td>
+      <td>NI</td>
+      <td>137.331179</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>1000.000000</td>
+      <td>-5.508529</td>
+      <td>3.100778e-06</td>
+      <td>3780.077086</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>1</td>
+      <td>CO</td>
+      <td>103.448109</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>1000.000000</td>
+      <td>-6.369963</td>
+      <td>4.266155e-07</td>
+      <td>520.075813</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>1</td>
+      <td>FE</td>
+      <td>203.321486</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>24669.603524</td>
+      <td>-3.830810</td>
+      <td>1.476353e-04</td>
+      <td>179978.374255</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>1</td>
+      <td>MN</td>
+      <td>135.088853</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>1000.000000</td>
+      <td>-5.565538</td>
+      <td>2.719333e-06</td>
+      <td>3315.067378</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>1</td>
+      <td>CR</td>
+      <td>122.171244</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>1000.000000</td>
+      <td>-5.893951</td>
+      <td>1.276582e-06</td>
+      <td>1556.247155</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>1</td>
+      <td>V</td>
+      <td>113.253635</td>
+      <td>354.00</td>
+      <td>9.08603</td>
+      <td>1000.000000</td>
+      <td>-6.120670</td>
+      <td>7.574077e-07</td>
+      <td>923.335846</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>1</td>
+      <td>MO</td>
+      <td>146.248788</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>1000.000000</td>
+      <td>-5.272756</td>
+      <td>5.336351e-06</td>
+      <td>10797.032626</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>1</td>
+      <td>ZN</td>
+      <td>207.787945</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>88105.726872</td>
+      <td>-3.704391</td>
+      <td>1.975192e-04</td>
+      <td>399640.415582</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>1</td>
+      <td>CU</td>
+      <td>181.919225</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>29368.575624</td>
+      <td>-4.363672</td>
+      <td>4.328410e-05</td>
+      <td>87576.668290</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>Rich</td>
+      <td>1</td>
+      <td>1</td>
+      <td>NI</td>
+      <td>125.738288</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>1000.000000</td>
+      <td>-5.795479</td>
+      <td>1.601479e-06</td>
+      <td>3240.269333</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>Rich</td>
+      <td>1</td>
+      <td>1</td>
+      <td>CO</td>
+      <td>91.851373</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>1000.000000</td>
+      <td>-6.659109</td>
+      <td>2.192256e-07</td>
+      <td>443.558908</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>1</td>
+      <td>FE</td>
+      <td>214.914378</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>128046.989721</td>
+      <td>-3.522769</td>
+      <td>3.000759e-04</td>
+      <td>607143.184501</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>1</td>
+      <td>MN</td>
+      <td>171.220416</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>12922.173275</td>
+      <td>-4.636338</td>
+      <td>2.310268e-05</td>
+      <td>46743.626407</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>1</td>
+      <td>CR</td>
+      <td>126.630048</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>1000.000000</td>
+      <td>-5.772752</td>
+      <td>1.687517e-06</td>
+      <td>3414.351358</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>1</td>
+      <td>V</td>
+      <td>82.042003</td>
+      <td>353.14</td>
+      <td>9.30606</td>
+      <td>1000.000000</td>
+      <td>-6.909107</td>
+      <td>1.232802e-07</td>
+      <td>249.432594</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<section id="Estimate-upper-limit-of-atoms/cell-available-in-media">
+<h2>Estimate upper limit of atoms/cell available in media<a class="headerlink" href="#Estimate-upper-limit-of-atoms/cell-available-in-media" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>media_lim_df = val_orig_df.filter(pl.col(&quot;Cell&quot;) == False).drop([&quot;Error&quot;, &quot;Distance&quot;, &quot;ScaleDist&quot;, &quot;ScaleCounts&quot;])
+# media_lim_df = media_lim_df.filter(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;)
+
+# to convert from atoms/cell in media, take the concentration in the media, convert to atoms by mult w avo, then divide by 3e11 cells per L
+media_lim_df = media_lim_df.with_columns( (pl.col(&quot;Concentration (M)&quot;) * 6.022e23 / 3.5e11).alias(&quot;Atoms/cell&quot;))
+
+media_lim_df.to_pandas()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Condition</th>
+      <th>Below LOD</th>
+      <th>Cell</th>
+      <th>Element</th>
+      <th>Log concentration</th>
+      <th>Concentration (M)</th>
+      <th>Atoms/cell</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MO</td>
+      <td>-7.730374</td>
+      <td>1.860483e-08</td>
+      <td>3.201094e+04</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>SE</td>
+      <td>-7.548822</td>
+      <td>2.826037e-08</td>
+      <td>4.862399e+04</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>ZN</td>
+      <td>-6.903050</td>
+      <td>1.250115e-07</td>
+      <td>2.150911e+05</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CU</td>
+      <td>-7.208921</td>
+      <td>6.181290e-08</td>
+      <td>1.063535e+05</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NI</td>
+      <td>-7.707702</td>
+      <td>1.960187e-08</td>
+      <td>3.372642e+04</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>0</td>
+      <td>CO</td>
+      <td>-8.342515</td>
+      <td>4.544486e-09</td>
+      <td>7.819112e+03</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>0</td>
+      <td>FE</td>
+      <td>-6.460629</td>
+      <td>3.462353e-07</td>
+      <td>5.957225e+05</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MN</td>
+      <td>-7.685031</td>
+      <td>2.065235e-08</td>
+      <td>3.553384e+04</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CR</td>
+      <td>-6.687467</td>
+      <td>2.053679e-07</td>
+      <td>3.533501e+05</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>V</td>
+      <td>-7.707504</td>
+      <td>1.961085e-08</td>
+      <td>3.374187e+04</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CA</td>
+      <td>-5.440514</td>
+      <td>3.626489e-06</td>
+      <td>6.239633e+06</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>K</td>
+      <td>-0.815417</td>
+      <td>1.529617e-01</td>
+      <td>2.631816e+11</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MG</td>
+      <td>-3.037294</td>
+      <td>9.177120e-04</td>
+      <td>1.578989e+09</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MO</td>
+      <td>-6.522642</td>
+      <td>3.001637e-07</td>
+      <td>5.164531e+05</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>SE</td>
+      <td>-7.318041</td>
+      <td>4.807939e-08</td>
+      <td>8.272403e+04</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>ZN</td>
+      <td>-4.931786</td>
+      <td>1.170077e-05</td>
+      <td>2.013201e+07</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CU</td>
+      <td>-6.840925</td>
+      <td>1.442363e-07</td>
+      <td>2.481688e+05</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NI</td>
+      <td>-6.954561</td>
+      <td>1.110297e-07</td>
+      <td>1.910345e+05</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CO</td>
+      <td>-6.818080</td>
+      <td>1.520267e-07</td>
+      <td>2.615729e+05</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>FE</td>
+      <td>-5.272686</td>
+      <td>5.337203e-06</td>
+      <td>9.183039e+06</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MN</td>
+      <td>-6.795354</td>
+      <td>1.601939e-07</td>
+      <td>2.756250e+05</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CR</td>
+      <td>-5.499953</td>
+      <td>3.162621e-06</td>
+      <td>5.441516e+06</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>V</td>
+      <td>-5.840933</td>
+      <td>1.442338e-06</td>
+      <td>2.481645e+06</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CA</td>
+      <td>-3.795494</td>
+      <td>1.601423e-04</td>
+      <td>2.755362e+08</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>K</td>
+      <td>-1.818236</td>
+      <td>1.519720e-02</td>
+      <td>2.614787e+10</td>
+    </tr>
+    <tr>
+      <th>25</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MG</td>
+      <td>-3.909079</td>
+      <td>1.232881e-04</td>
+      <td>2.121260e+08</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+</section>
+<section id="Import-EZ-rich-composition">
+<h2>Import EZ rich composition<a class="headerlink" href="#Import-EZ-rich-composition" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>ez_df = pl.read_csv(&#39;external_data/ez_media_concentrations.csv&#39;)
+
+# convert µM to molar
+ez_df = ez_df.with_columns( (ez_df[&quot;Concentration (µM)&quot;] * 1e-6).alias(&quot;Concentration (M)&quot;)  )
+
+# convert to atoms/cell assuming 8.0 * 10^8 cells per L
+ez_df = ez_df.with_columns( (ez_df[&quot;Concentration (M)&quot;] * 6.022e23 / 2e11).alias(&quot;Atoms/cell&quot;)  )
+
+# Set Zn to 0 since it&#39;s unreliable due to contamination
+ez_df = ez_df.with_columns(pl.when(pl.col(&quot;Element&quot;) == &quot;ZN&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+
+ez_df
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (14, 6)</small><table border="1" class="dataframe"><thead><tr><th>Condition</th><th>Element</th><th>Concentration (raw)</th><th>Concentration (µM)</th><th>Concentration (M)</th><th>Atoms/cell</th></tr><tr><td>str</td><td>str</td><td>str</td><td>f64</td><td>f64</td><td>f64</td></tr></thead><tbody><tr><td>&quot;Minimal&quot;</td><td>&quot;FE&quot;</td><td>&quot;10 µM&quot;</td><td>10.0</td><td>0.00001</td><td>3.011e7</td></tr><tr><td>&quot;Minimal&quot;</td><td>&quot;MN&quot;</td><td>&quot;80 nM&quot;</td><td>0.08</td><td>8.0000e-8</td><td>240880.0</td></tr><tr><td>&quot;Minimal&quot;</td><td>&quot;CO&quot;</td><td>&quot;30.0 nM&quot;</td><td>0.03</td><td>3.0000e-8</td><td>90330.0</td></tr><tr><td>&quot;Minimal&quot;</td><td>&quot;ZN&quot;</td><td>&quot;10 nM&quot;</td><td>0.01</td><td>1.0000e-8</td><td>-500000.0</td></tr><tr><td>&quot;Minimal&quot;</td><td>&quot;CU&quot;</td><td>&quot;10 nM&quot;</td><td>0.01</td><td>1.0000e-8</td><td>30110.0</td></tr><tr><td>&quot;Minimal&quot;</td><td>&quot;MO&quot;</td><td>&quot;3 nM&quot;</td><td>0.003</td><td>3.0000e-9</td><td>9033.0</td></tr><tr><td>&quot;Minimal&quot;</td><td>&quot;NI&quot;</td><td>&quot;0 nM&quot;</td><td>0.0</td><td>0.0</td><td>0.0</td></tr><tr><td>&quot;Rich&quot;</td><td>&quot;FE&quot;</td><td>&quot;10 µM&quot;</td><td>10.0</td><td>0.00001</td><td>3.011e7</td></tr><tr><td>&quot;Rich&quot;</td><td>&quot;MN&quot;</td><td>&quot;80 nM&quot;</td><td>0.08</td><td>8.0000e-8</td><td>240880.0</td></tr><tr><td>&quot;Rich&quot;</td><td>&quot;CO&quot;</td><td>&quot;30.0 nM&quot;</td><td>0.03</td><td>3.0000e-8</td><td>90330.0</td></tr><tr><td>&quot;Rich&quot;</td><td>&quot;ZN&quot;</td><td>&quot;10 nM&quot;</td><td>0.01</td><td>1.0000e-8</td><td>-500000.0</td></tr><tr><td>&quot;Rich&quot;</td><td>&quot;CU&quot;</td><td>&quot;10 nM&quot;</td><td>0.01</td><td>1.0000e-8</td><td>30110.0</td></tr><tr><td>&quot;Rich&quot;</td><td>&quot;MO&quot;</td><td>&quot;3 nM&quot;</td><td>0.003</td><td>3.0000e-9</td><td>9033.0</td></tr><tr><td>&quot;Rich&quot;</td><td>&quot;NI&quot;</td><td>&quot;0 nM&quot;</td><td>0.0</td><td>0.0</td><td>0.0</td></tr></tbody></table></div></div>
+</div>
+</section>
+<section id="Final-rich-plot">
+<h2>Final rich plot<a class="headerlink" href="#Final-rich-plot" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>rich_exp_caption = &quot;Experiment, LB rich media&quot;
+rich_sim_caption = &quot;Simulation, EZ rich media&quot;
+minimal_exp_caption = &quot;Experiment, M9 minimal media&quot;
+minimal_sim_caption = &quot;Simulation, MOPS minimal media&quot;
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># copy ez_df to have 0 at the minimal condition
+ez_df_copy = ez_df.clone().filter(pl.col(&quot;Element&quot;).is_in(elements))
+ez_df_copy = ez_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+ez_df_copy = ez_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(pl.lit(rich_exp_caption)).otherwise(pl.lit(rich_sim_caption)).alias(&quot;Type&quot;))
+
+# zero values above 800000
+ez_df_copy = ez_df_copy.with_columns(pl.when(pl.col(&quot;Atoms/cell&quot;) &gt; 800000).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># temporarily modify media_lim_df to have 0 at the minimal condition
+media_lim_df_copy = media_lim_df.clone().filter(pl.col(&quot;Element&quot;).is_in(elements))
+media_lim_df_copy = media_lim_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+media_lim_df_copy = media_lim_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(pl.lit(rich_sim_caption)).otherwise(pl.lit(rich_exp_caption)).alias(&quot;Type&quot;))
+# zero values above 800000
+media_lim_df_copy = media_lim_df_copy.with_columns(pl.when(pl.col(&quot;Atoms/cell&quot;) &gt; 800000).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+
+media_lim_df_copy.to_pandas()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Condition</th>
+      <th>Below LOD</th>
+      <th>Cell</th>
+      <th>Element</th>
+      <th>Log concentration</th>
+      <th>Concentration (M)</th>
+      <th>Atoms/cell</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MO</td>
+      <td>-7.730374</td>
+      <td>1.860483e-08</td>
+      <td>-500000.000000</td>
+      <td>Simulation, EZ rich media</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>ZN</td>
+      <td>-6.903050</td>
+      <td>1.250115e-07</td>
+      <td>-500000.000000</td>
+      <td>Simulation, EZ rich media</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CU</td>
+      <td>-7.208921</td>
+      <td>6.181290e-08</td>
+      <td>-500000.000000</td>
+      <td>Simulation, EZ rich media</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NI</td>
+      <td>-7.707702</td>
+      <td>1.960187e-08</td>
+      <td>-500000.000000</td>
+      <td>Simulation, EZ rich media</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>0</td>
+      <td>CO</td>
+      <td>-8.342515</td>
+      <td>4.544486e-09</td>
+      <td>-500000.000000</td>
+      <td>Simulation, EZ rich media</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>0</td>
+      <td>FE</td>
+      <td>-6.460629</td>
+      <td>3.462353e-07</td>
+      <td>-500000.000000</td>
+      <td>Simulation, EZ rich media</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MN</td>
+      <td>-7.685031</td>
+      <td>2.065235e-08</td>
+      <td>-500000.000000</td>
+      <td>Simulation, EZ rich media</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MO</td>
+      <td>-6.522642</td>
+      <td>3.001637e-07</td>
+      <td>516453.080545</td>
+      <td>Experiment, LB rich media</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>ZN</td>
+      <td>-4.931786</td>
+      <td>1.170077e-05</td>
+      <td>-500000.000000</td>
+      <td>Experiment, LB rich media</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CU</td>
+      <td>-6.840925</td>
+      <td>1.442363e-07</td>
+      <td>248168.822328</td>
+      <td>Experiment, LB rich media</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NI</td>
+      <td>-6.954561</td>
+      <td>1.110297e-07</td>
+      <td>191034.461764</td>
+      <td>Experiment, LB rich media</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CO</td>
+      <td>-6.818080</td>
+      <td>1.520267e-07</td>
+      <td>261572.863674</td>
+      <td>Experiment, LB rich media</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>FE</td>
+      <td>-5.272686</td>
+      <td>5.337203e-06</td>
+      <td>-500000.000000</td>
+      <td>Experiment, LB rich media</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MN</td>
+      <td>-6.795354</td>
+      <td>1.601939e-07</td>
+      <td>275624.974698</td>
+      <td>Experiment, LB rich media</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># find the indices of &quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;:
+elements = [&quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;]
+element_indices = [np.where(element_ids == element)[0][0] for element in elements]
+
+# compute the timeseries for the elements
+element_timeseries = total_counts @ C @ P @ E[:, element_indices]
+
+# convert to polars dataframe
+element_df = pl.DataFrame(element_timeseries, schema=elements)
+
+# melt to long form
+element_df = element_df.melt(id_vars=None, value_name=&quot;Atoms/cell&quot;, variable_name=&quot;Element&quot;)
+
+
+# temporarily modify val_df to have 0 at the minimal condition
+val_df_copy = val_df.clone()
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+
+
+
+
+# add artificial column to separate validation from element_df
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(pl.lit(rich_sim_caption)).otherwise(pl.lit(rich_exp_caption)).alias(&quot;Type&quot;))
+
+
+g = sns.catplot(data=val_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;,  kind=&quot;point&quot;, aspect=2, order=elements, join=False, dodge=.4, hue_order=[rich_exp_caption, rich_sim_caption])
+
+
+
+element_df = element_df.with_columns(Condition = pl.lit(&quot;Minimal&quot;))
+element_df = element_df.with_columns(Type = pl.lit(rich_sim_caption))
+element_df = pl.concat([element_df, pl.DataFrame({&quot;Element&quot;: &quot;FE&quot;, &quot;Atoms/cell&quot;: -500000, &quot;Condition&quot;: &quot;Rich&quot;, &quot;Type&quot;: rich_exp_caption})])
+element_df
+
+# stupid workaround to plot errorbars
+for ax in g.axes[0]:
+    for path in ax.collections:
+        points = path.get_offsets()
+    all_x_values = [path.get_offsets()[:, 0] for path in ax.collections]
+    all_y_values = [path.get_offsets()[:, 1] for path in ax.collections]
+
+x_coords = list(all_x_values[0]) # list(all_x_values[0]) +
+y_coords = list(all_y_values[0]) # list(all_y_values[0]) +
+error_vals = [val_df.filter((pl.col(&quot;Condition&quot;) == &quot;Rich&quot;) &amp; (pl.col(&quot;Element&quot;) == element))[0,&quot;Error&quot;] for element in elements]
+
+# add errorbar plot at these coords
+plt.errorbar(x = x_coords, y = y_coords, yerr=error_vals, fmt=&#39;none&#39;, c= &#39;black&#39;, capsize = 2)
+
+# g.map_dataframe(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+#             hue=&quot;Condition&quot;)
+
+g.map(sns.pointplot, data=media_lim_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[rich_exp_caption, rich_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[&#39;v&#39;, None])
+
+g.map(sns.pointplot, data=ez_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[rich_exp_caption, rich_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[None, &#39;v&#39;])
+
+g.map(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[rich_exp_caption, rich_sim_caption], order=elements)
+
+plt.ylim(-50000, None)
+
+# plt.yscale(&quot;log&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(-50000.0, 796949.6829329402)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_final_paper_validation_13_1.png" src="../../_images/notebooks_cofactors_final_paper_validation_13_1.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># find the indices of &quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;:
+elements = [&quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;]
+element_indices = [np.where(element_ids == element)[0][0] for element in elements]
+
+# compute the timeseries for the elements
+element_timeseries = total_counts @ C @ P @ E[:, element_indices]
+
+# convert to polars dataframe
+element_df = pl.DataFrame(element_timeseries, schema=elements)
+
+# melt to long form
+element_df = element_df.melt(id_vars=None, value_name=&quot;Atoms/cell&quot;, variable_name=&quot;Element&quot;)
+
+
+# temporarily modify val_df to have 0 at the minimal condition
+val_df_copy = val_df.clone()
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+
+
+
+
+# add artificial column to separate validation from element_df
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;).then(pl.lit(rich_sim_caption)).otherwise(pl.lit(rich_exp_caption)).alias(&quot;Type&quot;))
+
+
+g = sns.catplot(data=val_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;,  kind=&quot;point&quot;, aspect=1.5, order=elements, join=False, dodge=.4, hue_order=[rich_exp_caption, rich_sim_caption])
+
+
+
+element_df = element_df.with_columns(Condition = pl.lit(&quot;Minimal&quot;))
+element_df = element_df.with_columns(Type = pl.lit(rich_sim_caption))
+element_df = pl.concat([element_df, pl.DataFrame({&quot;Element&quot;: &quot;FE&quot;, &quot;Atoms/cell&quot;: -500000, &quot;Condition&quot;: &quot;Rich&quot;, &quot;Type&quot;: rich_exp_caption})])
+element_df
+
+# stupid workaround to plot errorbars
+for ax in g.axes[0]:
+    for path in ax.collections:
+        points = path.get_offsets()
+    all_x_values = [path.get_offsets()[:, 0] for path in ax.collections]
+    all_y_values = [path.get_offsets()[:, 1] for path in ax.collections]
+
+x_coords = list(all_x_values[0]) # list(all_x_values[0]) +
+y_coords = list(all_y_values[0]) # list(all_y_values[0]) +
+error_vals = [val_df.filter((pl.col(&quot;Condition&quot;) == &quot;Rich&quot;) &amp; (pl.col(&quot;Element&quot;) == element))[0,&quot;Error&quot;] for element in elements]
+
+# add errorbar plot at these coords
+plt.errorbar(x = x_coords, y = y_coords, yerr=error_vals, fmt=&#39;none&#39;, c= &#39;black&#39;, capsize = 2)
+
+# g.map_dataframe(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+#             hue=&quot;Condition&quot;)
+
+g.map(sns.pointplot, data=media_lim_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[rich_exp_caption, rich_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[&#39;v&#39;, None])
+
+g.map(sns.pointplot, data=ez_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[rich_exp_caption, rich_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[None, &#39;v&#39;])
+
+g.map(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[rich_exp_caption, rich_sim_caption], order=elements)
+
+plt.ylim(-1000, 20000)
+
+# plt.yscale(&quot;log&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(-2000.0, 20000.0)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_final_paper_validation_14_1.png" src="../../_images/notebooks_cofactors_final_paper_validation_14_1.png" />
+</div>
+</div>
+</section>
+<section id="Final-minimal-plot">
+<h2>Final minimal plot<a class="headerlink" href="#Final-minimal-plot" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>element_df
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (3_904, 4)</small><table border="1" class="dataframe"><thead><tr><th>Element</th><th>Atoms/cell</th><th>Condition</th><th>Type</th></tr><tr><td>str</td><td>i64</td><td>str</td><td>str</td></tr></thead><tbody><tr><td>&quot;MO&quot;</td><td>3285</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3285</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3286</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3288</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3290</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3292</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3292</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3292</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3293</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3293</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3293</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;MO&quot;</td><td>3295</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td><td>&hellip;</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1376</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1378</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1378</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;CO&quot;</td><td>1378</td><td>&quot;Minimal&quot;</td><td>&quot;Simulation, EZ…</td></tr><tr><td>&quot;FE&quot;</td><td>-500000</td><td>&quot;Rich&quot;</td><td>&quot;Experiment, LB…</td></tr></tbody></table></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>elements = [&quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;]
+
+# copy ez_df to have 0 at the minimal condition
+ez_df_copy = ez_df.clone().filter(pl.col(&quot;Element&quot;).is_in(elements))
+ez_df_copy = ez_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+ez_df_copy = ez_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(pl.lit(minimal_exp_caption)).otherwise(pl.lit(minimal_sim_caption)).alias(&quot;Type&quot;))
+
+# zero values above 800000
+ez_df_copy = ez_df_copy.with_columns(pl.when(pl.col(&quot;Atoms/cell&quot;) &gt; 800000).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># temporarily modify media_lim_df to have 0 at the minimal condition
+media_lim_df_copy = media_lim_df.clone().filter(pl.col(&quot;Element&quot;).is_in(elements))
+media_lim_df_copy = media_lim_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+media_lim_df_copy = media_lim_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(pl.lit(minimal_sim_caption)).otherwise(pl.lit(minimal_exp_caption)).alias(&quot;Type&quot;))
+# zero values above 800000
+media_lim_df_copy = media_lim_df_copy.with_columns(pl.when(pl.col(&quot;Atoms/cell&quot;) &gt; 500000).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+
+media_lim_df_copy.to_pandas()
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Condition</th>
+      <th>Below LOD</th>
+      <th>Cell</th>
+      <th>Element</th>
+      <th>Log concentration</th>
+      <th>Concentration (M)</th>
+      <th>Atoms/cell</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MO</td>
+      <td>-7.730374</td>
+      <td>1.860483e-08</td>
+      <td>32010.938103</td>
+      <td>Experiment, M9 minimal media</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>ZN</td>
+      <td>-6.903050</td>
+      <td>1.250115e-07</td>
+      <td>215091.142940</td>
+      <td>Experiment, M9 minimal media</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CU</td>
+      <td>-7.208921</td>
+      <td>6.181290e-08</td>
+      <td>106353.506190</td>
+      <td>Experiment, M9 minimal media</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NI</td>
+      <td>-7.707702</td>
+      <td>1.960187e-08</td>
+      <td>33726.423494</td>
+      <td>Experiment, M9 minimal media</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>0</td>
+      <td>CO</td>
+      <td>-8.342515</td>
+      <td>4.544486e-09</td>
+      <td>7819.112138</td>
+      <td>Experiment, M9 minimal media</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>Minimal</td>
+      <td>1</td>
+      <td>0</td>
+      <td>FE</td>
+      <td>-6.460629</td>
+      <td>3.462353e-07</td>
+      <td>-500000.000000</td>
+      <td>Experiment, M9 minimal media</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>Minimal</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MN</td>
+      <td>-7.685031</td>
+      <td>2.065235e-08</td>
+      <td>35533.842778</td>
+      <td>Experiment, M9 minimal media</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MO</td>
+      <td>-6.522642</td>
+      <td>3.001637e-07</td>
+      <td>-500000.000000</td>
+      <td>Simulation, MOPS minimal media</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>ZN</td>
+      <td>-4.931786</td>
+      <td>1.170077e-05</td>
+      <td>-500000.000000</td>
+      <td>Simulation, MOPS minimal media</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CU</td>
+      <td>-6.840925</td>
+      <td>1.442363e-07</td>
+      <td>-500000.000000</td>
+      <td>Simulation, MOPS minimal media</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NI</td>
+      <td>-6.954561</td>
+      <td>1.110297e-07</td>
+      <td>-500000.000000</td>
+      <td>Simulation, MOPS minimal media</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>CO</td>
+      <td>-6.818080</td>
+      <td>1.520267e-07</td>
+      <td>-500000.000000</td>
+      <td>Simulation, MOPS minimal media</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>FE</td>
+      <td>-5.272686</td>
+      <td>5.337203e-06</td>
+      <td>-500000.000000</td>
+      <td>Simulation, MOPS minimal media</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>Rich</td>
+      <td>0</td>
+      <td>0</td>
+      <td>MN</td>
+      <td>-6.795354</td>
+      <td>1.601939e-07</td>
+      <td>-500000.000000</td>
+      <td>Simulation, MOPS minimal media</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[52]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># find the indices of &quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;:
+elements = [&quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;]
+element_indices = [np.where(element_ids == element)[0][0] for element in elements]
+
+# compute the timeseries for the elements
+element_timeseries = total_counts_min @ C @ P @ E[:, element_indices]
+
+# convert to polars dataframe
+element_df = pl.DataFrame(element_timeseries, schema=elements)
+
+# melt to long form
+element_df = element_df.melt(id_vars=None, value_name=&quot;Atoms/cell&quot;, variable_name=&quot;Element&quot;)
+
+
+# temporarily modify val_df to have 0 at the minimal condition
+val_df_copy = val_df.clone()
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+
+# add artificial column to separate validation from element_df
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(pl.lit(minimal_sim_caption)).otherwise(pl.lit(minimal_exp_caption)).alias(&quot;Type&quot;))
+
+
+g = sns.catplot(data=val_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;,  kind=&quot;point&quot;, aspect=2, order=elements, join=False, dodge=.4)
+
+element_df = element_df.with_columns(Condition = pl.lit(&quot;Rich&quot;))
+element_df = element_df.with_columns(Type = pl.lit(minimal_sim_caption))
+element_df = pl.concat([element_df, pl.DataFrame({&quot;Element&quot;: &quot;FE&quot;, &quot;Atoms/cell&quot;: -500000, &quot;Condition&quot;: &quot;Minimal&quot;, &quot;Type&quot;: minimal_exp_caption})])
+element_df
+
+# stupid workaround to plot errorbars
+for ax in g.axes[0]:
+    for path in ax.collections:
+        points = path.get_offsets()
+    all_x_values = [path.get_offsets()[:, 0] for path in ax.collections]
+    all_y_values = [path.get_offsets()[:, 1] for path in ax.collections]
+
+x_coords = list(all_x_values[0]) # list(all_x_values[0]) +
+y_coords = list(all_y_values[0]) # list(all_y_values[0]) +
+error_vals = [val_df.filter((pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;) &amp; (pl.col(&quot;Element&quot;) == element))[0,&quot;Error&quot;] for element in elements]
+
+# add errorbar plot at these coords
+plt.errorbar(x = x_coords, y = y_coords, yerr=error_vals, fmt=&#39;none&#39;, c= &#39;black&#39;, capsize = 2)
+
+# g.map_dataframe(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+#             hue=&quot;Condition&quot;)
+
+g.map(sns.pointplot, data=media_lim_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[minimal_exp_caption, minimal_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[&#39;v&#39;, None])
+
+g.map(sns.pointplot, data=ez_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[minimal_exp_caption, minimal_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[None, &#39;v&#39;])
+
+g.map(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[minimal_exp_caption, minimal_sim_caption])
+
+# set lower ylim to 0
+plt.ylim(-25000, None)
+
+# plt.yscale(&quot;log&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/axisgrid.py:712: UserWarning: Using the boxplot function without specifying `order` is likely to produce an incorrect plot.
+  warnings.warn(warning)
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[52]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(-25000.0, 408777.1)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_final_paper_validation_19_2.png" src="../../_images/notebooks_cofactors_final_paper_validation_19_2.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># find the indices of &quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;:
+elements = [&quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;]
+element_indices = [np.where(element_ids == element)[0][0] for element in elements]
+
+# compute the timeseries for the elements
+element_timeseries = total_counts_min @ C @ P @ E[:, element_indices]
+
+# convert to polars dataframe
+element_df = pl.DataFrame(element_timeseries, schema=elements)
+
+# melt to long form
+element_df = element_df.melt(id_vars=None, value_name=&quot;Atoms/cell&quot;, variable_name=&quot;Element&quot;)
+
+
+# temporarily modify val_df to have 0 at the minimal condition
+val_df_copy = val_df.clone()
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(-500000).otherwise(pl.col(&quot;Atoms/cell&quot;)).alias(&quot;Atoms/cell&quot;))
+
+# add artificial column to separate validation from element_df
+val_df_copy = val_df_copy.with_columns(pl.when(pl.col(&quot;Condition&quot;) == &quot;Rich&quot;).then(pl.lit(minimal_sim_caption)).otherwise(pl.lit(minimal_exp_caption)).alias(&quot;Type&quot;))
+
+
+g = sns.catplot(data=val_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;,  kind=&quot;point&quot;, aspect=2, order=elements, join=False, dodge=.4)
+
+element_df = element_df.with_columns(Condition = pl.lit(&quot;Rich&quot;))
+element_df = element_df.with_columns(Type = pl.lit(minimal_sim_caption))
+element_df = pl.concat([element_df, pl.DataFrame({&quot;Element&quot;: &quot;FE&quot;, &quot;Atoms/cell&quot;: -500000, &quot;Condition&quot;: &quot;Minimal&quot;, &quot;Type&quot;: minimal_exp_caption})])
+element_df
+
+# stupid workaround to plot errorbars
+for ax in g.axes[0]:
+    for path in ax.collections:
+        points = path.get_offsets()
+    all_x_values = [path.get_offsets()[:, 0] for path in ax.collections]
+    all_y_values = [path.get_offsets()[:, 1] for path in ax.collections]
+
+x_coords = list(all_x_values[0]) # list(all_x_values[0]) +
+y_coords = list(all_y_values[0]) # list(all_y_values[0]) +
+error_vals = [val_df.filter((pl.col(&quot;Condition&quot;) == &quot;Minimal&quot;) &amp; (pl.col(&quot;Element&quot;) == element))[0,&quot;Error&quot;] for element in elements]
+
+# add errorbar plot at these coords
+plt.errorbar(x = x_coords, y = y_coords, yerr=error_vals, fmt=&#39;none&#39;, c= &#39;black&#39;, capsize = 2)
+
+# g.map_dataframe(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+#             hue=&quot;Condition&quot;)
+
+g.map(sns.pointplot, data=media_lim_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[minimal_exp_caption, minimal_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[&#39;v&#39;, None])
+
+g.map(sns.pointplot, data=ez_df_copy.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[minimal_exp_caption, minimal_sim_caption], join=False, dodge=.4, label=&quot;Media limit&quot;, order=elements, markers=[None, &#39;v&#39;])
+
+g.map(sns.boxplot, data=element_df.to_pandas(), x=&quot;Element&quot;, y=&quot;Atoms/cell&quot;,
+            hue=&quot;Type&quot;, hue_order=[minimal_exp_caption, minimal_sim_caption])
+
+# set lower ylim to 0
+plt.ylim(-500, 10000)
+
+# plt.yscale(&quot;log&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/axisgrid.py:712: UserWarning: Using the boxplot function without specifying `order` is likely to produce an incorrect plot.
+  warnings.warn(warning)
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(-2000.0, 10000.0)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_final_paper_validation_20_2.png" src="../../_images/notebooks_cofactors_final_paper_validation_20_2.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="Single-cell-data">
+<h1>Single-cell data<a class="headerlink" href="#Single-cell-data" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[54]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>elements = [&quot;FE&quot;, &quot;ZN&quot;, &quot;MN&quot;, &quot;CU&quot;, &quot;MO&quot;, &quot;NI&quot;, &quot;CO&quot;]
+element_indices = [np.where(element_ids == element)[0][0] for element in elements]
+
+sc_df = pl.read_csv(&#39;external_data/single_cell_fe.csv&#39;)
+
+# remove the first row
+# sc_df = sc_df.filter((pl.col(&quot;Bin&quot;) &gt; 16) &amp; (pl.col(&quot;Bin&quot;) &lt; 60))
+
+# create 1d list of all bins with comprehension
+bins = sc_df[&quot;Bin&quot;].to_numpy()
+counts = sc_df[&quot;Count&quot;].to_numpy()
+
+# create a list with bin value repeated counts times
+real_hist_data = np.repeat(bins, counts)
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[55]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># compute the timeseries for the elements
+big_element_timeseries = total_counts_big[:, 1:-1] @ C @ P @ E[:, element_indices]
+
+# convert to polars dataframe
+big_element_df = pl.DataFrame(big_element_timeseries, schema=elements)
+
+# add Timestep and Cell index from total_counts_big
+big_element_df = big_element_df.with_columns(pl.DataFrame(total_counts_big[:, [0, -1]], schema=[&quot;Timestep&quot;, &quot;Cell index&quot;]))
+big_element_df
+
+# Groupby cell index, then add the max timestep for each cell
+max_timestep = big_element_df.group_by(&quot;Cell index&quot;).agg(pl.col(&quot;Timestep&quot;).max().alias(&quot;Max timestep&quot;))
+
+# merge with original
+big_element_df = big_element_df.join(max_timestep, on=&quot;Cell index&quot;)
+
+# calculate cell density correction factor with 2 ^((Max timestep - Timestep)/Max timestep)
+big_element_df = big_element_df.with_columns( (2 ** ((big_element_df[&quot;Max timestep&quot;] - big_element_df[&quot;Timestep&quot;])
+                                                     / big_element_df[&quot;Max timestep&quot;])).alias(&quot;Density correction&quot;))
+
+# remove all cols except element, cell index and density correction
+big_element_df = big_element_df.drop([&quot;Timestep&quot;, &quot;Max timestep&quot;])
+
+# multiply the atoms/cell by the density correction
+big_element_df = big_element_df.melt(id_vars=[&quot;Cell index&quot;, &quot;Density correction&quot;], value_name=&quot;Atoms/cell&quot;, variable_name=&quot;Element&quot;)
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[60]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># filter FE
+big_fe_df = big_element_df.filter(pl.col(&quot;Element&quot;) == &quot;FE&quot;)
+
+# convert atoms/cell to float
+big_fe_df = big_fe_df.with_columns( (big_fe_df[&quot;Atoms/cell&quot;] * 55.85 * 10**18 * 0.92 / (6.023*10**23)).alias(&quot;Fe-56 (ag)&quot;))
+
+# create a weighted KDE plot
+sns.kdeplot(data=big_fe_df.to_pandas(), x=&quot;Fe-56 (ag)&quot;, weights=&quot;Density correction&quot;, fill=True, bw_adjust=2, label=&quot;Aggregate simulation&quot;)
+# sns.histplot(data=big_fe_df.to_pandas(), x=&quot;Fe-56 (ag)&quot;, weights=&quot;Density correction&quot;,stat=&quot;density&quot;, binwidth=10, alpha=0.5, label=&quot;Aggregate sim&quot;)
+
+# plot every cell from 0 to 18 with low alpha and gray color
+for i in range(0, 18):
+    if i == 1:
+        sns.kdeplot(data=big_fe_df.filter(pl.col(&quot;Cell index&quot;) == i).to_pandas(), x=&quot;Fe-56 (ag)&quot;,
+                weights=&quot;Density correction&quot;, fill=True, bw_adjust=2, alpha=0.1, color=&quot;gray&quot;, linewidth=0.2, label=&quot;Single-cell simulation&quot;)
+    else:
+        sns.kdeplot(data=big_fe_df.filter(pl.col(&quot;Cell index&quot;) == i).to_pandas(), x=&quot;Fe-56 (ag)&quot;,
+                # weights=&quot;Density correction&quot;,
+                fill=True, bw_adjust=2, alpha=0.02, color=&quot;gray&quot;, linewidth=0.05)
+
+# sns.kdeplot(data=big_fe_df.filter(pl.col(&quot;Cell index&quot;) == 10).to_pandas(), x=&quot;Fe-56 (ag)&quot;,
+#             weights=&quot;Density correction&quot;, fill=True, bw_adjust=2, label=&quot;Random cell 10&quot;)
+# sns.kdeplot(data=big_fe_df.filter(pl.col(&quot;Cell index&quot;) == 3).to_pandas(), x=&quot;Fe-56 (ag)&quot;,
+#             weights=&quot;Density correction&quot;, fill=True, bw_adjust=2, label=&quot;Random cell 3&quot;)
+
+# plot histogram data in sc_df, as lineplot with fill
+sns.kdeplot(data=real_hist_data, fill=True, bw_adjust=1.3, label=&quot;Real single-cell dist.&quot;)
+# sns.histplot(real_hist_data, element=&quot;step&quot;, stat=&quot;density&quot;, binwidth=10, alpha=0.3, label=&quot;Real single-cell dist.&quot;, binrange=(10, 90))
+
+plt.legend()
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+/Users/cyrus/.pyenv/versions/viv-10/lib/python3.10/site-packages/seaborn/_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context(&#39;mode.use_inf_as_na&#39;, True):
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[60]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;matplotlib.legend.Legend at 0x2c9a1cb50&gt;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_final_paper_validation_24_2.png" src="../../_images/notebooks_cofactors_final_paper_validation_24_2.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[57]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span># Compare different real bulk data sets
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[57]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-none notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

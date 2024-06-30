@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.enzymeKinetics &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.enzymeKinetics</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.enzymeKinetics</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">EnzymeKinetics</span>
+
+<span class="sd">Takes in enzyme kinetics data on initialization, and returns dicts of rate estimates when passed</span>
+<span class="sd">metabolite and enzyme concentrations at runtime.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">Equation</span> <span class="kn">import</span> <span class="n">Expression</span>
+
+
+<div class="viewcode-block" id="enzymeKineticsError">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.enzymeKineticsError">[docs]</a>
+<span class="k">class</span> <span class="nc">enzymeKineticsError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<span class="n">COUNTS_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">umol</span>
+<span class="n">TIME_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span>
+<span class="n">VOLUME_UNITS</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+
+
+<div class="viewcode-block" id="EnzymeKinetics">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics">[docs]</a>
+<span class="k">class</span> <span class="nc">EnzymeKinetics</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    EnzymeKinetics</span>
+
+<span class="sd">    Returns rate estimates from kinetic equation information stored in reactionRateInfo.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">reactionRateInfo</span><span class="p">,</span> <span class="n">kcatsOnly</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">useCustoms</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">moreThanKcat</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">):</span>
+        <span class="c1"># Set default reaction rate limit, to which reactions are set absent other information</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">defaultRate</span> <span class="o">=</span> <span class="p">(</span><span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">TIME_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+
+        <span class="c1"># Load rate functions from enzymeKinetics.tsv flat file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span> <span class="o">=</span> <span class="n">reactionRateInfo</span>
+
+        <span class="c1">## Filter the reactions as specified</span>
+        <span class="c1"># Exclude any rows with more than a kcat</span>
+        <span class="k">if</span> <span class="n">kcatsOnly</span><span class="p">:</span>
+            <span class="n">reactionRateInfoNew</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">constraintID</span><span class="p">,</span> <span class="n">reactionInfo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Kcat-only reactions will have no kMs, kIs, or custom equations</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kM&quot;</span><span class="p">])</span>
+                    <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kI&quot;</span><span class="p">])</span>
+                    <span class="ow">or</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customRateEquation&quot;</span><span class="p">]</span>
+                <span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">reactionRateInfoNew</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span> <span class="o">=</span> <span class="n">reactionRateInfoNew</span>
+
+        <span class="c1"># Exclude any custom equation rows</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">useCustoms</span><span class="p">:</span>
+            <span class="n">reactionRateInfoNew</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">constraintID</span><span class="p">,</span> <span class="n">reactionInfo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customRateEquation&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">reactionRateInfoNew</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span> <span class="o">=</span> <span class="n">reactionRateInfoNew</span>
+
+        <span class="c1"># Throw out any kcat-only reactions</span>
+        <span class="k">if</span> <span class="n">moreThanKcat</span><span class="p">:</span>
+            <span class="n">reactionRateInfoNew</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">constraintID</span><span class="p">,</span> <span class="n">reactionInfo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kM&quot;</span><span class="p">])</span>
+                    <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kI&quot;</span><span class="p">])</span>
+                    <span class="ow">or</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customRateEquation&quot;</span><span class="p">]</span>
+                <span class="p">):</span>
+                    <span class="n">reactionRateInfoNew</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span> <span class="o">=</span> <span class="n">reactionRateInfoNew</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">allConstraintIDs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">allReactionIDs</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;reactionID&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputsChecked</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="EnzymeKinetics.checkKnownSubstratesAndEnzymes">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.checkKnownSubstratesAndEnzymes">[docs]</a>
+    <span class="k">def</span> <span class="nf">checkKnownSubstratesAndEnzymes</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">metaboliteSMatrixNamesNoCompartment</span><span class="p">,</span>
+        <span class="n">metaboliteNamesWithConcentrations</span><span class="p">,</span>
+        <span class="n">enzymeNames</span><span class="p">,</span>
+        <span class="n">removeUnknowns</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">knownConstraints</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">unusableConstraints</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">unknownSubstrates</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">unknownEnzymes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">unknownCustomVars</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">constraintID</span><span class="p">,</span> <span class="n">reactionInfo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">keepReaction</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">reactionType</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;rateEquationType&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">reactionType</span> <span class="o">==</span> <span class="s2">&quot;standard&quot;</span><span class="p">:</span>
+                <span class="c1"># Check if the substrates are known</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kM&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">substrateID</span> <span class="ow">in</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;substrateIDs&quot;</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">substrateID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteNamesWithConcentrations</span><span class="p">:</span>
+                            <span class="n">unknownSubstrates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">substrateID</span><span class="p">)</span>
+                            <span class="n">unusableConstraints</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+                            <span class="n">keepReaction</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">substrateID</span> <span class="ow">in</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;substrateIDs&quot;</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">substrateID</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteSMatrixNamesNoCompartment</span><span class="p">:</span>
+                            <span class="n">unknownSubstrates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">substrateID</span><span class="p">)</span>
+                            <span class="n">unusableConstraints</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+                            <span class="n">keepReaction</span> <span class="o">=</span> <span class="kc">False</span>
+
+                <span class="c1"># Check if the enzymes are known</span>
+                <span class="k">for</span> <span class="n">enzymeID</span> <span class="ow">in</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;enzymeIDs&quot;</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">enzymeID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">enzymeNames</span><span class="p">:</span>
+                        <span class="n">unknownEnzymes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">enzymeID</span><span class="p">)</span>
+                        <span class="n">unusableConstraints</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+                        <span class="n">keepReaction</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">elif</span> <span class="n">reactionType</span> <span class="o">==</span> <span class="s2">&quot;custom&quot;</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customParameterVariables&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">variable</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteNamesWithConcentrations</span><span class="p">:</span>
+                        <span class="n">notSubstrate</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">if</span> <span class="n">variable</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">enzymeNames</span><span class="p">:</span>
+                        <span class="n">notEnzyme</span> <span class="o">=</span> <span class="kc">True</span>
+
+                    <span class="k">if</span> <span class="n">notSubstrate</span> <span class="ow">and</span> <span class="n">notEnzyme</span><span class="p">:</span>
+                        <span class="n">unknownCustomVars</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">variable</span><span class="p">)</span>
+                        <span class="n">unusableConstraints</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+                        <span class="n">keepReaction</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Reaction type is unknown</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Reaction type &#39;</span><span class="si">%s</span><span class="s2">&#39; is unknown. Must be either &#39;standard&#39; or &#39;custom&#39;.&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">reactionType</span><span class="p">,)</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Keep the reaction only if both substrates and enzymes are known</span>
+            <span class="k">if</span> <span class="n">keepReaction</span><span class="p">:</span>
+                <span class="n">knownConstraints</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="n">reactionInfo</span>
+
+        <span class="k">if</span> <span class="n">removeUnknowns</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span> <span class="o">=</span> <span class="n">knownConstraints</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inputsChecked</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">unknownVals</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;unknownSubstrates&quot;</span><span class="p">:</span> <span class="n">unknownSubstrates</span><span class="p">,</span>
+            <span class="s2">&quot;unknownEnzymes&quot;</span><span class="p">:</span> <span class="n">unknownEnzymes</span><span class="p">,</span>
+            <span class="s2">&quot;unknownCustomVars&quot;</span><span class="p">:</span> <span class="n">unknownCustomVars</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">knownConstraints</span><span class="p">,</span> <span class="n">unusableConstraints</span><span class="p">,</span> <span class="n">unknownVals</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.reactionRate">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.reactionRate">[docs]</a>
+    <span class="k">def</span> <span class="nf">reactionRate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">reactionInfo</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;rateEquationType&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;standard&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionStandard</span><span class="p">(</span>
+                <span class="n">reactionInfo</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;rateEquationType&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;custom&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionCustom</span><span class="p">(</span>
+                <span class="n">reactionInfo</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span>
+                <span class="s2">&quot;rateEquationType </span><span class="si">%s</span><span class="s2"> not recognized! Must be either &#39;standard&#39; or &#39;custom&#39;.&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;rateEquationType&quot;</span><span class="p">])</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.reactionStandard">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.reactionStandard">[docs]</a>
+    <span class="k">def</span> <span class="nf">reactionStandard</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">reactionInfo</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+    <span class="p">):</span>
+        <span class="c1"># Find the enzymes needed for this rate</span>
+        <span class="n">enzymeConc</span> <span class="o">=</span> <span class="n">enzymeConcentrationsDict</span><span class="p">[</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;enzymeIDs&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+            <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+        <span class="p">)</span>
+        <span class="n">kMs</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kM&quot;</span><span class="p">]</span>
+        <span class="n">kIs</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kI&quot;</span><span class="p">]</span>
+        <span class="n">substrateIDs</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;substrateIDs&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kMs</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">kIs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">substrateIDs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">enzymeKineticsError</span><span class="p">(</span>
+                <span class="s2">&quot;The number of saturation constants (kMs and kIs) must not be greater than the number of substrates for a standard reaction. For constraint </span><span class="si">{}</span><span class="s2">, there are </span><span class="si">{}</span><span class="s2"> kMs, </span><span class="si">{}</span><span class="s2"> kIs, and </span><span class="si">{}</span><span class="s2"> substrates. ReactionInfo: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;constraintID&quot;</span><span class="p">],</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">kMs</span><span class="p">),</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">kIs</span><span class="p">),</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">substrateIDs</span><span class="p">),</span>
+                    <span class="n">reactionInfo</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">rate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kcat&quot;</span><span class="p">])</span> <span class="o">*</span> <span class="n">enzymeConc</span>
+        <span class="k">if</span> <span class="s2">&quot;kcatAdjusted&quot;</span> <span class="ow">in</span> <span class="n">reactionInfo</span><span class="p">:</span>
+            <span class="n">rate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kcatAdjusted&quot;</span><span class="p">])</span> <span class="o">*</span> <span class="n">enzymeConc</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">kM</span> <span class="ow">in</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kM&quot;</span><span class="p">]:</span>
+            <span class="n">substrateConc</span> <span class="o">=</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">[</span><span class="n">substrateIDs</span><span class="p">[</span><span class="n">idx</span><span class="p">]]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+                <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+            <span class="p">)</span>
+            <span class="n">rate</span> <span class="o">*=</span> <span class="n">substrateConc</span> <span class="o">/</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">substrateConc</span><span class="p">)</span> <span class="o">+</span> <span class="n">kM</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">kI</span> <span class="ow">in</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;kI&quot;</span><span class="p">]:</span>
+            <span class="n">substrateConc</span> <span class="o">=</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">[</span><span class="n">substrateIDs</span><span class="p">[</span><span class="n">idx</span><span class="p">]]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+                <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+            <span class="p">)</span>
+            <span class="n">rate</span> <span class="o">*=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="p">(</span><span class="n">substrateConc</span> <span class="o">/</span> <span class="n">kI</span><span class="p">))</span>
+            <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">TIME_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span><span class="p">)</span> <span class="o">*</span> <span class="n">rate</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.reactionCustom">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.reactionCustom">[docs]</a>
+    <span class="k">def</span> <span class="nf">reactionCustom</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">reactionInfo</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+    <span class="p">):</span>
+        <span class="n">customParameters</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customParameters&quot;</span><span class="p">]</span>
+        <span class="n">customParameterVariables</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customParameterVariables&quot;</span><span class="p">]</span>
+        <span class="n">customParameterConstants</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customParameterConstantValues&quot;</span><span class="p">]</span>
+        <span class="n">equationString</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customRateEquation&quot;</span><span class="p">]</span>
+        <span class="n">parameterDefinitionArray</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;customParameters&quot;</span><span class="p">]</span>
+
+        <span class="n">parametersArray</span> <span class="o">=</span> <span class="n">customParameterConstants</span>
+        <span class="k">for</span> <span class="n">customParameter</span> <span class="ow">in</span> <span class="n">customParameters</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">customParameterConstants</span><span class="p">)</span> <span class="p">:]:</span>
+            <span class="n">variable</span> <span class="o">=</span> <span class="n">customParameterVariables</span><span class="p">[</span><span class="n">customParameter</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">enzymeConcentrationsDict</span><span class="p">:</span>
+                <span class="n">parametersArray</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">enzymeConcentrationsDict</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+                        <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">variable</span> <span class="ow">in</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">:</span>
+                <span class="n">parametersArray</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">metaboliteConcentrationsDict</span><span class="p">[</span><span class="n">variable</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+                        <span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">parametersArray</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">parameterDefinitionArray</span><span class="p">)</span>
+
+        <span class="n">customRateLaw</span> <span class="o">=</span> <span class="n">Expression</span><span class="p">(</span><span class="n">equationString</span><span class="p">,</span> <span class="n">parameterDefinitionArray</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">COUNTS_UNITS</span> <span class="o">/</span> <span class="n">TIME_UNITS</span> <span class="o">/</span> <span class="n">VOLUME_UNITS</span><span class="p">)</span> <span class="o">*</span> <span class="n">customRateLaw</span><span class="p">(</span>
+            <span class="o">*</span><span class="n">parametersArray</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.allConstraintsDict">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.allConstraintsDict">[docs]</a>
+    <span class="k">def</span> <span class="nf">allConstraintsDict</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+    <span class="p">):</span>
+        <span class="n">constraintsDict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">constraintID</span><span class="p">,</span> <span class="n">reactionInfo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">constraintsDict</span><span class="p">[</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRate</span><span class="p">(</span>
+                <span class="n">reactionInfo</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">constraintsDict</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.allReactionsDict">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.allReactionsDict">[docs]</a>
+    <span class="k">def</span> <span class="nf">allReactionsDict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a dict of dicts from reactionID to constraintIDs for that reaction, to rates for each constraintID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reactionsDict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">constraintID</span><span class="p">,</span> <span class="n">reactionInfo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">reactionID</span> <span class="o">=</span> <span class="n">reactionInfo</span><span class="p">[</span><span class="s2">&quot;reactionID&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">reactionID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">reactionsDict</span><span class="p">:</span>
+                <span class="n">reactionsDict</span><span class="p">[</span><span class="n">reactionID</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">reactionsDict</span><span class="p">[</span><span class="n">reactionID</span><span class="p">][</span><span class="n">constraintID</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRate</span><span class="p">(</span>
+                <span class="n">reactionInfo</span><span class="p">,</span> <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">reactionsDict</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.ratesView">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.ratesView">[docs]</a>
+    <span class="k">def</span> <span class="nf">ratesView</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">reactionIDs</span><span class="p">,</span>
+        <span class="n">reactionsToConstraintsDict</span><span class="p">,</span>
+        <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+        <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+        <span class="n">raiseIfNotFound</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an array of rates with units.</span>
+<span class="sd">                Order taken from reactionIDs, rates to estimate come from reactionsToConstraintsDict.</span>
+<span class="sd">                When a rate is not found, raises exception if raiseIfNotFound, else returns default rate.</span>
+<span class="sd">                A reaction must be in reactionsToConstraintsDict, or it will get the default value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">unknownConstraints</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">unknownReactions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c1"># Build an estimate for rates of constraints passed in</span>
+        <span class="n">rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaultRate</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reactionIDs</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">reactionID</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reactionIDs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">reactionID</span> <span class="ow">in</span> <span class="n">reactionsToConstraintsDict</span><span class="p">:</span>
+                <span class="n">constraintID</span> <span class="o">=</span> <span class="n">reactionsToConstraintsDict</span><span class="p">[</span><span class="n">reactionID</span><span class="p">][</span><span class="s2">&quot;constraintID&quot;</span><span class="p">]</span>
+                <span class="n">coefficient</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">reactionsToConstraintsDict</span><span class="p">[</span><span class="n">reactionID</span><span class="p">][</span><span class="s2">&quot;coefficient&quot;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="s2">&quot;coefficient&quot;</span> <span class="ow">in</span> <span class="n">reactionsToConstraintsDict</span><span class="p">[</span><span class="n">reactionID</span><span class="p">]</span>
+                    <span class="k">else</span> <span class="mi">1</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">constraintID</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="p">:</span>
+                    <span class="n">rates</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">coefficient</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRate</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="p">[</span><span class="n">constraintID</span><span class="p">],</span>
+                        <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+                        <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">raiseIfNotFound</span><span class="p">:</span>
+                        <span class="n">unknownConstraints</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">constraintID</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">raiseIfNotFound</span><span class="p">:</span>
+                    <span class="n">unknownReactions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">reactionID</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unknownConstraints</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;No rate estimate found for the following </span><span class="si">{}</span><span class="s2"> constraintIDs </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">unknownConstraints</span><span class="p">),</span> <span class="n">unknownConstraints</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unknownReactions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;No rate estimate found for the following </span><span class="si">{}</span><span class="s2"> reactionIDs </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">unknownReactions</span><span class="p">),</span> <span class="n">unknownReactions</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rates</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.ratesViewConstraints">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.ratesViewConstraints">[docs]</a>
+    <span class="k">def</span> <span class="nf">ratesViewConstraints</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">constraintIDs</span><span class="p">,</span>
+        <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+        <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+        <span class="n">raiseIfNotFound</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an array of rates with units, in the same order as the constraintIDs iterable.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if all needed metabolite and enzyme concentrations are given</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputsChecked</span><span class="p">:</span>
+            <span class="n">knownConstraints</span><span class="p">,</span> <span class="n">unusableConstraints</span><span class="p">,</span> <span class="n">unknownVals</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">checkKnownSubstratesAndEnzymes</span><span class="p">(</span>
+                    <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+                    <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+                    <span class="n">enzymeNames</span><span class="o">=</span><span class="p">{},</span>
+                    <span class="n">removeUnknowns</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unusableConstraints</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Unable to compute kinetic rate for these reactions: </span><span class="si">{}</span><span class="se">\n</span><span class="s2">. Missing values for: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">list</span><span class="p">(</span><span class="n">unusableConstraints</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">unknownVals</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="n">unknownConstraints</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c1"># Build an estimate for rates of constraints passed in</span>
+        <span class="n">rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaultRate</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">constraintIDs</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">constraintID</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">constraintIDs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">constraintID</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="p">:</span>
+                <span class="n">rates</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reactionRate</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">reactionRateInfo</span><span class="p">[</span><span class="n">constraintID</span><span class="p">],</span>
+                    <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+                    <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">raiseIfNotFound</span><span class="p">:</span>
+                    <span class="n">unknownConstraints</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">constraintID</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unknownConstraints</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;No rate estimate found for constraintIDs </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">unknownConstraints</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rates</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.ratesViewReactions">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.ratesViewReactions">[docs]</a>
+    <span class="k">def</span> <span class="nf">ratesViewReactions</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">reactionIDs</span><span class="p">,</span>
+        <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+        <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+        <span class="n">sortFunction</span><span class="p">,</span>
+        <span class="n">raiseIfNotFound</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an array of rates with units, in the same order as the reactionIDs.</span>
+<span class="sd">        Uses sortFunction to decide which constraint to use if a reaction has multiple choices.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if all needed metabolite and enzyme concentrations are given</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputsChecked</span><span class="p">:</span>
+            <span class="n">knownConstraints</span><span class="p">,</span> <span class="n">unusableConstraints</span><span class="p">,</span> <span class="n">unknownVals</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">checkKnownSubstratesAndEnzymes</span><span class="p">(</span>
+                    <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+                    <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+                    <span class="n">enzymeNames</span><span class="o">=</span><span class="p">{},</span>
+                    <span class="n">removeUnknowns</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unusableConstraints</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Unable to compute kinetic rate for these reactions: </span><span class="si">{}</span><span class="se">\n</span><span class="s2">. Missing values for: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">list</span><span class="p">(</span><span class="n">unusableConstraints</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">unknownVals</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="n">unknownReactions</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaultRate</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">reactionIDs</span><span class="p">))</span>
+
+        <span class="n">constraintsDict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">allConstraintsDict</span><span class="p">(</span>
+            <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span> <span class="n">enzymeConcentrationsDict</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">reactionID</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reactionIDs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">reactionID</span> <span class="ow">in</span> <span class="n">constraintsDict</span><span class="p">:</span>
+                <span class="n">rates</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">sortFunction</span><span class="p">(</span><span class="n">constraintsDict</span><span class="p">[</span><span class="n">reactionID</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">raiseIfNotFound</span><span class="p">:</span>
+                    <span class="n">unknownReactions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">reactionID</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unknownReactions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;No rate estimate found for reactionIDs </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unknownReactions</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rates</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.ratesViewLowest">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.ratesViewLowest">[docs]</a>
+    <span class="k">def</span> <span class="nf">ratesViewLowest</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">reactionIDs</span><span class="p">,</span>
+        <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+        <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+        <span class="n">raiseIfNotFound</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an array of rates with units, in the same order as the reactionIDs, chosing the minimum estimate when a reactionID has multiple constraintIDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ratesViewReactions</span><span class="p">(</span>
+            <span class="n">reactionIDs</span><span class="p">,</span>
+            <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+            <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">,</span>
+            <span class="n">raiseIfNotFound</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EnzymeKinetics.ratesViewHighest">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.enzymeKinetics.html#wholecell.utils.enzymeKinetics.EnzymeKinetics.ratesViewHighest">[docs]</a>
+    <span class="k">def</span> <span class="nf">ratesViewHighest</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">reactionIDs</span><span class="p">,</span>
+        <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+        <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+        <span class="n">raiseIfNotFound</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an array of rates with units, in the same order as the reactionIDs, chosing the minimum estimate when a reactionID has multiple constraintIDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ratesViewReactions</span><span class="p">(</span>
+            <span class="n">reactionIDs</span><span class="p">,</span>
+            <span class="n">metaboliteConcentrationsDict</span><span class="p">,</span>
+            <span class="n">enzymeConcentrationsDict</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">,</span>
+            <span class="n">raiseIfNotFound</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

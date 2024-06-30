@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.memory_debug &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.memory_debug</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.memory_debug</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Memory leak debugging utility. This should detect uncollectable Python objects</span>
+<span class="sd">but not leaked C/C++ nodes.</span>
+
+<span class="sd">If the caller defaults `enabled`, then the OS environment variable `DEBUG_GC`</span>
+<span class="sd">will enable/disable memory leak detection.</span>
+
+<span class="sd">Example:</span>
+<span class="sd">        with detect_leaks():</span>
+<span class="sd">                make_a_matplotlib_chart()</span>
+
+<span class="sd">`detect_leaks()` is a context manager that runs a full GC and restores GC debug</span>
+<span class="sd">flags when done. It should work fine to nest `with detect_leaks(False)` for a</span>
+<span class="sd">block of code inside `with detect_leaks(True)`.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+
+<span class="c1"># See https://pymotw.com/2/gc/ for more info on using the gc interface.</span>
+<span class="c1"># DEBUG_UNCOLLECTABLE causes the collector to report on objects it can&#39;t</span>
+<span class="c1"># collect. You need to combine it with DEBUG_OBJECTS to print info about</span>
+<span class="c1"># objects and DEBUG_INSTANCES to print info about instances of old-style</span>
+<span class="c1"># classes (not derived from object).</span>
+<span class="c1">#</span>
+<span class="c1"># See https://docs.python.org/3/library/gc.html for Python 3.4+. Following</span>
+<span class="c1"># PEP 442, objects with a __del__() method don&#39;t end up in gc.garbage anymore.</span>
+<span class="n">DEBUG_OBJECTS</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gc</span><span class="p">,</span> <span class="s2">&quot;DEBUG_OBJECTS&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># defined in python 2</span>
+<span class="n">DEBUG_INSTANCES</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gc</span><span class="p">,</span> <span class="s2">&quot;DEBUG_INSTANCES&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># defined in python 2</span>
+<span class="n">TRACE_UNCOLLECTABLES</span> <span class="o">=</span> <span class="n">gc</span><span class="o">.</span><span class="n">DEBUG_UNCOLLECTABLE</span> <span class="o">|</span> <span class="n">DEBUG_OBJECTS</span> <span class="o">|</span> <span class="n">DEBUG_INSTANCES</span>
+<span class="n">TRACE_NONE</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<div class="viewcode-block" id="detect_leaks">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.memory_debug.html#wholecell.utils.memory_debug.detect_leaks">[docs]</a>
+<span class="nd">@contextmanager</span>
+<span class="k">def</span> <span class="nf">detect_leaks</span><span class="p">(</span><span class="n">enabled</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A context manager that optionally detects Python object leaks in the</span>
+<span class="sd">    `with` statement body.</span>
+
+<span class="sd">    Set `enabled` to True to enable leak detection, False to disable leak</span>
+<span class="sd">    detection, or default to let the &#39;DEBUG_GC&#39; environment variable</span>
+<span class="sd">    (int, &quot;0&quot;) enable leak detection if non-zero.</span>
+
+<span class="sd">    Leak detection has some overhead including running a full collection and</span>
+<span class="sd">    printing a list of uncollectable objects.</span>
+
+<span class="sd">    Per https://docs.python.org/2/library/gc.html, &quot;Objects that have</span>
+<span class="sd">    __del__() methods and are part of a reference cycle cause the entire</span>
+<span class="sd">    reference cycle to be uncollectable, including objects not necessarily in</span>
+<span class="sd">    the cycle but reachable only from it. Python doesn&#39;t collect such cycles</span>
+<span class="sd">    automatically because, in general, it isn&#39;t possible for Python to guess</span>
+<span class="sd">    a safe order in which to run the __del__() methods.&quot;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">enabled</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">enabled</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;DEBUG_GC&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)))</span>
+
+    <span class="n">saved_debug_flags</span> <span class="o">=</span> <span class="n">gc</span><span class="o">.</span><span class="n">get_debug</span><span class="p">()</span>
+    <span class="n">gc</span><span class="o">.</span><span class="n">set_debug</span><span class="p">(</span><span class="n">TRACE_UNCOLLECTABLES</span> <span class="k">if</span> <span class="n">enabled</span> <span class="k">else</span> <span class="n">TRACE_NONE</span><span class="p">)</span>
+
+    <span class="k">yield</span>  <span class="c1"># yield to the `with` statement body</span>
+
+    <span class="k">if</span> <span class="n">enabled</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+        <span class="p">):</span>  <span class="c1"># prints lines like &quot;gc: uncollectable &lt;CleanupGraph 0x10045f810&gt;&quot;</span>
+            <span class="c1"># Print some stack trace to show where the uncollectables were found</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;gc uncollectables detected in:&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+            <span class="n">traceback</span><span class="o">.</span><span class="n">print_stack</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+            <span class="c1"># Examine the gc.garbage list here?</span>
+
+    <span class="n">gc</span><span class="o">.</span><span class="n">set_debug</span><span class="p">(</span><span class="n">saved_debug_flags</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

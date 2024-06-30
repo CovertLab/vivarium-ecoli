@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.library.serialize &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.library.serialize</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.library.serialize</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">orjson</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">unum</span> <span class="kn">import</span> <span class="n">Unum</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.registry</span> <span class="kn">import</span> <span class="n">Serializer</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.topology</span> <span class="kn">import</span> <span class="n">convert_path_style</span><span class="p">,</span> <span class="n">normalize_path</span>
+
+<span class="kn">from</span> <span class="nn">ecoli.library.parameters</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">param_store</span>
+
+
+<div class="viewcode-block" id="UnumSerializer">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.UnumSerializer">[docs]</a>
+<span class="k">class</span> <span class="nc">UnumSerializer</span><span class="p">(</span><span class="n">Serializer</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="c1"># re.S for single-line mode (period matches every character inc. \n)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;!UnumSerializer</span><span class="se">\\</span><span class="s2">[(.*)</span><span class="se">\\</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">S</span><span class="p">)</span>
+
+    <span class="n">python_type</span> <span class="o">=</span> <span class="n">Unum</span>
+
+<div class="viewcode-block" id="UnumSerializer.serialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.UnumSerializer.serialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">num</span> <span class="o">=</span> <span class="n">num</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="c1"># TODO: Fix this</span>
+        <span class="c1"># return f&#39;!UnumSerializer[{num} | {value.strUnit()}]&#39;</span>
+        <span class="k">return</span> <span class="n">num</span></div>
+
+
+<div class="viewcode-block" id="UnumSerializer.can_deserialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.UnumSerializer.can_deserialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">can_deserialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">data</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="UnumSerializer.deserialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.UnumSerializer.deserialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">deserialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="c1"># WARNING: This deserialization is lossy and drops the unit</span>
+        <span class="c1"># information since there is no easy way to parse Unum&#39;s unit</span>
+        <span class="c1"># strings.</span>
+        <span class="n">matched_regex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matched_regex</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">matched_regex</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">orjson</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; | &quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ParameterSerializer">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.ParameterSerializer">[docs]</a>
+<span class="k">class</span> <span class="nc">ParameterSerializer</span><span class="p">(</span><span class="n">Serializer</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;!ParameterSerializer</span><span class="se">\\</span><span class="s2">[(.*)</span><span class="se">\\</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+    <span class="n">python_type</span> <span class="o">=</span> <span class="n">Parameter</span>
+
+<div class="viewcode-block" id="ParameterSerializer.can_deserialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.ParameterSerializer.can_deserialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">can_deserialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">data</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="ParameterSerializer.deserialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.ParameterSerializer.deserialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">deserialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">matched_regex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matched_regex</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">matched_regex</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">normalize_path</span><span class="p">(</span><span class="n">convert_path_style</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">param_store</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NumpyRandomStateSerializer">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.NumpyRandomStateSerializer">[docs]</a>
+<span class="k">class</span> <span class="nc">NumpyRandomStateSerializer</span><span class="p">(</span><span class="n">Serializer</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;!RandomStateSerializer</span><span class="se">\\</span><span class="s2">[(.*)</span><span class="se">\\</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+    <span class="n">python_type</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span>
+
+<div class="viewcode-block" id="NumpyRandomStateSerializer.serialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.NumpyRandomStateSerializer.serialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">rng_state</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">get_state</span><span class="p">())</span>
+        <span class="n">rng_state</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">rng_state</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;!RandomStateSerializer[</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">rng_state</span><span class="p">))</span><span class="si">}</span><span class="s2">]&quot;</span></div>
+
+
+<div class="viewcode-block" id="NumpyRandomStateSerializer.can_deserialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.NumpyRandomStateSerializer.can_deserialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">can_deserialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">data</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="NumpyRandomStateSerializer.deserialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.NumpyRandomStateSerializer.deserialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">deserialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">matched_regex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">regex_for_serialized</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matched_regex</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">matched_regex</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">orjson</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()</span>
+        <span class="n">rng</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rng</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MethodSerializer">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.MethodSerializer">[docs]</a>
+<span class="k">class</span> <span class="nc">MethodSerializer</span><span class="p">(</span><span class="n">Serializer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Serializer for bound method objects.&quot;&quot;&quot;</span>
+
+    <span class="n">python_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">ParameterSerializer</span><span class="p">()</span><span class="o">.</span><span class="n">deserialize</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MethodSerializer.serialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.serialize.html#ecoli.library.serialize.MethodSerializer.serialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;!MethodSerializer[</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2">]&quot;</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

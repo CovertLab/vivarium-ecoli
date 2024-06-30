@@ -1,0 +1,2146 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.tests.utils.test_library_performance &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.tests.utils.test_library_performance</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.tests.utils.test_library_performance</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Test library performance (NumPy and libraries above and below it) to</span>
+<span class="sd">discover configuration problems such as performance bugs in some versions</span>
+<span class="sd">of pip packages or problems linking to native libraries. Precise timings</span>
+<span class="sd">aren&#39;t needed.</span>
+
+<span class="sd">Running it this way prints all timing measurements:</span>
+<span class="sd">        python -m wholecell.tests.utils.test_library_performance</span>
+
+<span class="sd">Running it these ways prints timing measurements (and other printout) only</span>
+<span class="sd">for failed tests:</span>
+<span class="sd">        pytest wholecell/tests/utils/test_library_performance.py</span>
+
+<span class="sd">Running it this way runs the iterative test that isn&#39;t automatically</span>
+<span class="sd">discovered as a test method:</span>
+<span class="sd">        python -m unittest -v wholecell.tests.utils.test_library_performance.Test_library_performance.multitest_dot</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.integrate</span>
+
+<span class="c1"># Silence Sphinx autodoc warning</span>
+<span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="s2">&quot;unittest&quot;</span>
+
+
+<div class="viewcode-block" id="_format_time">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_library_performance.html#wholecell.tests.utils.test_library_performance._format_time">[docs]</a>
+<span class="k">def</span> <span class="nf">_format_time</span><span class="p">(</span><span class="n">timespan</span><span class="p">,</span> <span class="n">precision</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Formats the timespan in a human-readable form.</span>
+
+<span class="sd">    Cf. IPython %time magic</span>
+<span class="sd">    github.com/ipython/ipython - IPython/core/magics/execution.py</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">timespan</span> <span class="o">&gt;=</span> <span class="mf">60.0</span><span class="p">:</span>
+        <span class="c1"># More than a minute. Format it in a human readable form.</span>
+        <span class="n">PARTS</span> <span class="o">=</span> <span class="p">((</span><span class="s2">&quot;d&quot;</span><span class="p">,</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">24</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;h&quot;</span><span class="p">,</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">time_parts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">leftover</span> <span class="o">=</span> <span class="n">timespan</span>
+        <span class="k">for</span> <span class="n">suffix</span><span class="p">,</span> <span class="n">length</span> <span class="ow">in</span> <span class="n">PARTS</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">leftover</span> <span class="o">/</span> <span class="n">length</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">leftover</span> <span class="o">=</span> <span class="n">leftover</span> <span class="o">%</span> <span class="n">length</span>
+                <span class="n">time_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">suffix</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">leftover</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">time_parts</span><span class="p">)</span>
+
+    <span class="n">UNITS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">,</span> <span class="s2">&quot;ms&quot;</span><span class="p">,</span> <span class="s2">&quot;us&quot;</span><span class="p">,</span> <span class="s2">&quot;ns&quot;</span><span class="p">)</span>
+    <span class="n">SCALING</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1e3</span><span class="p">,</span> <span class="mf">1e6</span><span class="p">,</span> <span class="mf">1e9</span><span class="p">)</span>
+    <span class="n">K</span> <span class="o">=</span> <span class="mi">3</span>  <span class="c1"># orders of magnitude between SCALING factors</span>
+
+    <span class="k">if</span> <span class="n">timespan</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="o">-</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">timespan</span><span class="p">))</span> <span class="o">//</span> <span class="n">K</span><span class="p">),</span> <span class="n">K</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="n">K</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%.*g</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">precision</span><span class="p">,</span> <span class="n">timespan</span> <span class="o">*</span> <span class="n">SCALING</span><span class="p">[</span><span class="n">order</span><span class="p">],</span> <span class="n">UNITS</span><span class="p">[</span><span class="n">order</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="time_it">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_library_performance.html#wholecell.tests.utils.test_library_performance.time_it">[docs]</a>
+<span class="k">def</span> <span class="nf">time_it</span><span class="p">(</span><span class="n">code_to_measure</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Measured&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Time code_to_measure(). Print timings. Return the elapsed wall time.</span>
+<span class="sd">    Cf. IPython %time magic</span>
+<span class="sd">    github.com/ipython/ipython - IPython/core/magics/execution.py time()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># time execution</span>
+    <span class="n">elapsed_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+    <span class="n">code_to_measure</span><span class="p">()</span>
+    <span class="n">elapsed_end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+
+    <span class="n">elapsed_time</span> <span class="o">=</span> <span class="n">elapsed_end</span> <span class="o">-</span> <span class="n">elapsed_start</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2"> Elapsed: </span><span class="si">{</span><span class="n">_format_time</span><span class="p">(</span><span class="n">elapsed_time</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">elapsed_time</span></div>
+
+
+
+<span class="c1"># Originally generated by the parameter calculator (parca) into</span>
+<span class="c1"># reconstruction/ecoli/dataclasses/process/two_component_system_odes_parca.py</span>
+<div class="viewcode-block" id="derivatives">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_library_performance.html#wholecell.tests.utils.test_library_performance.derivatives">[docs]</a>
+<span class="k">def</span> <span class="nf">derivatives</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">t</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">+</span> <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">-</span> <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">]],</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">14</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">14</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span> <span class="o">+</span> <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">16</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span> <span class="o">-</span> <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">16</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">17</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">17</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">20</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">20</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span> <span class="o">+</span> <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">22</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span> <span class="o">-</span> <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">22</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">23</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">23</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">26</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">26</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span> <span class="o">+</span> <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">28</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span> <span class="o">-</span> <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">28</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">29</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span>
+                <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">29</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+                <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">]</span>
+            <span class="p">],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">32</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">32</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">]</span> <span class="o">+</span> <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">34</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">]</span> <span class="o">-</span> <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">34</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">35</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">35</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">]</span> <span class="o">+</span> <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">38</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">]</span> <span class="o">-</span> <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">38</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">]],</span>
+            <span class="p">[</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">39</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">39</span><span class="p">]</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">]],</span>
+        <span class="p">]</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># Ditto.</span>
+<div class="viewcode-block" id="derivatives_jacobian">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_library_performance.html#wholecell.tests.utils.test_library_performance.derivatives_jacobian">[docs]</a>
+<span class="k">def</span> <span class="nf">derivatives_jacobian</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">t</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span> <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span> <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">9</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">14</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">14</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">13</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">16</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">16</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span> <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">17</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span> <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">20</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">20</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">19</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">18</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">22</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">22</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">23</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">]</span> <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">23</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">21</span><span class="p">]</span> <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">26</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">26</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">25</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">24</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">28</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">28</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">170000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">29</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">]</span> <span class="o">+</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">29</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">27</span><span class="p">]</span> <span class="o">-</span> <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">32</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">32</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">31</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">30</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">0.0001</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">34</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">],</span>
+                <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">34</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">35</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">35</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">36</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">33</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">38</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">],</span>
+                <span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">],</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">38</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">500.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">],</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">39</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">],</span>
+            <span class="p">],</span>
+            <span class="p">[</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">39</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">40</span><span class="p">],</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mf">0.01</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+                <span class="o">-</span><span class="mf">100000000.0</span> <span class="o">*</span> <span class="n">y</span><span class="p">[</span><span class="mi">37</span><span class="p">],</span>
+            <span class="p">],</span>
+        <span class="p">]</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Test_library_performance">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_library_performance.html#wholecell.tests.utils.test_library_performance.Test_library_performance">[docs]</a>
+<span class="k">class</span> <span class="nc">Test_library_performance</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Test some library operations to see that they&#39;re performing OK.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Test_library_performance.time_this">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_library_performance.html#wholecell.tests.utils.test_library_performance.Test_library_performance.time_this">[docs]</a>
+    <span class="k">def</span> <span class="nf">time_this</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code_to_measure</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time the execution of code_to_measure(), enforcing a limit.&quot;&quot;&quot;</span>
+        <span class="n">test_method_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">()</span><span class="o">.</span><span class="n">rpartition</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time_it</span><span class="p">(</span><span class="n">code_to_measure</span><span class="p">,</span> <span class="n">test_method_name</span><span class="p">)</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> sec elapsed with </span><span class="si">{}</span><span class="s2"> sec limit&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">elapsed</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertLessEqual</span><span class="p">(</span><span class="n">elapsed</span><span class="p">,</span> <span class="n">limit</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span></div>
+
+
+    <span class="c1"># On 2015 MacBook Pro this takes &lt; 25 ms.</span>
+    <span class="c1"># Sherlock 1.0 performance varies widely with number of CPUs,</span>
+    <span class="c1"># OPENBLAS_NUM_THREADS=... value, compute node, and BLAS library.</span>
+    <span class="c1"># Allow time for test framework overhead + matrix construction.</span>
+    <span class="k">def</span> <span class="nf">test_dot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time NumPy float64 x float64 matrix dot().&quot;&quot;&quot;</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">M</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">M</span><span class="p">),</span> <span class="mf">0.3</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Test_library_performance.multitest_dot">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_library_performance.html#wholecell.tests.utils.test_library_performance.Test_library_performance.multitest_dot">[docs]</a>
+    <span class="k">def</span> <span class="nf">multitest_dot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time NumPy matrix dot() many times.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">iteration</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">test_dot</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span> <span class="nf">test_int_dot_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time NumPy int64 x int64 matrix dot().&quot;&quot;&quot;</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">N</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span><span class="p">),</span> <span class="mf">5.0</span><span class="p">)</span>  <span class="c1"># SLOW!</span>
+
+    <span class="k">def</span> <span class="nf">test_int_dot_floated_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Time converting an int64 matrix to float64 then int64 x float64</span>
+<span class="sd">        matrix dot(). This is 30x - 90x faster than int64 x int64 because</span>
+<span class="sd">        (1) modern CPUs have high-throughput floating point hardware,</span>
+<span class="sd">        (2) BLAS has no integer type, and</span>
+<span class="sd">        (3) the libraries don&#39;t parallelize integer matrix multiply.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">N</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span> <span class="o">*</span> <span class="mf">1.0</span><span class="p">),</span> <span class="mf">0.3</span><span class="p">)</span>
+
+    <span class="nd">@unittest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;pretty much the same as test_int_dot_floated_int()&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_floated_int_dot_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time NumPy integer x float(integer) matrix dot().&quot;&quot;&quot;</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="p">(</span><span class="n">N</span> <span class="o">*</span> <span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span><span class="p">),</span> <span class="mf">0.3</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_int_dot_float</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time NumPy integer x float matrix dot().&quot;&quot;&quot;</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">N</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">M</span><span class="p">),</span> <span class="mf">0.3</span><span class="p">)</span>
+
+    <span class="nd">@unittest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;pretty much the same as test_int_dot_float()&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">test_float_dot_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time NumPy float x integer matrix dot().&quot;&quot;&quot;</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">M</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">N</span><span class="p">),</span> <span class="mf">0.3</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">test_int_to_float32_dot_and_back</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time NumPy integer matrix converted to float32, dot(), and</span>
+<span class="sd">        back. This can be twice as fast as float (float64) math.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span>
+            <span class="k">lambda</span><span class="p">:</span> <span class="n">N</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">M</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+            <span class="mf">0.6</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Allow time for test framework overhead + matrix construction.</span>
+    <span class="k">def</span> <span class="nf">test_odeint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Time scipy.integrate.odeint().&quot;&quot;&quot;</span>
+        <span class="n">y0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="mi">41</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">odeint</span><span class="p">():</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">integrate</span><span class="o">.</span><span class="n">odeint</span><span class="p">(</span>
+                <span class="n">derivatives</span><span class="p">,</span> <span class="n">y0</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1e6</span><span class="p">],</span> <span class="n">Dfun</span><span class="o">=</span><span class="n">derivatives_jacobian</span><span class="p">,</span> <span class="n">mxstep</span><span class="o">=</span><span class="mi">10000</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_this</span><span class="p">(</span><span class="n">odeint</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

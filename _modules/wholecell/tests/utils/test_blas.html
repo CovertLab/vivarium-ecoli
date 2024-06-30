@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.tests.utils.test_blas &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.tests.utils.test_blas</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.tests.utils.test_blas</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Test a Numpy dot product. Repeat with different values of the</span>
+<span class="sd">OPENBLAS_NUM_THREADS environment variable which should vary the parallelism</span>
+<span class="sd">**if** Numpy is installed to use OpenBLAS.</span>
+
+<span class="sd">Check that the result using 1 thread is as expected to test if the wcEcoli</span>
+<span class="sd">simulation results might be consistent across platforms.</span>
+
+<span class="sd">The number of BLAS threads can change the dot product computation,</span>
+<span class="sd">presumably by changing evaluation order and thus floating point rounding.</span>
+
+<span class="sd">Any of these ways works to run this test. The first one is quiet if the test</span>
+<span class="sd">passes. The others always show stdout:</span>
+<span class="sd">        pytest wholecell/tests/utils/test_blas.py</span>
+<span class="sd">        python -m wholecell.tests.utils.test_blas</span>
+<span class="sd">        wholecell/tests/utils/test_blas.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">wholecell.utils.filepath</span> <span class="k">as</span> <span class="nn">fp</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">parallelization</span>
+
+<span class="c1"># Silence Sphinx autodoc warning</span>
+<span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="s2">&quot;unittest&quot;</span>
+
+
+<span class="n">THIS_DIR_PATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="dot_product">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_blas.html#wholecell.tests.utils.test_blas.dot_product">[docs]</a>
+<span class="k">def</span> <span class="nf">dot_product</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return (a dot product of 2 data arrays, the time in ns to compute it).&quot;&quot;&quot;</span>
+    <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">THIS_DIR_PATH</span><span class="p">,</span> <span class="s2">&quot;diff.npy&quot;</span><span class="p">))</span>
+    <span class="n">mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">THIS_DIR_PATH</span><span class="p">,</span> <span class="s2">&quot;mass.npy&quot;</span><span class="p">))</span>
+
+    <span class="n">elapsed_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic_ns</span><span class="p">()</span>
+    <span class="n">dot</span> <span class="o">=</span> <span class="n">diff</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mass</span><span class="p">)</span>
+    <span class="n">elapsed_end</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic_ns</span><span class="p">()</span>
+    <span class="n">elapsed_nanoseconds</span> <span class="o">=</span> <span class="n">elapsed_end</span> <span class="o">-</span> <span class="n">elapsed_start</span>
+
+    <span class="k">return</span> <span class="n">dot</span><span class="p">,</span> <span class="n">elapsed_nanoseconds</span></div>
+
+
+
+<div class="viewcode-block" id="Test_blas">
+<a class="viewcode-back" href="../../../../reference/api/wholecell/wholecell.tests.utils.test_blas.html#wholecell.tests.utils.test_blas.Test_blas">[docs]</a>
+<span class="k">class</span> <span class="nc">Test_blas</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">test_dot_product</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compare a dot product running with various numbers of OpenBLAS</span>
+<span class="sd">        threads -- which matters **if** Numpy is installed to use OpenBLAS.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">products</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">total_nanoseconds</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">thread_range</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">parallelization</span><span class="o">.</span><span class="n">cpus</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;&quot;</span><span class="p">]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;OPENBLAS&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="si">{:&gt;7}</span><span class="s2">  </span><span class="si">{:&gt;26}</span><span class="s2"> </span><span class="si">{:&gt;26}</span><span class="s2"> </span><span class="si">{:&gt;11}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="s2">&quot;THREADS&quot;</span><span class="p">,</span> <span class="s2">&quot;DOT PRODUCT&quot;</span><span class="p">,</span> <span class="s2">&quot;DIFF FROM 1 THREAD&quot;</span><span class="p">,</span> <span class="s2">&quot;NANOSECS&quot;</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># NOTE: Setting OPENBLAS_NUM_THREADS affects OpenBLAS but it&#39;s unlikely</span>
+        <span class="c1"># to affect macOS Accelerate or other BLAS libraries.</span>
+        <span class="k">for</span> <span class="n">num_threads</span> <span class="ow">in</span> <span class="n">thread_range</span><span class="p">:</span>
+            <span class="n">env</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">,</span> <span class="n">OPENBLAS_NUM_THREADS</span><span class="o">=</span><span class="n">num_threads</span><span class="p">)</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;python -m wholecell.tests.utils.test_blas DOT&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">run_cmd</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+            <span class="n">dot</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">nanoseconds</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">total_nanoseconds</span> <span class="o">+=</span> <span class="n">nanoseconds</span>
+
+            <span class="n">products</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dot</span><span class="p">)</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="n">dot</span> <span class="o">-</span> <span class="n">products</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">{:&gt;7}</span><span class="s2">  </span><span class="si">{:26.17g}</span><span class="s2"> </span><span class="si">{:26.17g}</span><span class="s2"> </span><span class="si">{:11,g}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">num_threads</span><span class="p">,</span> <span class="n">dot</span><span class="p">,</span> <span class="n">diff</span><span class="p">,</span> <span class="n">nanoseconds</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="s2">&quot;&quot;</span><span class="si">:</span><span class="s1">62</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="mi">11</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="s2">&quot;-&quot;</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="s2">&quot;&quot;</span><span class="si">:</span><span class="s1">62</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">total_nanoseconds</span><span class="p">)</span><span class="si">:</span><span class="s1">11,</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">()</span>
+
+        <span class="c1"># Issue #931: The expected value came from Numpy&#39;s copy of openblas on</span>
+        <span class="c1"># Intel CPUs on Sherlock, Mac, and Linux. But:</span>
+        <span class="c1">#</span>
+        <span class="c1">#   * Apple M1 CPU on Mac computed 0.01668380558411259</span>
+        <span class="c1">#   * Intel CPU on WSL on Windows computed 0.016683805584112667</span>
+        <span class="c1">#</span>
+        <span class="c1"># Reproducible simulations require reproducible floating point results,</span>
+        <span class="c1"># but that might be unachievable across platforms.</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="mf">0.016683805584112754</span>
+        <span class="k">if</span> <span class="n">products</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Didn&#39;t reproduce the expected dot product using 1&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot; OpenBLAS thread, </span><span class="si">{</span><span class="n">products</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> != </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">, so&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot; simulation results aren&#39;t portable.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check that multi-threaded results are within some tolerance.</span>
+        <span class="n">np_products</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">products</span><span class="p">)</span>
+        <span class="n">reference</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">products</span><span class="p">),</span> <span class="n">products</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span><span class="n">np_products</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1.5e-14</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;DOT&quot;</span><span class="p">]:</span>
+        <span class="n">product</span><span class="p">,</span> <span class="n">nanoseconds</span> <span class="o">=</span> <span class="n">dot_product</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">product</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">nanoseconds</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

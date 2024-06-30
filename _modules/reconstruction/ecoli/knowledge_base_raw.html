@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.knowledge_base_raw &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.knowledge_base_raw</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.knowledge_base_raw</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">KnowledgeBase for Ecoli</span>
+<span class="sd">Whole-cell knowledge base for Ecoli. Contains all raw, un-fit data processed</span>
+<span class="sd">directly from CSV flat files.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Dict</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">reconstruction.spreadsheets</span> <span class="kn">import</span> <span class="n">read_tsv</span>
+<span class="kn">from</span> <span class="nn">wholecell.io</span> <span class="kn">import</span> <span class="n">tsv</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>  <span class="c1"># used by eval()</span>
+
+<span class="n">FLAT_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;flat&quot;</span><span class="p">)</span>
+<span class="n">LIST_OF_DICT_FILENAMES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;amino_acid_export_kms.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;amino_acid_export_kms_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;amino_acid_pathways.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;amino_acid_uptake_rates.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;amino_acid_uptake_rates_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;biomass.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;compartments.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;complexation_reactions.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;complexation_reactions_added.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;complexation_reactions_modified.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;complexation_reactions_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;disabled_kinetic_reactions.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;dna_sites.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;dry_mass_composition.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;endoRNases.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equilibrium_reaction_rates.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equilibrium_reactions.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equilibrium_reactions_added.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equilibrium_reactions_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fold_changes.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fold_changes_nca.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fold_changes_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;footprint_sizes.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;genes.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;growth_rate_dependent_parameters.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;linked_metabolites.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolic_reactions.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolic_reactions_added.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolic_reactions_modified.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolic_reactions_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolism_kinetics.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolite_concentrations.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolite_concentrations_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolites.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolites_added.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;modified_proteins.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;molecular_weight_keys.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ppgpp_fc.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ppgpp_regulation.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ppgpp_regulation_added.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ppgpp_regulation_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;protein_half_lives_measured.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;protein_half_lives_n_end_rule.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;protein_half_lives_pulsed_silac.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;proteins.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;relative_metabolite_concentrations.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rna_half_lives.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rna_maturation_enzymes.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rnas.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;secretions.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sequence_motifs.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;transcription_factors.tsv&quot;</span><span class="p">,</span>
+    <span class="c1"># &quot;transcription_units.tsv&quot;,  # special cased in the constructor</span>
+    <span class="s2">&quot;transcription_units_added.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;transcription_units_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;transcriptional_attenuation.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;transcriptional_attenuation_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tf_one_component_bound.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;translation_efficiency.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;trna_charging_reactions.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;trna_charging_reactions_added.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;trna_charging_reactions_removed.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;two_component_systems.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;two_component_system_templates.tsv&quot;</span><span class="p">,</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;mass_fractions&quot;</span><span class="p">,</span> <span class="s2">&quot;glycogen_fractions.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;mass_fractions&quot;</span><span class="p">,</span> <span class="s2">&quot;ion_fractions.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;mass_fractions&quot;</span><span class="p">,</span> <span class="s2">&quot;LPS_fractions.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;mass_fractions&quot;</span><span class="p">,</span> <span class="s2">&quot;lipid_fractions.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;mass_fractions&quot;</span><span class="p">,</span> <span class="s2">&quot;murein_fractions.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;mass_fractions&quot;</span><span class="p">,</span> <span class="s2">&quot;soluble_fractions.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;trna_data&quot;</span><span class="p">,</span> <span class="s2">&quot;trna_ratio_to_16SrRNA_0p4.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;trna_data&quot;</span><span class="p">,</span> <span class="s2">&quot;trna_ratio_to_16SrRNA_0p7.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;trna_data&quot;</span><span class="p">,</span> <span class="s2">&quot;trna_ratio_to_16SrRNA_1p6.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;trna_data&quot;</span><span class="p">,</span> <span class="s2">&quot;trna_ratio_to_16SrRNA_1p07.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;trna_data&quot;</span><span class="p">,</span> <span class="s2">&quot;trna_ratio_to_16SrRNA_2p5.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;trna_data&quot;</span><span class="p">,</span> <span class="s2">&quot;trna_growth_rates.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;rna_seq_data&quot;</span><span class="p">,</span> <span class="s2">&quot;rnaseq_rsem_tpm_mean.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;rna_seq_data&quot;</span><span class="p">,</span> <span class="s2">&quot;rnaseq_rsem_tpm_std.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;rna_seq_data&quot;</span><span class="p">,</span> <span class="s2">&quot;rnaseq_seal_rpkm_mean.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;rna_seq_data&quot;</span><span class="p">,</span> <span class="s2">&quot;rnaseq_seal_rpkm_std.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;rrna_options&quot;</span><span class="p">,</span> <span class="s2">&quot;remove_rrff&quot;</span><span class="p">,</span> <span class="s2">&quot;genes_removed.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;rrna_options&quot;</span><span class="p">,</span> <span class="s2">&quot;remove_rrff&quot;</span><span class="p">,</span> <span class="s2">&quot;rnas_removed.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;rrna_options&quot;</span><span class="p">,</span> <span class="s2">&quot;remove_rrff&quot;</span><span class="p">,</span> <span class="s2">&quot;transcription_units_modified.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="s2">&quot;rrna_options&quot;</span><span class="p">,</span> <span class="s2">&quot;remove_rrna_operons&quot;</span><span class="p">,</span> <span class="s2">&quot;transcription_units_added.tsv&quot;</span>
+    <span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="s2">&quot;rrna_options&quot;</span><span class="p">,</span> <span class="s2">&quot;remove_rrna_operons&quot;</span><span class="p">,</span> <span class="s2">&quot;transcription_units_removed.tsv&quot;</span>
+    <span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;tf_condition.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;condition_defs.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;environment_molecules.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;timelines_def.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;media_recipes.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;media&quot;</span><span class="p">,</span> <span class="s2">&quot;5X_supplement_EZ.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;media&quot;</span><span class="p">,</span> <span class="s2">&quot;MIX0-55.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;media&quot;</span><span class="p">,</span> <span class="s2">&quot;MIX0-57.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;media&quot;</span><span class="p">,</span> <span class="s2">&quot;MIX0-58.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;condition&quot;</span><span class="p">,</span> <span class="s2">&quot;media&quot;</span><span class="p">,</span> <span class="s2">&quot;MIX0-844.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;base_codes&quot;</span><span class="p">,</span> <span class="s2">&quot;amino_acids.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;base_codes&quot;</span><span class="p">,</span> <span class="s2">&quot;dntp.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;base_codes&quot;</span><span class="p">,</span> <span class="s2">&quot;nmp.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;base_codes&quot;</span><span class="p">,</span> <span class="s2">&quot;ntp.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;adjustments&quot;</span><span class="p">,</span> <span class="s2">&quot;amino_acid_pathways.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;adjustments&quot;</span><span class="p">,</span> <span class="s2">&quot;balanced_translation_efficiencies.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;adjustments&quot;</span><span class="p">,</span> <span class="s2">&quot;translation_efficiencies_adjustments.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;adjustments&quot;</span><span class="p">,</span> <span class="s2">&quot;rna_expression_adjustments.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;adjustments&quot;</span><span class="p">,</span> <span class="s2">&quot;rna_deg_rates_adjustments.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;adjustments&quot;</span><span class="p">,</span> <span class="s2">&quot;protein_deg_rates_adjustments.tsv&quot;</span><span class="p">),</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;adjustments&quot;</span><span class="p">,</span> <span class="s2">&quot;relative_metabolite_concentrations_changes.tsv&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="n">SEQUENCE_FILE</span> <span class="o">=</span> <span class="s2">&quot;sequence.fasta&quot;</span>
+<span class="n">LIST_OF_PARAMETER_FILENAMES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;dna_supercoiling.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;parameters.tsv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mass_parameters.tsv&quot;</span><span class="p">,</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;new_gene_data&quot;</span><span class="p">,</span> <span class="s2">&quot;new_gene_baseline_expression_parameters.tsv&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="n">REMOVED_DATA</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;amino_acid_export_kms&quot;</span><span class="p">:</span> <span class="s2">&quot;amino_acid_export_kms_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;amino_acid_uptake_rates&quot;</span><span class="p">:</span> <span class="s2">&quot;amino_acid_uptake_rates_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;complexation_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;complexation_reactions_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equilibrium_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;equilibrium_reactions_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fold_changes&quot;</span><span class="p">:</span> <span class="s2">&quot;fold_changes_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;fold_changes_nca&quot;</span><span class="p">:</span> <span class="s2">&quot;fold_changes_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolic_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;metabolic_reactions_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolite_concentrations&quot;</span><span class="p">:</span> <span class="s2">&quot;metabolite_concentrations_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ppgpp_regulation&quot;</span><span class="p">:</span> <span class="s2">&quot;ppgpp_regulation_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;transcriptional_attenuation&quot;</span><span class="p">:</span> <span class="s2">&quot;transcriptional_attenuation_removed&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;trna_charging_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;trna_charging_reactions_removed&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="n">MODIFIED_DATA</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;complexation_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;complexation_reactions_modified&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolic_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;metabolic_reactions_modified&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">ADDED_DATA</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;complexation_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;complexation_reactions_added&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;equilibrium_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;equilibrium_reactions_added&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolic_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;metabolic_reactions_added&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;metabolites&quot;</span><span class="p">:</span> <span class="s2">&quot;metabolites_added&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ppgpp_regulation&quot;</span><span class="p">:</span> <span class="s2">&quot;ppgpp_regulation_added&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;trna_charging_reactions&quot;</span><span class="p">:</span> <span class="s2">&quot;trna_charging_reactions_added&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="DataStore">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.DataStore">[docs]</a>
+<span class="k">class</span> <span class="nc">DataStore</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli">[docs]</a>
+<span class="k">class</span> <span class="nc">KnowledgeBaseEcoli</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;KnowledgeBaseEcoli&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operons_on</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">remove_rrna_operons</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">remove_rrff</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">stable_rrna</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">new_genes_option</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;off&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">operons_on</span> <span class="o">=</span> <span class="n">operons_on</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stable_rrna</span> <span class="o">=</span> <span class="n">stable_rrna</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_genes_option</span> <span class="o">=</span> <span class="n">new_genes_option</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">operons_on</span> <span class="ow">and</span> <span class="n">remove_rrna_operons</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Setting the &#39;remove_rrna_operons&#39; option to &#39;True&#39;&quot;</span>
+                <span class="s2">&quot; has no effect on the simulations when the &#39;operon&#39;&quot;</span>
+                <span class="s2">&quot; option is set to &#39;off&#39;.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">compartments</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span>
+            <span class="nb">dict</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># mypy can&#39;t track setattr(self, attr_name, rows)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transcription_units</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Make copies to prevent issues with sticky global variables when</span>
+        <span class="c1"># running multiple operon workflows through Fireworks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_of_dict_filenames</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">LIST_OF_DICT_FILENAMES</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_of_parameter_filenames</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">LIST_OF_PARAMETER_FILENAMES</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">removed_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">REMOVED_DATA</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">modified_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">MODIFIED_DATA</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">added_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">ADDED_DATA</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_gene_added_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter_file_attribute_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">filename</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_of_parameter_filenames</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">operons_on</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_of_dict_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;transcription_units.tsv&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">remove_rrna_operons</span><span class="p">:</span>
+                <span class="c1"># Use alternative file with all rRNA transcription units if</span>
+                <span class="c1"># remove_rrna_operons option was used</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">removed_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;transcription_units&quot;</span><span class="p">:</span> <span class="s2">&quot;rrna_options.remove_rrna_operons.transcription_units_removed&quot;</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">added_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;transcription_units&quot;</span><span class="p">:</span> <span class="s2">&quot;rrna_options.remove_rrna_operons.transcription_units_added&quot;</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">removed_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;transcription_units&quot;</span><span class="p">:</span> <span class="s2">&quot;transcription_units_removed&quot;</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">added_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;transcription_units&quot;</span><span class="p">:</span> <span class="s2">&quot;transcription_units_added&quot;</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">remove_rrff</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_of_parameter_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="s2">&quot;rrna_options&quot;</span><span class="p">,</span> <span class="s2">&quot;remove_rrff&quot;</span><span class="p">,</span> <span class="s2">&quot;mass_parameters_modified.tsv&quot;</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">removed_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;genes&quot;</span><span class="p">:</span> <span class="s2">&quot;rrna_options.remove_rrff.genes_removed&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;rnas&quot;</span><span class="p">:</span> <span class="s2">&quot;rrna_options.remove_rrff.rnas_removed&quot;</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">modified_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;mass_parameters&quot;</span><span class="p">:</span> <span class="s2">&quot;rrna_options.remove_rrff.mass_parameters_modified&quot;</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">operons_on</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">modified_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;transcription_units&quot;</span><span class="p">:</span> <span class="s2">&quot;rrna_options.remove_rrff.transcription_units_modified&quot;</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_genes_option</span> <span class="o">!=</span> <span class="s2">&quot;off&quot;</span><span class="p">:</span>
+            <span class="n">new_gene_subdir</span> <span class="o">=</span> <span class="n">new_genes_option</span>
+            <span class="n">new_gene_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;new_gene_data&quot;</span><span class="p">,</span> <span class="n">new_gene_subdir</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">new_gene_path</span><span class="p">)</span>
+            <span class="p">),</span> <span class="s2">&quot;This new_genes_data subdirectory is invalid.&quot;</span>
+            <span class="n">nested_attr</span> <span class="o">=</span> <span class="s2">&quot;new_gene_data.&quot;</span> <span class="o">+</span> <span class="n">new_gene_subdir</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span>
+
+            <span class="c1"># These files do not need to be joined to existing files</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_of_dict_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">new_gene_path</span><span class="p">,</span> <span class="s2">&quot;insertion_location.tsv&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_of_dict_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">new_gene_path</span><span class="p">,</span> <span class="s2">&quot;gene_sequences.tsv&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="c1"># These files need to be joined to existing files</span>
+            <span class="n">new_gene_shared_files</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="s2">&quot;genes&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;rnas&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;proteins&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;rna_half_lives&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;protein_half_lives_measured&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">new_gene_shared_files</span><span class="p">:</span>
+                <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">new_gene_path</span><span class="p">,</span> <span class="n">f</span> <span class="o">+</span> <span class="s2">&quot;.tsv&quot;</span><span class="p">)</span>
+                <span class="c1"># If these files are empty, fill in with default values at a</span>
+                <span class="c1"># later point</span>
+                <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">file_path</span><span class="p">)),</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s2">.tsv must be present in the new_genes_data&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot; subdirectory </span><span class="si">{</span><span class="n">new_gene_subdir</span><span class="si">}</span><span class="s2">.&quot;</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">list_of_dict_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">new_gene_added_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">f</span><span class="p">:</span> <span class="n">nested_attr</span> <span class="o">+</span> <span class="n">f</span><span class="p">})</span>
+
+            <span class="n">rnaseq_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">new_gene_path</span><span class="p">,</span> <span class="s2">&quot;rnaseq_rsem_tpm_mean.tsv&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">rnaseq_path</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">list_of_dict_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rnaseq_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">new_gene_added_data</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;rna_seq_data.rnaseq_rsem_tpm_mean&quot;</span><span class="p">:</span> <span class="n">nested_attr</span>
+                        <span class="o">+</span> <span class="s2">&quot;rnaseq_rsem_tpm_mean&quot;</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Load raw data from TSV files</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_of_dict_filenames</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_load_tsv</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_of_parameter_filenames</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_load_parameters</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">genome_sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_sequence</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FLAT_DIR</span><span class="p">,</span> <span class="n">SEQUENCE_FILE</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prune_data</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_join_data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_modify_data</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_genes_option</span> <span class="o">!=</span> <span class="s2">&quot;off&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_new_gene_ids</span><span class="p">(</span><span class="n">nested_attr</span><span class="p">)</span>
+
+            <span class="n">insert_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_gene_insertion_location</span><span class="p">(</span><span class="n">nested_attr</span><span class="p">)</span>
+
+            <span class="n">insertion_sequence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_new_gene_sequence</span><span class="p">(</span><span class="n">nested_attr</span><span class="p">)</span>
+
+            <span class="n">insert_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_gene_locations</span><span class="p">(</span><span class="n">nested_attr</span><span class="p">,</span> <span class="n">insert_pos</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">new_gene_added_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;genes&quot;</span><span class="p">:</span> <span class="n">nested_attr</span> <span class="o">+</span> <span class="s2">&quot;genes&quot;</span><span class="p">})</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">genome_sequence</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">genome_sequence</span><span class="p">[:</span><span class="n">insert_pos</span><span class="p">]</span>
+                <span class="o">+</span> <span class="n">insertion_sequence</span>
+                <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">genome_sequence</span><span class="p">[</span><span class="n">insert_pos</span><span class="p">:]</span>
+            <span class="p">)</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">genome_sequence</span><span class="p">[</span><span class="n">insert_pos</span> <span class="p">:</span> <span class="p">(</span><span class="n">insert_end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+                <span class="o">==</span> <span class="n">insertion_sequence</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">added_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_gene_added_data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_join_data</span><span class="p">()</span>
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._load_tsv">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._load_tsv">[docs]</a>
+    <span class="k">def</span> <span class="nf">_load_tsv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dir_name</span><span class="p">,</span> <span class="n">file_name</span><span class="p">):</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">for</span> <span class="n">sub_path</span> <span class="ow">in</span> <span class="n">file_name</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">dir_name</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">):</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">,</span> <span class="n">DataStore</span><span class="p">())</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">)</span>
+        <span class="n">attr_name</span> <span class="o">=</span> <span class="n">file_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">,</span> <span class="p">[])</span>
+
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">read_tsv</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">,</span> <span class="n">rows</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._load_sequence">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._load_sequence">[docs]</a>
+    <span class="k">def</span> <span class="nf">_load_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">Bio</span> <span class="kn">import</span> <span class="n">SeqIO</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">handle</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">SeqIO</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="s2">&quot;fasta&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">record</span><span class="o">.</span><span class="n">seq</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._load_parameters">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._load_parameters">[docs]</a>
+    <span class="k">def</span> <span class="nf">_load_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dir_name</span><span class="p">,</span> <span class="n">file_name</span><span class="p">):</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">for</span> <span class="n">sub_path</span> <span class="ow">in</span> <span class="n">file_name</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">dir_name</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">):</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">,</span> <span class="n">DataStore</span><span class="p">())</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">sub_path</span><span class="p">)</span>
+        <span class="n">attr_name</span> <span class="o">=</span> <span class="n">file_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">param_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csvfile</span><span class="p">:</span>
+            <span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">dict_reader</span><span class="p">(</span><span class="n">csvfile</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                    <span class="c1"># `eval()` the units [risky!] then strip it to just a unit</span>
+                    <span class="c1"># since `a_list * a_float` (like `1.0 [1/s]`) fails, and</span>
+                    <span class="c1"># `a_list * an_int` repeats the list, which is also broken.</span>
+                    <span class="n">unit</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">])</span>  <span class="c1"># risky!</span>
+                    <span class="n">unit</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">unit</span><span class="p">)</span>  <span class="c1"># strip</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="n">value</span> <span class="o">*</span> <span class="n">unit</span>
+                <span class="n">param_dict</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">,</span> <span class="n">param_dict</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._prune_data">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._prune_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">_prune_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove rows that are specified to be removed. Data will only be removed</span>
+<span class="sd">        if all data in a row in the file specifying rows to be removed matches</span>
+<span class="sd">        the same columns in the raw data file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Check each pair of files to be removed</span>
+        <span class="k">for</span> <span class="n">data_attr</span><span class="p">,</span> <span class="n">attr_to_remove</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">removed_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Build the set of data to identify rows to be removed</span>
+            <span class="n">data_to_remove</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_to_remove</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attr_to_remove</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">data_to_remove</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data_to_remove</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+            <span class="n">removed_cols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_to_remove</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">ids_to_remove</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data_to_remove</span><span class="p">:</span>
+                <span class="n">ids_to_remove</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">tuple</span><span class="p">([</span><span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">removed_cols</span><span class="p">]))</span>
+
+            <span class="c1"># Remove any matching rows</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_attr</span><span class="p">)</span>
+            <span class="n">n_entries</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">removed_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">checked_id</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">removed_cols</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">checked_id</span> <span class="ow">in</span> <span class="n">ids_to_remove</span><span class="p">:</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">n_entries</span> <span class="o">-</span> <span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">removed_ids</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">checked_id</span><span class="p">)</span>
+
+            <span class="c1"># Print warnings for entries that were marked to be removed that</span>
+            <span class="c1"># does not exist in the original data file. Fold changes are</span>
+            <span class="c1"># excluded since the original entries are split between two files.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">data_attr</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;fold_changes&quot;</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">unremoved_id</span> <span class="ow">in</span> <span class="n">ids_to_remove</span> <span class="o">-</span> <span class="n">removed_ids</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Warning: Could not remove row </span><span class="si">{</span><span class="n">unremoved_id</span><span class="si">}</span><span class="s2"> &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;in flat file </span><span class="si">{</span><span class="n">data_attr</span><span class="si">}</span><span class="s2"> because the row does not &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;exist.&quot;</span>
+                    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._join_data">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._join_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">_join_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add rows that are specified in additional files. Data will only be added</span>
+<span class="sd">        if all the loaded columns from both datasets match.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Join data for each file with data to be added</span>
+        <span class="k">for</span> <span class="n">data_attr</span><span class="p">,</span> <span class="n">attr_to_add</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">added_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Get datasets to join</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_attr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">data_attr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+            <span class="n">added_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_to_add</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attr_to_add</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">added_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">added_data</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">added_data</span><span class="p">:</span>  <span class="c1"># Some new gene additional files may be empty</span>
+                <span class="c1"># Check columns are the same for each dataset</span>
+                <span class="n">col_diff</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">symmetric_difference</span><span class="p">(</span>
+                    <span class="n">added_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">col_diff</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Could not join datasets </span><span class="si">{</span><span class="n">data_attr</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">attr_to_add</span><span class="si">}</span><span class="s2"> &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;because columns do not match (different columns: </span><span class="si">{</span><span class="n">col_diff</span><span class="si">}</span><span class="s2">).&quot;</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># Join datasets</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">added_data</span><span class="p">:</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._modify_data">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._modify_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">_modify_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Modify entires in rows that are specified to be modified. Rows must be</span>
+<span class="sd">        identified by their entries in the first column (usually the ID column).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check each pair of files to be modified</span>
+        <span class="k">for</span> <span class="n">data_attr</span><span class="p">,</span> <span class="n">modify_attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modified_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Build the set of data to identify rows to be modified</span>
+            <span class="n">data_to_modify</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">modify_attr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">modify_attr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+                <span class="n">data_to_modify</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data_to_modify</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_attr</span><span class="p">)</span>
+
+            <span class="c1"># If modifying a parameter file, replace values in dictionary</span>
+            <span class="k">if</span> <span class="n">data_attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter_file_attribute_names</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data_to_modify</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Could not modify data </span><span class="si">{</span><span class="n">data_attr</span><span class="si">}</span><span class="s2">&quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;with </span><span class="si">{</span><span class="n">modify_attr</span><span class="si">}</span><span class="s2"> because the name </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> does &quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;not exist in </span><span class="si">{</span><span class="n">data_attr</span><span class="si">}</span><span class="s2">.&quot;</span>
+                        <span class="p">)</span>
+
+                    <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+            <span class="c1"># If modifying a table file, replace rows</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">id_col_name</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_to_modify</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="n">id_to_modified_cols</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data_to_modify</span><span class="p">:</span>
+                    <span class="n">id_to_modified_cols</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="n">id_col_name</span><span class="p">]]</span> <span class="o">=</span> <span class="n">row</span>
+
+                <span class="c1"># Modify any matching rows with identical IDs</span>
+                <span class="k">if</span> <span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">id_col_name</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Could not modify data </span><span class="si">{</span><span class="n">data_attr</span><span class="si">}</span><span class="s2"> with &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">modify_attr</span><span class="si">}</span><span class="s2"> because the names of the first columns &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;do not match.&quot;</span>
+                    <span class="p">)</span>
+
+                <span class="n">modified_entry_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="n">id_col_name</span><span class="p">]</span> <span class="ow">in</span> <span class="n">id_to_modified_cols</span><span class="p">:</span>
+                        <span class="n">modified_cols</span> <span class="o">=</span> <span class="n">id_to_modified_cols</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="n">id_col_name</span><span class="p">]]</span>
+                        <span class="k">for</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                            <span class="k">if</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="n">modified_cols</span><span class="p">:</span>
+                                <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">modified_cols</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span>
+                        <span class="n">modified_entry_ids</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">id_col_name</span><span class="p">])</span>
+
+                <span class="c1"># Check for entries in modification data that do not exist in</span>
+                <span class="c1"># original data</span>
+                <span class="n">id_diff</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">id_to_modified_cols</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">symmetric_difference</span><span class="p">(</span>
+                    <span class="n">modified_entry_ids</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">id_diff</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Could not modify data </span><span class="si">{</span><span class="n">data_attr</span><span class="si">}</span><span class="s2"> with &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">modify_attr</span><span class="si">}</span><span class="s2"> because of one or more entries in &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">modify_attr</span><span class="si">}</span><span class="s2"> that do not exist in </span><span class="si">{</span><span class="n">data_attr</span><span class="si">}</span><span class="s2"> &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;(nonexistent entries: </span><span class="si">{</span><span class="n">id_diff</span><span class="si">}</span><span class="s2">).&quot;</span>
+                    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._check_new_gene_ids">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._check_new_gene_ids">[docs]</a>
+    <span class="k">def</span> <span class="nf">_check_new_gene_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check to ensure each new gene, RNA, and protein id starts with NG.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+        <span class="n">new_genes_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="s2">&quot;genes&quot;</span><span class="p">)</span>
+        <span class="n">new_RNA_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="s2">&quot;rnas&quot;</span><span class="p">)</span>
+        <span class="n">new_protein_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="s2">&quot;proteins&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">new_genes_data</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;NG&quot;</span><span class="p">),</span> <span class="s2">&quot;ids of new genes must start with NG&quot;</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">new_RNA_data</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;NG&quot;</span><span class="p">),</span> <span class="s2">&quot;ids of new gene rnas must start with NG&quot;</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">new_protein_data</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span>
+                <span class="s2">&quot;NG&quot;</span>
+            <span class="p">),</span> <span class="s2">&quot;ids of new gene proteins must start with NG&quot;</span>
+        <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._update_gene_insertion_location">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._update_gene_insertion_location">[docs]</a>
+    <span class="k">def</span> <span class="nf">_update_gene_insertion_location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update insertion location of new genes to prevent conflicts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">genes_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;genes&quot;</span><span class="p">)</span>
+        <span class="n">tu_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;transcription_units&quot;</span><span class="p">)</span>
+        <span class="n">dna_sites_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;dna_sites&quot;</span><span class="p">)</span>
+
+        <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+        <span class="n">insert_loc_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="s2">&quot;insertion_location&quot;</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">insert_loc_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="p">),</span> <span class="s2">&quot;each noncontiguous insertion should be in its own directory&quot;</span>
+        <span class="n">insert_pos</span> <span class="o">=</span> <span class="n">insert_loc_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;insertion_pos&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tu_data</span><span class="p">:</span>
+            <span class="c1"># Check if specified insertion location is in another gene</span>
+            <span class="n">data_to_check</span> <span class="o">=</span> <span class="n">genes_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Check if specified insertion location is in a transcription unit</span>
+            <span class="n">data_to_check</span> <span class="o">=</span> <span class="n">tu_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Add important DNA sites to the list of locations to check</span>
+        <span class="c1"># TODO: Check for other DNA sites if we include any in the future</span>
+        <span class="n">sites_data_to_check</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">site</span>
+            <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">dna_sites_data</span>
+            <span class="k">if</span> <span class="n">site</span><span class="p">[</span><span class="s2">&quot;common_name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;oriC&quot;</span> <span class="ow">or</span> <span class="n">site</span><span class="p">[</span><span class="s2">&quot;common_name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;TerC&quot;</span>
+        <span class="p">]</span>
+        <span class="n">data_to_check</span> <span class="o">+=</span> <span class="n">sites_data_to_check</span>
+
+        <span class="n">conflicts</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">row</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data_to_check</span>
+            <span class="k">if</span> <span class="p">((</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+            <span class="ow">and</span> <span class="p">((</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+            <span class="ow">and</span> <span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">insert_pos</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">insert_pos</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="c1"># Change insertion location to after conflicts</span>
+        <span class="k">if</span> <span class="n">conflicts</span><span class="p">:</span>
+            <span class="n">shift</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">sub</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">conflicts</span><span class="p">])</span> <span class="o">-</span> <span class="n">insert_pos</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">insert_pos</span> <span class="o">=</span> <span class="n">insert_pos</span> <span class="o">+</span> <span class="n">shift</span>
+
+        <span class="k">return</span> <span class="n">insert_pos</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._update_global_coordinates">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._update_global_coordinates">[docs]</a>
+    <span class="k">def</span> <span class="nf">_update_global_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">insert_pos</span><span class="p">,</span> <span class="n">insert_len</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Updates the left and right end positions for all elements in data if</span>
+<span class="sd">        their positions will be impacted by the new gene insertion.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data: Data attribute to update</span>
+<span class="sd">            insert_pos: Location of new gene insertion</span>
+<span class="sd">            insert_len: Length of new gene insertion</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">left</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span>
+            <span class="n">right</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">left</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="p">(</span><span class="n">right</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">right</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">left</span> <span class="o">&gt;=</span> <span class="n">insert_pos</span>
+            <span class="p">):</span>
+                <span class="n">row</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">:</span> <span class="n">left</span> <span class="o">+</span> <span class="n">insert_len</span><span class="p">})</span>
+                <span class="n">row</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">:</span> <span class="n">right</span> <span class="o">+</span> <span class="n">insert_len</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._update_gene_locations">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._update_gene_locations">[docs]</a>
+    <span class="k">def</span> <span class="nf">_update_gene_locations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">,</span> <span class="n">insert_pos</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Modify positions of original genes based upon the insertion location</span>
+<span class="sd">        of new genes. Returns end position of the gene insertion.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">genes_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;genes&quot;</span><span class="p">)</span>
+        <span class="n">tu_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;transcription_units&quot;</span><span class="p">)</span>
+        <span class="n">dna_sites_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;dna_sites&quot;</span><span class="p">)</span>
+
+        <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+        <span class="n">new_genes_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="s2">&quot;genes&quot;</span><span class="p">)</span>
+        <span class="n">new_genes_data</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">new_genes_data</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">new_genes_data</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="p">(</span>
+                <span class="n">new_genes_data</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span>
+                <span class="o">==</span> <span class="n">new_genes_data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="p">),</span> <span class="s2">&quot;gaps in new gene insertions are not supported at this time&quot;</span>
+
+        <span class="n">insert_end</span> <span class="o">=</span> <span class="n">new_genes_data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">insert_pos</span>
+        <span class="n">insert_len</span> <span class="o">=</span> <span class="n">insert_end</span> <span class="o">-</span> <span class="n">insert_pos</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Update global positions of original genes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_global_coordinates</span><span class="p">(</span><span class="n">genes_data</span><span class="p">,</span> <span class="n">insert_pos</span><span class="p">,</span> <span class="n">insert_len</span><span class="p">)</span>
+
+        <span class="c1"># Update global positions of transcription units</span>
+        <span class="k">if</span> <span class="n">tu_data</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_global_coordinates</span><span class="p">(</span><span class="n">tu_data</span><span class="p">,</span> <span class="n">insert_pos</span><span class="p">,</span> <span class="n">insert_len</span><span class="p">)</span>
+
+        <span class="c1"># Update DNA site positions</span>
+        <span class="c1"># (including the origin and terminus of replication)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_global_coordinates</span><span class="p">(</span><span class="n">dna_sites_data</span><span class="p">,</span> <span class="n">insert_pos</span><span class="p">,</span> <span class="n">insert_len</span><span class="p">)</span>
+
+        <span class="c1"># Change relative insertion positions to global in reference genome</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">new_genes_data</span><span class="p">:</span>
+            <span class="n">left</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span>
+            <span class="n">right</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">:</span> <span class="n">left</span> <span class="o">+</span> <span class="n">insert_pos</span><span class="p">})</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">:</span> <span class="n">right</span> <span class="o">+</span> <span class="n">insert_pos</span><span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">insert_end</span></div>
+
+
+<div class="viewcode-block" id="KnowledgeBaseEcoli._get_new_gene_sequence">
+<a class="viewcode-back" href="../../../reference/api/reconstruction/reconstruction.ecoli.knowledge_base_raw.html#reconstruction.ecoli.knowledge_base_raw.KnowledgeBaseEcoli._get_new_gene_sequence">[docs]</a>
+    <span class="k">def</span> <span class="nf">_get_new_gene_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine genome sequnce for insertion using the sequences and</span>
+<span class="sd">        relative locations of the new genes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">Bio</span> <span class="kn">import</span> <span class="n">Seq</span>
+
+        <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">nested_attr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">nested_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+        <span class="n">new_genes_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="s2">&quot;genes&quot;</span><span class="p">)</span>
+        <span class="n">seq_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">nested_data</span><span class="p">,</span> <span class="s2">&quot;gene_sequences&quot;</span><span class="p">)</span>
+
+        <span class="n">insertion_seq</span> <span class="o">=</span> <span class="n">Seq</span><span class="o">.</span><span class="n">Seq</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">new_genes_data</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">new_genes_data</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">new_genes_data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="p">),</span> <span class="s2">&quot;first gene in new sequence must start at relative coordinate 0&quot;</span>
+
+        <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">new_genes_data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;direction&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;+&quot;</span><span class="p">:</span>
+                <span class="n">seq_row</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">row</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">seq_data</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]),</span> <span class="kc">None</span>
+                <span class="p">)</span>
+                <span class="n">seq_string</span> <span class="o">=</span> <span class="n">seq_row</span><span class="p">[</span><span class="s2">&quot;gene_seq&quot;</span><span class="p">]</span>
+                <span class="n">seq_addition</span> <span class="o">=</span> <span class="n">Seq</span><span class="o">.</span><span class="n">Seq</span><span class="p">(</span><span class="n">seq_string</span><span class="p">)</span>
+                <span class="n">insertion_seq</span> <span class="o">+=</span> <span class="n">seq_addition</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">seq_row</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">row</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">seq_data</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]),</span> <span class="kc">None</span>
+                <span class="p">)</span>
+                <span class="n">seq_string</span> <span class="o">=</span> <span class="n">seq_row</span><span class="p">[</span><span class="s2">&quot;gene_seq&quot;</span><span class="p">]</span>
+                <span class="n">seq_addition</span> <span class="o">=</span> <span class="n">Seq</span><span class="o">.</span><span class="n">Seq</span><span class="p">(</span><span class="n">seq_string</span><span class="p">)</span>
+                <span class="n">insertion_seq</span> <span class="o">+=</span> <span class="n">seq_addition</span><span class="o">.</span><span class="n">reverse_complement</span><span class="p">()</span>
+
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq_addition</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span>
+                <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="p">),</span> <span class="p">(</span>
+                <span class="s2">&quot;left and right end positions must agree with actual &quot;</span>
+                <span class="s2">&quot;sequence length for &quot;</span> <span class="o">+</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">insertion_seq</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Testing eQuilibrator &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Testing eQuilibrator</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/notebooks/fbagd/balance.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">linalg</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="kn">import</span> <span class="n">logsumexp</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">networkx</span> <span class="k">as</span> <span class="nn">nx</span>
+<span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="kn">import</span> <span class="n">MinMaxScaler</span><span class="p">,</span> <span class="n">StandardScaler</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+<span class="kn">from</span> <span class="nn">equilibrator_api</span> <span class="kn">import</span> <span class="n">ComponentContribution</span><span class="p">,</span> <span class="n">Q_</span><span class="p">,</span> <span class="n">Reaction</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+<span class="kn">import</span> <span class="nn">pint</span>
+<span class="kn">import</span> <span class="nn">cvxpy</span> <span class="k">as</span> <span class="nn">cp</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">from</span> <span class="nn">convex_kinetics</span> <span class="kn">import</span> <span class="n">ConvexKinetics</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s1">&#39;darkgrid&#39;</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;talk&#39;</span><span class="p">)</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/vivarium-ecoli&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<p>A + B -E1&gt; C -E2&gt; D</p>
+<p>B -E3&gt; F</p>
+<p>A -E4&gt; G</p>
+<section id="Testing-eQuilibrator">
+<h1>Testing eQuilibrator<a class="headerlink" href="#Testing-eQuilibrator" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cc</span> <span class="o">=</span> <span class="n">ComponentContribution</span><span class="p">()</span>
+
+<span class="c1"># optional: changing the aqueous environment parameters</span>
+<span class="n">cc</span><span class="o">.</span><span class="n">p_h</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="mf">7.4</span><span class="p">)</span>
+<span class="n">cc</span><span class="o">.</span><span class="n">p_mg</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span>
+<span class="n">cc</span><span class="o">.</span><span class="n">ionic_strength</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="s2">&quot;0.25M&quot;</span><span class="p">)</span>
+<span class="n">cc</span><span class="o">.</span><span class="n">temperature</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="s2">&quot;298.15K&quot;</span><span class="p">)</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">equilibrator_api</span> <span class="kn">import</span> <span class="n">Reaction</span>
+<span class="n">compound_ids</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;WATER&quot;</span><span class="p">,</span> <span class="s2">&quot;ADP&quot;</span><span class="p">,</span> <span class="s2">&quot;ATP&quot;</span><span class="p">,</span> <span class="s2">&quot;Pi&quot;</span><span class="p">]</span>
+<span class="n">compound_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">cid</span> <span class="p">:</span> <span class="n">cc</span><span class="o">.</span><span class="n">get_compound</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;metacyc.compound:</span><span class="si">{</span><span class="n">cid</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">cid</span> <span class="ow">in</span> <span class="n">compound_ids</span><span class="p">}</span>
+<span class="n">atpase_reaction</span> <span class="o">=</span> <span class="n">Reaction</span><span class="p">({</span>
+    <span class="n">compound_dict</span><span class="p">[</span><span class="s2">&quot;ATP&quot;</span><span class="p">]:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">compound_dict</span><span class="p">[</span><span class="s2">&quot;WATER&quot;</span><span class="p">]:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">compound_dict</span><span class="p">[</span><span class="s2">&quot;ADP&quot;</span><span class="p">]:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">compound_dict</span><span class="p">[</span><span class="s2">&quot;Pi&quot;</span><span class="p">]:</span> <span class="mi">1</span><span class="p">,</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">standard_dg_prime</span> <span class="o">=</span> <span class="n">cc</span><span class="o">.</span><span class="n">standard_dg_prime</span><span class="p">(</span><span class="n">atpase_reaction</span><span class="p">)</span>
+<span class="n">standard_dg_prime</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+(-29.14 &plusmn; 0.30) kilojoule/mole</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cytoplasmic_p_h</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="mf">7.5</span><span class="p">)</span>
+<span class="n">cytoplasmic_ionic_strength</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="s2">&quot;250 mM&quot;</span><span class="p">)</span>
+<span class="n">periplasmic_p_h</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="mf">7.0</span><span class="p">)</span>
+<span class="n">periplasmic_ionic_strength</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="s2">&quot;200 mM&quot;</span><span class="p">)</span>
+<span class="n">e_potential_difference</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="s2">&quot;0.15 V&quot;</span><span class="p">)</span>
+<span class="n">cytoplasmic_reaction</span> <span class="o">=</span> <span class="s2">&quot;bigg.metabolite:pep = bigg.metabolite:g6p + bigg.metabolite:pyr&quot;</span>
+<span class="n">periplasmic_reaction</span> <span class="o">=</span> <span class="s2">&quot;bigg.metabolite:glc__D = &quot;</span>
+
+<span class="n">cc</span> <span class="o">=</span> <span class="n">ComponentContribution</span><span class="p">()</span>
+<span class="n">cc</span><span class="o">.</span><span class="n">p_h</span> <span class="o">=</span> <span class="n">cytoplasmic_p_h</span>
+<span class="n">cc</span><span class="o">.</span><span class="n">ionic_strength</span> <span class="o">=</span> <span class="n">cytoplasmic_ionic_strength</span>
+<span class="n">standard_dg_prime</span> <span class="o">=</span> <span class="n">cc</span><span class="o">.</span><span class="n">multicompartmental_standard_dg_prime</span><span class="p">(</span>
+    <span class="n">cc</span><span class="o">.</span><span class="n">parse_reaction_formula</span><span class="p">(</span><span class="n">cytoplasmic_reaction</span><span class="p">),</span>
+    <span class="n">cc</span><span class="o">.</span><span class="n">parse_reaction_formula</span><span class="p">(</span><span class="n">periplasmic_reaction</span><span class="p">),</span>
+    <span class="n">e_potential_difference</span><span class="o">=</span><span class="n">e_potential_difference</span><span class="p">,</span>
+    <span class="n">p_h_outer</span><span class="o">=</span><span class="n">periplasmic_p_h</span><span class="p">,</span>
+    <span class="n">ionic_strength_outer</span><span class="o">=</span><span class="n">periplasmic_ionic_strength</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">standard_dg_prime</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(-44.8 +/- 0.6) kilojoule / mole
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cc</span><span class="o">.</span><span class="n">get_compound_by_inchi</span><span class="p">(</span><span class="s2">&quot;WQZGKKKJIJFFOK-GASJEMHNSA-N&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Using-eQuilibrator-to-generate-equilibrium-constants">
+<h1>Using eQuilibrator to generate equilibrium constants<a class="headerlink" href="#Using-eQuilibrator-to-generate-equilibrium-constants" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">s</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="c1"># create session</span>
+<span class="c1"># Post login credentials to session:</span>
+<span class="n">s</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;https://websvc.biocyc.org/credentials/login/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;email&#39;</span><span class="p">:</span><span class="s1">&#39;cellulararchitect@protonmail.com&#39;</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span><span class="s1">&#39;Cellman0451&#39;</span><span class="p">})</span>
+<span class="c1"># Issue web service request:</span>
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:6PFRUCTPHOS-RXN&amp;detail=low&amp;fmt=json&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;F16ALDOLASE-RXN&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&amp;detail=low&amp;fmt=json&#39;</span><span class="p">)</span>
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">]</span>
+<span class="n">o</span><span class="p">[</span><span class="s1">&#39;Reaction&#39;</span><span class="p">][</span><span class="s1">&#39;enzymatic-reaction&#39;</span><span class="p">][</span><span class="s1">&#39;Enzymatic-Reaction&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&#39;F16ALDOLASE-ENZRXN-CLASSI&#39;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">rxns_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;6PFRUCTPHOS-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;F16ALDOLASE-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;2TRANSKETO-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;TRIOSEPISOMERIZATION-RXN&#39;</span><span class="p">]</span>
+
+<span class="n">rxns_dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">stoich_dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">regulation_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">rxns_names</span><span class="p">:</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&amp;detail=low&amp;fmt=json&#39;</span><span class="p">)</span>
+    <span class="n">rxn</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">]</span>
+
+    <span class="n">rxn_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">stoich_loop_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">regulation_loop_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">left</span> <span class="o">=</span> <span class="n">rxn</span><span class="p">[</span><span class="s1">&#39;Reaction&#39;</span><span class="p">][</span><span class="s1">&#39;left&#39;</span><span class="p">]</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="n">rxn</span><span class="p">[</span><span class="s1">&#39;Reaction&#39;</span><span class="p">][</span><span class="s1">&#39;right&#39;</span><span class="p">]</span>
+
+    <span class="c1"># i will know exact complex in model (connected to rxn), but for now will pick random</span>
+    <span class="n">enz_rxn</span> <span class="o">=</span> <span class="n">rxn</span><span class="p">[</span><span class="s1">&#39;Reaction&#39;</span><span class="p">][</span><span class="s1">&#39;enzymatic-reaction&#39;</span><span class="p">][</span><span class="s1">&#39;Enzymatic-Reaction&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">left</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">left</span> <span class="o">=</span> <span class="p">[</span><span class="n">left</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">right</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">right</span> <span class="o">=</span> <span class="p">[</span><span class="n">right</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">enz_rxn</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">enz_rxn</span> <span class="o">=</span> <span class="p">[</span><span class="n">enz_rxn</span><span class="p">]</span>
+
+    <span class="n">enz_rxn_id</span> <span class="o">=</span>  <span class="n">enz_rxn</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+    <span class="n">re</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">enz_rxn_id</span><span class="si">}</span><span class="s1">&amp;detail=high&amp;fmt=json&#39;</span><span class="p">)</span>
+    <span class="n">oe</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Enzymatic-Reaction&#39;</span><span class="p">][</span><span class="s1">&#39;regulated-by&#39;</span><span class="p">][</span><span class="s1">&#39;Regulation&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">oe</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">oe</span> <span class="o">=</span> <span class="p">[</span><span class="n">oe</span><span class="p">]</span>
+
+    <span class="c1"># add regulators, target regulator directly with id to get info like irreversible, etc</span>
+    <span class="k">for</span> <span class="n">regulator</span> <span class="ow">in</span> <span class="n">oe</span><span class="p">:</span>
+        <span class="n">reg_name</span> <span class="o">=</span> <span class="n">regulator</span><span class="p">[</span><span class="s1">&#39;regulator&#39;</span><span class="p">][</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+        <span class="n">reg_type</span> <span class="o">=</span> <span class="n">regulator</span><span class="p">[</span><span class="s1">&#39;mode&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]</span>
+        <span class="n">reg_type</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">reg_type</span> <span class="o">==</span> <span class="s1">&#39;+&#39;</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">regulation_loop_dict</span><span class="p">[</span><span class="n">reg_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">reg_type</span>
+
+    <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">left</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">cid</span> <span class="o">=</span> <span class="n">mol</span><span class="p">[</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+            <span class="n">mol_cc</span> <span class="o">=</span> <span class="n">cc</span><span class="o">.</span><span class="n">get_compound</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;metacyc.compound:</span><span class="si">{</span><span class="n">cid</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">rxn_dict</span><span class="p">[</span><span class="n">mol_cc</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="n">stoich_loop_dict</span><span class="p">[</span><span class="n">cid</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">right</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">cid</span> <span class="o">=</span> <span class="n">mol</span><span class="p">[</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+            <span class="n">mol_cc</span> <span class="o">=</span> <span class="n">cc</span><span class="o">.</span><span class="n">get_compound</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;metacyc.compound:</span><span class="si">{</span><span class="n">cid</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">rxn_dict</span><span class="p">[</span><span class="n">mol_cc</span><span class="p">]</span> <span class="o">=</span>  <span class="mi">1</span>
+            <span class="n">stoich_loop_dict</span><span class="p">[</span><span class="n">cid</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">rxns_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">Reaction</span><span class="p">(</span><span class="n">rxn_dict</span><span class="p">)</span>
+    <span class="n">stoich_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">stoich_loop_dict</span>
+    <span class="n">regulation_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">regulation_loop_dict</span>
+
+<span class="n">rxns_dict</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;6PFRUCTPHOS-RXN&#39;: &lt;equilibrator_api.phased_reaction.PhasedReaction at 0x28afe6070&gt;,
+ &#39;F16ALDOLASE-RXN&#39;: &lt;equilibrator_api.phased_reaction.PhasedReaction at 0x2a70518b0&gt;,
+ &#39;2TRANSKETO-RXN&#39;: &lt;equilibrator_api.phased_reaction.PhasedReaction at 0x28a600640&gt;,
+ &#39;TRIOSEPISOMERIZATION-RXN&#39;: &lt;equilibrator_api.phased_reaction.PhasedReaction at 0x2be4e49d0&gt;}
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">standard_dg_prime</span><span class="p">,</span> <span class="n">dg_uncertainty</span><span class="p">)</span> <span class="o">=</span> <span class="n">cc</span><span class="o">.</span><span class="n">standard_dg_prime_multi</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">rxns_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="n">uncertainty_representation</span><span class="o">=</span><span class="s2">&quot;cov&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">standard_dg_prime</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<table><tbody><tr><th>Magnitude</th><td style='text-align:left;'><pre>[-21.05010908198642 22.047924530096907 -5.946115510564027<br> -5.617742386692498]</pre></td></tr><tr><th>Units</th><td style='text-align:left;'>kilojoule/mole</td></tr></tbody></table></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dg_uncertainty</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<table><tbody><tr><th>Magnitude</th><td style='text-align:left;'><pre>[[1.5398212990074922 -2.2167471180569773 0.6541085596545129<br>  -0.004664260811860303]<br> [-2.2167471180569773 5.286946034707553 -2.4322877177623594<br>  -0.1291182736017488]<br> [0.6541085596545129 -2.4322877177623594 5.547270812427002<br>  -0.08893998540652082]<br> [-0.004664260811860303 -0.1291182736017488 -0.08893998540652082<br>  0.3010346102557717]]</pre></td></tr><tr><th>Units</th><td style='text-align:left;'>kilojoule<sup>2</sup>/mole<sup>2</sup></td></tr></tbody></table></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">R</span> <span class="o">=</span> <span class="mf">0.008314</span> <span class="c1"># kJ/mol*K</span>
+<span class="n">T</span> <span class="o">=</span> <span class="mf">298.15</span> <span class="c1"># K</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dG</span> <span class="o">=</span> <span class="n">standard_dg_prime</span><span class="o">.</span><span class="n">_magnitude</span>
+
+<span class="n">keq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">dG</span><span class="o">/</span><span class="p">(</span><span class="n">R</span><span class="o">*</span><span class="n">T</span><span class="p">))</span>
+<span class="n">keq</span>
+
+<span class="n">K_eq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">keq</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Calculating-set-of-kinetic-parameters-with-given-equilibrium-constants-and-arbitrary-fluxes">
+<h1>Calculating set of kinetic parameters with given equilibrium constants and arbitrary fluxes<a class="headerlink" href="#Calculating-set-of-kinetic-parameters-with-given-equilibrium-constants-and-arbitrary-fluxes" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Sd</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">stoich_dict</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+<span class="c1"># Sd = Sd.iloc[0:7, 0:2]</span>
+
+<span class="n">n_rxn</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">n_met</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">Sd</span>
+
+<span class="n">Sd</span><span class="p">[</span><span class="s2">&quot;6PFRUCTPHOS-RXN&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Sd</span><span class="p">[</span><span class="s2">&quot;6PFRUCTPHOS-RXN&quot;</span><span class="p">]</span> <span class="c1"># * 2</span>
+<span class="n">Sd</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>6PFRUCTPHOS-RXN</th>
+      <th>F16ALDOLASE-RXN</th>
+      <th>2TRANSKETO-RXN</th>
+      <th>TRIOSEPISOMERIZATION-RXN</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>FRUCTOSE-6P</th>
+      <td>-1</td>
+      <td>0</td>
+      <td>1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>ATP</th>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>PROTON</th>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>ADP</th>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>FRUCTOSE-16-DIPHOSPHATE</th>
+      <td>1</td>
+      <td>-1</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>DIHYDROXY-ACETONE-PHOSPHATE</th>
+      <td>0</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <th>GAP</th>
+      <td>0</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+    </tr>
+    <tr>
+      <th>ERYTHROSE-4P</th>
+      <td>0</td>
+      <td>0</td>
+      <td>-1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>XYLULOSE-5-PHOSPHATE</th>
+      <td>0</td>
+      <td>0</td>
+      <td>-1</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Sr_min</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">regulation_dict</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+
+<span class="n">Sr</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">Sr</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,:]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">Sr</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">Sr_min</span><span class="o">.</span><span class="n">index</span><span class="p">),</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">Sr_min</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">Sr_min</span><span class="o">.</span><span class="n">index</span><span class="p">),</span> <span class="p">:]</span>
+<span class="n">Sr</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>6PFRUCTPHOS-RXN</th>
+      <th>F16ALDOLASE-RXN</th>
+      <th>2TRANSKETO-RXN</th>
+      <th>TRIOSEPISOMERIZATION-RXN</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>FRUCTOSE-6P</th>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>ATP</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>PROTON</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>ADP</th>
+      <td>1</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>FRUCTOSE-16-DIPHOSPHATE</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>DIHYDROXY-ACETONE-PHOSPHATE</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>GAP</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>ERYTHROSE-4P</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>XYLULOSE-5-PHOSPHATE</th>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">K_eq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">keq</span><span class="p">)</span>
+<span class="n">K_eq_mod</span> <span class="o">=</span> <span class="n">K_eq</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+<span class="n">vE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">90</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="o">-</span><span class="mi">30</span><span class="p">,</span> <span class="mi">50</span><span class="p">],</span> <span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">50</span><span class="p">],</span> <span class="p">[</span><span class="mi">110</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">75</span><span class="p">,</span> <span class="mi">50</span><span class="p">]])</span>
+<span class="c1"># vE[:, 0] = vE[:, 0] / 2</span>
+
+<span class="n">n_flux_set</span> <span class="o">=</span> <span class="n">vE</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># K_eq[vE &lt; 0] = 1/K_eq[vE &lt; 0]</span>
+
+<span class="n">lvE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">vE</span><span class="p">))</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">K_eq_mod</span><span class="p">,</span> <span class="n">vE</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">vE</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)]),</span> <span class="n">columns</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span>
+             <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;$K_</span><span class="si">{eq}</span><span class="s2">$&quot;</span><span class="p">,</span> <span class="s2">&quot;$v_1$&quot;</span><span class="p">,</span> <span class="s2">&quot;$v_2$&quot;</span><span class="p">,</span> <span class="s2">&quot;$v_3$&quot;</span><span class="p">,</span> <span class="s2">&quot;sign 1&quot;</span><span class="p">,</span> <span class="s2">&quot;sign 2&quot;</span><span class="p">,</span> <span class="s2">&quot;sign 3&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>6PFRUCTPHOS-RXN</th>
+      <th>F16ALDOLASE-RXN</th>
+      <th>2TRANSKETO-RXN</th>
+      <th>TRIOSEPISOMERIZATION-RXN</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>$K_{eq}$</th>
+      <td>8.491991</td>
+      <td>-8.894527</td>
+      <td>2.398769</td>
+      <td>2.266298</td>
+    </tr>
+    <tr>
+      <th>$v_1$</th>
+      <td>90.000000</td>
+      <td>70.000000</td>
+      <td>-30.000000</td>
+      <td>50.000000</td>
+    </tr>
+    <tr>
+      <th>$v_2$</th>
+      <td>100.000000</td>
+      <td>100.000000</td>
+      <td>30.000000</td>
+      <td>50.000000</td>
+    </tr>
+    <tr>
+      <th>$v_3$</th>
+      <td>110.000000</td>
+      <td>60.000000</td>
+      <td>75.000000</td>
+      <td>50.000000</td>
+    </tr>
+    <tr>
+      <th>sign 1</th>
+      <td>1.000000</td>
+      <td>1.000000</td>
+      <td>-1.000000</td>
+      <td>1.000000</td>
+    </tr>
+    <tr>
+      <th>sign 2</th>
+      <td>1.000000</td>
+      <td>1.000000</td>
+      <td>1.000000</td>
+      <td>1.000000</td>
+    </tr>
+    <tr>
+      <th>sign 3</th>
+      <td>1.000000</td>
+      <td>1.000000</td>
+      <td>1.000000</td>
+      <td>1.000000</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># set up variables</span>
+
+<span class="n">S_mol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Sd</span><span class="p">)</span>
+<span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">S_mol</span><span class="p">)</span> <span class="c1">#</span>
+<span class="n">S_s</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">S</span><span class="p">)</span> <span class="c1"># reverse neg sign</span>
+<span class="n">S_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+<span class="n">S_s</span><span class="p">[</span><span class="n">S</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># zeros products</span>
+<span class="n">S_p</span><span class="p">[</span><span class="n">S</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span> <span class="c1"># zeros substrates</span>
+<span class="n">S_i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Sr</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># reaction direction does not matter</span>
+<span class="n">S_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Sr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+
+
+<span class="n">S_s_nz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">S_s</span><span class="o">.</span><span class="n">nonzero</span><span class="p">())</span>
+<span class="n">S_p_nz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">S_p</span><span class="o">.</span><span class="n">nonzero</span><span class="p">())</span>
+<span class="n">S_i_nz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">S_i</span><span class="o">.</span><span class="n">nonzero</span><span class="p">())</span>
+<span class="n">S_a_nz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">S_a</span><span class="o">.</span><span class="n">nonzero</span><span class="p">())</span>
+<span class="n">S_s_mol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">S_mol</span><span class="p">)[</span><span class="n">S_s</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()]</span>
+<span class="n">S_p_mol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">S_mol</span><span class="p">)[</span><span class="n">S_p</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()]</span>
+
+<span class="c1"># TODO Refactor all the below lines as one liners</span>
+<span class="c1"># first coordinate, e.g. metabolites w nonzero substrate/product coeff across all reactions. also works as substrate indices.</span>
+<span class="n">met_s_nz</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">met_p_nz</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">met_i_nz</span> <span class="o">=</span> <span class="n">S_i_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">met_a_nz</span> <span class="o">=</span> <span class="n">S_a_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+
+<span class="c1"># second coordinate, e.g. reactions indices for those concentrations. works to index substrates as well.</span>
+<span class="n">rxn_s_nz</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">rxn_p_nz</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">rxn_i_nz</span> <span class="o">=</span> <span class="n">S_i_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">rxn_a_nz</span> <span class="o">=</span> <span class="n">S_a_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+
+<span class="c1"># one dim is always 2</span>
+<span class="n">n_Km_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">met_s_nz</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="n">n_Km_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">met_p_nz</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="n">n_Km_i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">met_i_nz</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="n">n_Km_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">met_a_nz</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="n">c</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">([</span><span class="n">n_met</span><span class="p">,</span> <span class="n">n_flux_set</span><span class="p">])</span>
+<span class="n">Km_s</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_Km_s</span><span class="p">)</span>
+<span class="n">Km_p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_Km_p</span><span class="p">)</span>
+<span class="n">Km_i</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_Km_i</span><span class="p">)</span> <span class="k">if</span> <span class="n">n_Km_i</span> <span class="k">else</span> <span class="kc">None</span>
+<span class="n">Km_a</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_Km_a</span><span class="p">)</span> <span class="k">if</span> <span class="n">n_Km_a</span> <span class="k">else</span> <span class="kc">None</span>
+
+<span class="n">cfwd</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+<span class="n">crev</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+
+<span class="c1"># define y vecs</span>
+<span class="n">y_s_t</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">y_p_t</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">y_i_t</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">y_a_t</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="c1"># define Km positions by nonzero S matrix concentrations. Activation is reverse val of inhibition.</span>
+<span class="c1"># TODO Add molecularity here.</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_flux_set</span><span class="p">):</span>
+    <span class="n">y_s_t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">S_s_mol</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="n">met_s_nz</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">Km_s</span><span class="p">))</span>
+    <span class="n">y_p_t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">S_p_mol</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="n">met_p_nz</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">Km_p</span><span class="p">))</span>
+    <span class="n">y_i_t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="n">met_i_nz</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">Km_i</span> <span class="k">if</span> <span class="n">n_Km_i</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">y_a_t</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="n">met_a_nz</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">Km_a</span><span class="p">)</span> <span class="k">if</span> <span class="n">n_Km_a</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+
+<span class="n">y_s</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">y_s_t</span><span class="p">)</span>
+<span class="n">y_p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">y_p_t</span><span class="p">)</span>
+<span class="n">y_i</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">y_i_t</span><span class="p">)</span>
+<span class="n">y_a</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">y_a_t</span><span class="p">)</span>
+
+<span class="c1"># saturation stacks</span>
+<span class="n">y_f_vec</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_s</span><span class="p">]</span>
+<span class="n">y_r_vec</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_p</span><span class="p">]</span>
+<span class="k">if</span> <span class="n">n_Km_i</span><span class="p">:</span>
+    <span class="n">y_f_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y_i</span><span class="p">)</span>
+    <span class="n">y_r_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y_i</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">n_Km_a</span><span class="p">:</span>
+    <span class="n">y_f_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y_a</span><span class="p">)</span>
+    <span class="n">y_r_vec</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y_a</span><span class="p">)</span>
+
+<span class="n">y_f</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">y_f_vec</span><span class="p">)</span>
+<span class="n">y_r</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">y_r_vec</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># number of saturation terms for sub, prod</span>
+<span class="n">S_s_comb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">S_s</span><span class="p">,</span> <span class="n">S_i</span><span class="p">,</span> <span class="n">S_a</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">S_p_comb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">S_p</span><span class="p">,</span> <span class="n">S_i</span><span class="p">,</span> <span class="n">S_a</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">n_alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">S_s_comb</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">n_beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">S_p_comb</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># saturation matrix setup, first sub, then inhib, then act.</span>
+<span class="n">C_alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">n_alpha</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">met_s_nz</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">met_i_nz</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">met_a_nz</span><span class="p">)])</span>
+<span class="n">C_beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">n_beta</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">met_p_nz</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">met_i_nz</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">met_a_nz</span><span class="p">)])</span>
+
+<span class="c1"># to separate different reactions saturation terms to their individual reaction equations.</span>
+<span class="n">d_alpha</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_alpha</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+<span class="n">d_beta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_beta</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+
+
+<span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">):</span>
+
+    <span class="c1"># pick one reaction at a time (get substrate indicies)</span>
+    <span class="c1">#idx_cur_rxn = rxn_s_nz == i</span>
+    <span class="c1"># TODO This does not properly multiply by molecularity. Alternatively, generate C_alpha and</span>
+    <span class="c1"># TODO beta without molecularity (first ==1) and then multiply by molecularity in the end.</span>
+    <span class="n">idx_cur_rxn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">rxn_s_nz</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn_i_nz</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn_a_nz</span> <span class="o">==</span> <span class="n">i</span><span class="p">))</span>
+
+    <span class="c1"># generates all binary permutations minus the first one since that would result in -1</span>
+    <span class="n">sat_perm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">repeat</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">idx_cur_rxn</span><span class="p">))))</span>
+    <span class="n">sat_perm</span> <span class="o">=</span> <span class="n">sat_perm</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:]</span>
+
+    <span class="n">r</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">sat_perm</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="c1"># replace zeros with saturation matrix</span>
+    <span class="n">C_alpha</span><span class="p">[</span><span class="n">idx</span><span class="p">:(</span><span class="n">idx</span><span class="o">+</span><span class="n">r</span><span class="p">),</span> <span class="n">idx_cur_rxn</span><span class="p">]</span> <span class="o">=</span> <span class="n">sat_perm</span>
+    <span class="n">d_alpha</span><span class="p">[</span><span class="n">idx</span><span class="p">:(</span><span class="n">idx</span><span class="o">+</span><span class="n">r</span><span class="p">)]</span> <span class="o">=</span> <span class="n">i</span>
+
+    <span class="n">idx</span> <span class="o">+=</span> <span class="n">r</span> <span class="c1"># add row #</span>
+
+<span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">):</span>
+    <span class="n">idx_cur_rxn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">rxn_p_nz</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn_i_nz</span> <span class="o">==</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn_a_nz</span> <span class="o">==</span> <span class="n">i</span><span class="p">))</span>
+
+    <span class="n">sat_perm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">repeat</span><span class="o">=</span><span class="nb">sum</span><span class="p">(</span><span class="n">idx_cur_rxn</span><span class="p">))))</span>
+    <span class="n">sat_perm</span> <span class="o">=</span> <span class="n">sat_perm</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:]</span>
+
+    <span class="n">r</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">sat_perm</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="n">C_beta</span><span class="p">[</span><span class="n">idx</span><span class="p">:(</span><span class="n">idx</span><span class="o">+</span><span class="n">r</span><span class="p">),</span> <span class="n">idx_cur_rxn</span><span class="p">]</span> <span class="o">=</span> <span class="n">sat_perm</span>
+    <span class="n">d_beta</span><span class="p">[</span><span class="n">idx</span><span class="p">:(</span><span class="n">idx</span><span class="o">+</span><span class="n">r</span><span class="p">)]</span> <span class="o">=</span> <span class="n">i</span>
+
+    <span class="n">idx</span> <span class="o">+=</span> <span class="n">r</span> <span class="c1"># add row #</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">C_alpha</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([[0., 0., 0., 0., 0., 0., 0., 1.],
+       [0., 0., 0., 0., 0., 0., 1., 0.],
+       [0., 0., 0., 0., 0., 0., 1., 1.],
+       [0., 1., 0., 0., 0., 0., 0., 0.],
+       [0., 1., 0., 0., 0., 0., 0., 1.],
+       [0., 1., 0., 0., 0., 0., 1., 0.],
+       [0., 1., 0., 0., 0., 0., 1., 1.],
+       [1., 0., 0., 0., 0., 0., 0., 0.],
+       [1., 0., 0., 0., 0., 0., 0., 1.],
+       [1., 0., 0., 0., 0., 0., 1., 0.],
+       [1., 0., 0., 0., 0., 0., 1., 1.],
+       [1., 1., 0., 0., 0., 0., 0., 0.],
+       [1., 1., 0., 0., 0., 0., 0., 1.],
+       [1., 1., 0., 0., 0., 0., 1., 0.],
+       [1., 1., 0., 0., 0., 0., 1., 1.],
+       [0., 0., 1., 0., 0., 0., 0., 0.],
+       [0., 0., 0., 0., 0., 1., 0., 0.],
+       [0., 0., 0., 0., 1., 0., 0., 0.],
+       [0., 0., 0., 0., 1., 1., 0., 0.],
+       [0., 0., 0., 1., 0., 0., 0., 0.]])
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">n_lse_terms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">S_s</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">+</span>  <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">S_p</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">LSE_expr</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">denom_expr</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="n">sign</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">vE</span><span class="p">)</span>
+<span class="n">lvE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sign</span> <span class="o">*</span> <span class="n">vE</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_flux_set</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">):</span>
+        <span class="c1"># sum terms are separate in logsumexp. one per saturation term (row in C_alpha, C_beta)</span>
+
+        <span class="n">n_term_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term</span> <span class="o">=</span> <span class="n">n_term_s</span> <span class="o">+</span> <span class="n">n_term_p</span>
+
+        <span class="n">Km_s_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_s_idx</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="c1"># negate -1 entries</span>
+
+        <span class="n">Km_p_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_p_idx</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">sign</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">LSE_expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span> <span class="p">[</span>
+                                         <span class="n">lvE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">C_alpha</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_f</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]))[</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+                                            <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_term_s</span><span class="p">),</span> <span class="o">-</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]))</span> <span class="o">-</span> <span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                         <span class="n">lvE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">C_beta</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_r</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]))[</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+                                            <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_term_p</span><span class="p">),</span> <span class="o">-</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]))</span> <span class="o">-</span> <span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+
+                                         <span class="n">lvE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">0</span> <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="o">-</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]))</span>  <span class="o">-</span> <span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+
+                                         <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span>  <span class="o">+</span> <span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                                            <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="o">-</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]))</span>  <span class="o">-</span> <span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+
+                                       <span class="p">]</span>
+                                     <span class="p">)</span>
+                           <span class="p">)</span>  <span class="c1"># remove +1 here, could also have cfwd outside objec.</span>
+
+            <span class="n">denom_expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="o">-</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]))</span> <span class="o">+</span> <span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">],)</span>
+
+
+        <span class="c1"># keep saturation term the same, switch around fwd and rev terms. flip all signs with S matrix since it&#39;s signed.</span>
+        <span class="k">if</span> <span class="n">sign</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">LSE_expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span> <span class="p">[</span> <span class="n">lvE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">C_alpha</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_f</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]))[</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+                                            <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_term_s</span><span class="p">),</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span> <span class="o">-</span> <span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+
+                                         <span class="n">lvE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">C_beta</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_r</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]))[</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+                                            <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n_term_p</span><span class="p">),</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span> <span class="o">-</span> <span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+
+                                         <span class="n">lvE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">0</span> <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span> <span class="o">-</span> <span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+
+                                         <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="o">-</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]))</span>  <span class="o">+</span> <span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                                            <span class="o">-</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span> <span class="o">-</span> <span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+
+                                       <span class="p">]</span>
+                                     <span class="p">)</span>
+                           <span class="p">)</span>
+
+            <span class="n">denom_expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span> <span class="o">+</span> <span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+
+<span class="c1">#LSE_expr = cp.vstack(LSE_expr)</span>
+<span class="n">LSE_expr</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[Expression(AFFINE, UNKNOWN, (48,)),
+ Expression(AFFINE, UNKNOWN, (6,)),
+ Expression(AFFINE, UNKNOWN, (8,)),
+ Expression(AFFINE, UNKNOWN, (4,)),
+ Expression(AFFINE, UNKNOWN, (48,)),
+ Expression(AFFINE, UNKNOWN, (6,)),
+ Expression(AFFINE, UNKNOWN, (8,)),
+ Expression(AFFINE, UNKNOWN, (4,)),
+ Expression(AFFINE, UNKNOWN, (48,)),
+ Expression(AFFINE, UNKNOWN, (6,)),
+ Expression(AFFINE, UNKNOWN, (8,)),
+ Expression(AFFINE, UNKNOWN, (4,))]
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">l</span> <span class="o">=</span> <span class="mf">0.001</span>
+<span class="n">e</span> <span class="o">=</span> <span class="mf">0.001</span>
+<span class="n">f</span> <span class="o">=</span> <span class="mf">0.000001</span>
+<span class="n">reg</span> <span class="o">=</span>  <span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">c</span><span class="p">)]))</span> <span class="o">+</span> <span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="o">-</span><span class="n">Km_s</span><span class="p">,</span> <span class="o">-</span><span class="n">Km_p</span><span class="p">]))</span> <span class="c1"># regularization</span>
+<span class="n">reg2</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">c</span><span class="p">)]))</span> <span class="o">+</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="o">-</span><span class="n">Km_s</span><span class="p">,</span> <span class="o">-</span><span class="n">Km_p</span><span class="p">]))</span> <span class="c1"># regularization</span>
+<span class="n">reg3</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">huber</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">]),</span> <span class="mi">1</span><span class="p">))</span> <span class="c1"># issue with matrix</span>
+
+<span class="k">if</span> <span class="n">n_Km_i</span><span class="p">:</span>
+    <span class="n">reg</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="o">-</span><span class="n">Km_i</span><span class="p">]))</span>
+<span class="k">if</span> <span class="n">n_Km_a</span><span class="p">:</span>
+    <span class="n">reg</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="o">-</span><span class="n">Km_a</span><span class="p">]))</span>
+<span class="c1">#reg3 = cp.norm1(cp.hstack([y_s, y_p])) # take a look at this</span>
+
+<span class="n">loss</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">LSE_expr</span><span class="p">)):</span>
+    <span class="n">loss</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">pos</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">log_sum_exp</span><span class="p">(</span><span class="n">LSE_expr</span><span class="p">[</span><span class="n">i</span><span class="p">])))</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">denom_expr</span><span class="p">)):</span>
+    <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">denom_expr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="n">l</span> <span class="o">*</span> <span class="n">reg</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="n">e</span> <span class="o">*</span> <span class="n">reg2</span>
+<span class="c1"># loss += f * reg3</span>
+<span class="c1">#</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">constr</span> <span class="o">=</span> <span class="p">[</span><span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">])</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">12</span><span class="p">,</span>
+          <span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">c</span><span class="p">),</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="mi">12</span><span class="p">,</span>
+          <span class="p">]</span>
+
+<span class="k">if</span> <span class="n">n_Km_i</span><span class="p">:</span>
+    <span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">Km_i</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">12</span><span class="p">,</span> <span class="n">Km_i</span> <span class="o">&lt;=</span> <span class="mi">12</span><span class="p">])</span>
+<span class="k">if</span> <span class="n">n_Km_a</span><span class="p">:</span>
+    <span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">Km_a</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">12</span><span class="p">,</span> <span class="n">Km_a</span> <span class="o">&lt;=</span> <span class="mi">12</span><span class="p">])</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">haldane</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">fwd_flux</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">):</span>
+    <span class="n">Km_s_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">S_s_idx</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="c1"># negate -1 entries</span>
+
+    <span class="n">Km_p_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">S_p_idx</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+
+    <span class="n">haldane</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">K_eq</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">r</span><span class="p">[</span><span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">Km_p</span><span class="p">[</span><span class="n">Km_p_idx</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="o">-</span><span class="n">r</span><span class="p">[</span><span class="n">S_s_idx</span><span class="p">])</span> <span class="o">@</span> <span class="n">Km_s</span><span class="p">[</span><span class="n">Km_s_idx</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_flux_set</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">):</span>
+        <span class="n">Km_s_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_s_idx</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="c1"># negate -1 entries</span>
+
+        <span class="n">Km_p_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_p_idx</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">sign</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">fwd_flux</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="o">-</span><span class="n">r</span><span class="p">[</span><span class="n">S_s_idx</span><span class="p">])</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">])</span> <span class="o">-</span> <span class="p">(</span><span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">r</span><span class="p">[</span><span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span>  <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># add minus since s matrix has minus</span>
+
+        <span class="k">if</span> <span class="n">sign</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">fwd_flux</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cfwd</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="o">-</span><span class="n">r</span><span class="p">[</span><span class="n">S_s_idx</span><span class="p">])</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_s</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">])</span> <span class="o">-</span> <span class="p">(</span><span class="n">crev</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">r</span><span class="p">[</span><span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">y_p</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]))</span>  <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># add minus since s matrix has minus</span>
+
+    <span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">cp</span><span class="o">.</span><span class="n">vec</span><span class="p">(</span><span class="n">c</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]),</span> <span class="n">sign</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:])</span>  <span class="o">&lt;=</span> <span class="n">cp</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">K_eq</span><span class="p">,</span> <span class="n">sign</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:])])</span>
+
+<span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">haldane</span><span class="p">)</span>
+<span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">fwd_flux</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">),</span> <span class="n">constr</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">solver</span><span class="o">=</span><span class="n">cp</span><span class="o">.</span><span class="n">ECOS</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+===============================================================================
+                                     CVXPY
+                                     v1.3.0
+===============================================================================
+(CVXPY) Apr 20 05:46:59 PM: Your problem has 51 variables, 23 constraints, and 0 parameters.
+(CVXPY) Apr 20 05:46:59 PM: It is compliant with the following grammars: DCP, DQCP
+(CVXPY) Apr 20 05:46:59 PM: (If you need to solve this problem multiple times, but with different data, consider using parameters.)
+(CVXPY) Apr 20 05:46:59 PM: CVXPY will first compile your problem; then, it will invoke a numerical solver to obtain a solution.
+-------------------------------------------------------------------------------
+                                  Compilation
+-------------------------------------------------------------------------------
+(CVXPY) Apr 20 05:46:59 PM: Compiling problem (target solver=ECOS).
+(CVXPY) Apr 20 05:46:59 PM: Reduction chain: Dcp2Cone -&gt; CvxAttr2Constr -&gt; ConeMatrixStuffing -&gt; ECOS
+(CVXPY) Apr 20 05:46:59 PM: Applying reduction Dcp2Cone
+(CVXPY) Apr 20 05:47:00 PM: Applying reduction CvxAttr2Constr
+(CVXPY) Apr 20 05:47:00 PM: Applying reduction ConeMatrixStuffing
+(CVXPY) Apr 20 05:47:00 PM: Applying reduction ECOS
+(CVXPY) Apr 20 05:47:00 PM: Finished problem compilation (took 2.836e-01 seconds).
+-------------------------------------------------------------------------------
+                                Numerical solver
+-------------------------------------------------------------------------------
+(CVXPY) Apr 20 05:47:00 PM: Invoking solver ECOS  to obtain a solution.
+-------------------------------------------------------------------------------
+                                    Summary
+-------------------------------------------------------------------------------
+(CVXPY) Apr 20 05:47:00 PM: Problem status: optimal
+(CVXPY) Apr 20 05:47:00 PM: Optimal value: 6.528e-01
+(CVXPY) Apr 20 05:47:00 PM: Compilation took 2.836e-01 seconds
+(CVXPY) Apr 20 05:47:00 PM: Solver (including time spent in interface) took 1.464e-02 seconds
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0.6527584055951395
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Substrate Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_s</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Product Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_p</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Fwd kcat:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">cfwd</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Rev kcat:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">crev</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+
+<span class="n">concs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">concs</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Concentration:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">row</span><span class="p">])</span>
+
+<span class="k">if</span> <span class="n">n_Km_i</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Inhibition Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_i</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="k">if</span> <span class="n">n_Km_a</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Activation Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_a</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Substrate Km: [&#39;23.895&#39;, &#39;10.336&#39;, &#39;11.495&#39;, &#39;1.058&#39;, &#39;1.792&#39;, &#39;1.792&#39;]
+Product Km: [&#39;31.112&#39;, &#39;1.000&#39;, &#39;1.463&#39;, &#39;20.747&#39;, &#39;0.193&#39;, &#39;0.999&#39;, &#39;1.000&#39;, &#39;1.000&#39;]
+Fwd kcat: [&#39;39678.055&#39;, &#39;1329.487&#39;, &#39;5070.525&#39;, &#39;850.010&#39;]
+Rev kcat: [&#39;1.000&#39;, &#39;162732.740&#39;, &#39;4459.575&#39;, &#39;83.212&#39;]
+Concentration: [&#39;3.7831&#39;, &#39;0.1928&#39;, &#39;0.0000&#39;, &#39;0.0542&#39;, &#39;0.6843&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.0000&#39;, &#39;0.0000&#39;]
+Concentration: [&#39;0.8177&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0535&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.1719&#39;, &#39;0.1719&#39;]
+Concentration: [&#39;0.8840&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0538&#39;, &#39;0.5823&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.2698&#39;, &#39;0.2698&#39;]
+Activation Km: [&#39;0.020&#39;, &#39;0.001&#39;]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">LSE_expr</span><span class="p">:</span>
+    <span class="c1">#print(v.value)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+-1.2318670264410692e-06
+-1.7973949556493451e-07
+-1.3402584234101234e-07
+-1.879367122550879e-07
+-1.0730806483949529e-06
+-1.5509767609112046e-07
+-2.3356220052450638e-07
+-1.0040084171686336e-07
+-1.1511763194360647e-06
+-1.81464080317717e-07
+-2.2208496253117715e-07
+-1.088128343332273e-07
+</pre></div></div>
+</div>
+<p>Perfect? Wow.</p>
+</section>
+<section id="Check-flux-reconstruction-with-inhibition/activation">
+<h1>Check flux reconstruction with inhibition/activation<a class="headerlink" href="#Check-flux-reconstruction-with-inhibition/activation" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">reconstructed_vE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">vE</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_flux_set</span><span class="p">):</span>
+    <span class="n">sat_expr</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">fwd_sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+    <span class="n">back_sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+    <span class="n">sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">):</span>
+        <span class="c1"># sum terms are separate in logsumexp. one per saturation term (row in C_alpha, C_beta)</span>
+        <span class="n">n_term_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term</span> <span class="o">=</span> <span class="n">n_term_s</span> <span class="o">+</span> <span class="n">n_term_p</span>
+
+
+        <span class="n">Km_s_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_s_idx</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="c1"># negate -1 entries</span>
+
+        <span class="n">Km_p_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_p_idx</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+
+        <span class="c1">#S_s_idx = S_s_nz[0, S_s_nz[1, :] == i]</span>
+
+        <span class="n">sat_expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>           <span class="p">[</span> <span class="p">(</span><span class="n">C_alpha</span> <span class="o">@</span> <span class="n">y_f</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())[</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="p">,</span>
+                                     <span class="p">(</span><span class="n">C_beta</span> <span class="o">@</span> <span class="n">y_r</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())[</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">],</span>
+                                     <span class="mi">0</span><span class="p">,</span>
+                                     <span class="c1">#-1*np.ones(n_lse_terms - n_term + 1)</span>
+                                   <span class="p">]</span>
+                       <span class="p">)</span>
+        <span class="n">fwd_sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">y_s</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="c1"># + cfwd.value[i]</span>
+        <span class="n">back_sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">y_p</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="c1"># + cfwd.value[i]</span>
+
+
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sat_expr</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">term</span><span class="p">))</span>
+
+        <span class="n">sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+    <span class="n">reconstr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">cfwd</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">*</span> <span class="n">fwd_sat</span><span class="o">/</span><span class="n">sat</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">crev</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">*</span> <span class="n">back_sat</span><span class="o">/</span><span class="n">sat</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">reconstr</span><span class="p">)</span>
+    <span class="n">reconstructed_vE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">reconstr</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[ 90.00011087  70.00001264 -30.00000402  50.0000094 ]
+[100.00010731 100.00001556  30.00000841  50.00000502]
+[110.00012663  60.00001094  75.00001797  50.00000544]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">df_vE</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">vE</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Flux set 1&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux set 2&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux set 3&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">df_vE</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Actual flux&quot;</span>
+<span class="n">df_recon</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">reconstructed_vE</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Flux set 1&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux set 2&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux set 3&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">df_recon</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Reconstructed flux&quot;</span>
+
+<span class="n">df_reconstr_comp</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_vE</span><span class="p">,</span> <span class="n">df_recon</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">df_reconstr_comp</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>index</th>
+      <th>variable</th>
+      <th>value</th>
+      <th>kind</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Flux set 1</td>
+      <td>6PFRUCTPHOS-RXN</td>
+      <td>90.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Flux set 2</td>
+      <td>6PFRUCTPHOS-RXN</td>
+      <td>100.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Flux set 3</td>
+      <td>6PFRUCTPHOS-RXN</td>
+      <td>110.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Flux set 1</td>
+      <td>F16ALDOLASE-RXN</td>
+      <td>70.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>Flux set 2</td>
+      <td>F16ALDOLASE-RXN</td>
+      <td>100.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>Flux set 3</td>
+      <td>F16ALDOLASE-RXN</td>
+      <td>60.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>Flux set 1</td>
+      <td>2TRANSKETO-RXN</td>
+      <td>-30.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>Flux set 2</td>
+      <td>2TRANSKETO-RXN</td>
+      <td>30.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>Flux set 3</td>
+      <td>2TRANSKETO-RXN</td>
+      <td>75.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>Flux set 1</td>
+      <td>TRIOSEPISOMERIZATION-RXN</td>
+      <td>50.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>Flux set 2</td>
+      <td>TRIOSEPISOMERIZATION-RXN</td>
+      <td>50.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>Flux set 3</td>
+      <td>TRIOSEPISOMERIZATION-RXN</td>
+      <td>50.000000</td>
+      <td>Actual flux</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>Flux set 1</td>
+      <td>6PFRUCTPHOS-RXN</td>
+      <td>90.000111</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>Flux set 2</td>
+      <td>6PFRUCTPHOS-RXN</td>
+      <td>100.000107</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>Flux set 3</td>
+      <td>6PFRUCTPHOS-RXN</td>
+      <td>110.000127</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>Flux set 1</td>
+      <td>F16ALDOLASE-RXN</td>
+      <td>70.000013</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>Flux set 2</td>
+      <td>F16ALDOLASE-RXN</td>
+      <td>100.000016</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>Flux set 3</td>
+      <td>F16ALDOLASE-RXN</td>
+      <td>60.000011</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>Flux set 1</td>
+      <td>2TRANSKETO-RXN</td>
+      <td>-30.000004</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>Flux set 2</td>
+      <td>2TRANSKETO-RXN</td>
+      <td>30.000008</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>Flux set 3</td>
+      <td>2TRANSKETO-RXN</td>
+      <td>75.000018</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>Flux set 1</td>
+      <td>TRIOSEPISOMERIZATION-RXN</td>
+      <td>50.000009</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>Flux set 2</td>
+      <td>TRIOSEPISOMERIZATION-RXN</td>
+      <td>50.000005</td>
+      <td>Reconstructed flux</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>Flux set 3</td>
+      <td>TRIOSEPISOMERIZATION-RXN</td>
+      <td>50.000005</td>
+      <td>Reconstructed flux</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">catplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;index&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;kind&quot;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s2">&quot;variable&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;bar&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">df_reconstr_comp</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col_wrap</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;flux_set_comparison.svg&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_fbagd_balance_35_0.png" src="../../_images/notebooks_fbagd_balance_35_0.png" />
+</div>
+</div>
+</section>
+<section id="Stupid-class-based-method">
+<h1>Stupid class based method<a class="headerlink" href="#Stupid-class-based-method" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">convex_kinetics_new</span> <span class="kn">import</span> <span class="n">ConvexKineticsNew</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">E</span> <span class="o">=</span> <span class="n">ConvexKineticsNew</span><span class="p">()</span>
+<span class="n">y_f</span><span class="p">,</span> <span class="n">y_r</span><span class="p">,</span> <span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">,</span> <span class="n">y_i</span><span class="p">,</span> <span class="n">y_a</span><span class="p">,</span> <span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">,</span> <span class="n">Km_i</span><span class="p">,</span> <span class="n">Km_a</span><span class="p">,</span> <span class="n">S_s</span><span class="p">,</span> <span class="n">S_p</span><span class="p">,</span> <span class="n">S_i</span><span class="p">,</span> <span class="n">S_a</span><span class="p">,</span> \
+            <span class="n">met_s_nz</span><span class="p">,</span> <span class="n">met_p_nz</span><span class="p">,</span> <span class="n">met_i_nz</span><span class="p">,</span> <span class="n">met_a_nz</span><span class="p">,</span> <span class="n">rxn_s_nz</span><span class="p">,</span> <span class="n">rxn_p_nz</span><span class="p">,</span> <span class="n">rxn_i_nz</span><span class="p">,</span> <span class="n">rxn_a_nz</span><span class="p">,</span> \
+            <span class="n">n_rxn</span><span class="p">,</span> <span class="n">n_met</span><span class="p">,</span> <span class="n">n_flux_set</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">,</span> <span class="n">S</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">set_up_variables</span><span class="p">(</span><span class="n">S_matrix</span><span class="o">=</span><span class="n">Sd</span><span class="p">,</span> <span class="n">R_matrix</span><span class="o">=</span><span class="n">Sr</span><span class="p">,</span> <span class="n">flow_data</span><span class="o">=</span><span class="n">vE</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Number of metabolites: 9, number of reactions: 4, number of flux sets: 3
+Number of Km_s: 6, number of Km_p: 8, number of Km_i: 0, number of Km_a: 2
+Number of concentrations: (9, 3), number of y_f: (3, 8), number of y_r: (3, 10)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">C_alpha</span><span class="p">,</span> <span class="n">C_beta</span><span class="p">,</span> <span class="n">d_alpha</span><span class="p">,</span> <span class="n">d_beta</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">construct_binding_matrix</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">,</span> <span class="n">S_s</span><span class="p">,</span> <span class="n">S_p</span><span class="p">,</span> <span class="n">S_i</span><span class="p">,</span> <span class="n">S_a</span><span class="p">,</span> <span class="n">Sr</span><span class="p">,</span> <span class="n">met_s_nz</span><span class="p">,</span> <span class="n">met_p_nz</span><span class="p">,</span> <span class="n">met_i_nz</span><span class="p">,</span> <span class="n">met_a_nz</span><span class="p">,</span> <span class="n">rxn_s_nz</span><span class="p">,</span> <span class="n">rxn_p_nz</span><span class="p">,</span> <span class="n">rxn_i_nz</span><span class="p">,</span> <span class="n">rxn_a_nz</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Shape of C_alpha: (20, 8), shape of C_beta: (38, 10)
+Shape of d_alpha: (20,), shape of d_beta: (38,)
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">LSE_expr</span><span class="p">,</span> <span class="n">denom_expr</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">construct_kinetic_objective</span><span class="p">(</span><span class="n">vE</span><span class="p">,</span> <span class="n">n_flux_set</span><span class="p">,</span> <span class="n">n_rxn</span><span class="p">,</span> <span class="n">C_alpha</span><span class="p">,</span> <span class="n">C_beta</span><span class="p">,</span> <span class="n">d_alpha</span><span class="p">,</span> <span class="n">d_beta</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">y_f</span><span class="p">,</span> <span class="n">y_r</span><span class="p">,</span> <span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">,</span> <span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">loss</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">create_objective_function</span><span class="p">(</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">,</span> <span class="n">Km_i</span><span class="p">,</span> <span class="n">Km_a</span><span class="p">,</span> <span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">,</span> <span class="n">LSE_expr</span><span class="p">,</span> <span class="n">denom_expr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">constr</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">set_parameter_bounds</span><span class="p">(</span><span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">,</span> <span class="n">Km_i</span><span class="p">,</span> <span class="n">Km_a</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">constr</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">add_mechanistic_constraints</span><span class="p">(</span><span class="n">constr</span><span class="p">,</span> <span class="n">vE</span><span class="p">,</span> <span class="n">K_eq</span><span class="p">,</span> <span class="n">S</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">,</span> <span class="n">cfwd</span><span class="p">,</span> <span class="n">crev</span><span class="p">,</span> <span class="n">Km_s</span><span class="p">,</span> <span class="n">Km_p</span><span class="p">,</span> <span class="n">n_flux_set</span><span class="p">,</span> <span class="n">y_s</span><span class="p">,</span> <span class="n">y_p</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">problem</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">set_up_problem</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">constr</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span> <span class="o">=</span> <span class="n">E</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">problem</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span><span class="o">.</span><span class="n">value</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0.6527584158591703
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">p</span><span class="o">.</span><span class="n">value</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0.6527584055951395
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Substrate Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_s</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Product Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_p</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Fwd kcat:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">cfwd</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Rev kcat:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">crev</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+
+<span class="n">concs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">concs</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Concentration:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">row</span><span class="p">])</span>
+
+<span class="k">if</span> <span class="n">n_Km_i</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Inhibition Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_i</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="k">if</span> <span class="n">n_Km_a</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Activation Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_a</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Substrate Km: [&#39;23.809&#39;, &#39;10.336&#39;, &#39;11.495&#39;, &#39;1.058&#39;, &#39;1.789&#39;, &#39;1.789&#39;]
+Product Km: [&#39;31.001&#39;, &#39;1.000&#39;, &#39;1.458&#39;, &#39;20.747&#39;, &#39;0.193&#39;, &#39;0.999&#39;, &#39;1.000&#39;, &#39;1.000&#39;]
+Fwd kcat: [&#39;39678.086&#39;, &#39;1329.487&#39;, &#39;5070.524&#39;, &#39;850.010&#39;]
+Rev kcat: [&#39;1.000&#39;, &#39;162729.221&#39;, &#39;4459.573&#39;, &#39;83.202&#39;]
+Concentration: [&#39;3.7696&#39;, &#39;0.1928&#39;, &#39;0.0000&#39;, &#39;0.0540&#39;, &#39;0.6843&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.0000&#39;, &#39;0.0000&#39;]
+Concentration: [&#39;0.8148&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0533&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.1715&#39;, &#39;0.1715&#39;]
+Concentration: [&#39;0.8809&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0536&#39;, &#39;0.5823&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.2693&#39;, &#39;0.2693&#39;]
+Activation Km: [&#39;0.019&#39;, &#39;0.001&#39;]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Substrate Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_s</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Product Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_p</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Fwd kcat:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">cfwd</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Rev kcat:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">crev</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+
+<span class="n">concs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">concs</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Concentration:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.4f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">row</span><span class="p">])</span>
+
+<span class="k">if</span> <span class="n">n_Km_i</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Inhibition Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_i</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+<span class="k">if</span> <span class="n">n_Km_a</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Activation Km:&#39;</span><span class="p">,</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">Km_a</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Substrate Km: [&#39;23.809&#39;, &#39;10.336&#39;, &#39;11.495&#39;, &#39;1.058&#39;, &#39;1.789&#39;, &#39;1.789&#39;]
+Product Km: [&#39;31.001&#39;, &#39;1.000&#39;, &#39;1.458&#39;, &#39;20.747&#39;, &#39;0.193&#39;, &#39;0.999&#39;, &#39;1.000&#39;, &#39;1.000&#39;]
+Fwd kcat: [&#39;39678.086&#39;, &#39;1329.487&#39;, &#39;5070.524&#39;, &#39;850.010&#39;]
+Rev kcat: [&#39;1.000&#39;, &#39;162729.221&#39;, &#39;4459.573&#39;, &#39;83.202&#39;]
+Concentration: [&#39;3.7696&#39;, &#39;0.1928&#39;, &#39;0.0000&#39;, &#39;0.0540&#39;, &#39;0.6843&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.0000&#39;, &#39;0.0000&#39;]
+Concentration: [&#39;0.8148&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0533&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.1715&#39;, &#39;0.1715&#39;]
+Concentration: [&#39;0.8809&#39;, &#39;1.0000&#39;, &#39;0.0000&#39;, &#39;0.0536&#39;, &#39;0.5823&#39;, &#39;0.0000&#39;, &#39;0.0662&#39;, &#39;0.2693&#39;, &#39;0.2693&#39;]
+Activation Km: [&#39;0.019&#39;, &#39;0.001&#39;]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">reconstructed_vE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">vE</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_flux_set</span><span class="p">):</span>
+    <span class="n">sat_expr</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">fwd_sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+    <span class="n">back_sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+    <span class="n">sat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rxn</span><span class="p">):</span>
+        <span class="c1"># sum terms are separate in logsumexp. one per saturation term (row in C_alpha, C_beta)</span>
+        <span class="n">n_term_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term_p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">n_term</span> <span class="o">=</span> <span class="n">n_term_s</span> <span class="o">+</span> <span class="n">n_term_p</span>
+
+
+        <span class="n">Km_s_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_s_idx</span> <span class="o">=</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_s_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="c1"># negate -1 entries</span>
+
+        <span class="n">Km_p_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">S_p_idx</span> <span class="o">=</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">S_p_nz</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span>
+
+        <span class="c1">#S_s_idx = S_s_nz[0, S_s_nz[1, :] == i]</span>
+
+        <span class="n">sat_expr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>           <span class="p">[</span> <span class="p">(</span><span class="n">C_alpha</span> <span class="o">@</span> <span class="n">y_f</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())[</span><span class="n">d_alpha</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="p">,</span>
+                                     <span class="p">(</span><span class="n">C_beta</span> <span class="o">@</span> <span class="n">y_r</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())[</span><span class="n">d_beta</span> <span class="o">==</span> <span class="n">i</span><span class="p">],</span>
+                                     <span class="mi">0</span><span class="p">,</span>
+                                     <span class="c1">#-1*np.ones(n_lse_terms - n_term + 1)</span>
+                                   <span class="p">]</span>
+                       <span class="p">)</span>
+        <span class="n">fwd_sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_s_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">y_s</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_s_idx</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="c1"># + cfwd.value[i]</span>
+        <span class="n">back_sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">S_p_idx</span><span class="p">]</span> <span class="o">@</span> <span class="n">y_p</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">Km_p_idx</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()))</span> <span class="c1"># + cfwd.value[i]</span>
+
+
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sat_expr</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">term</span><span class="p">))</span>
+
+        <span class="n">sat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="p">)</span>
+
+    <span class="n">reconstr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">cfwd</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">*</span> <span class="n">fwd_sat</span><span class="o">/</span><span class="n">sat</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">crev</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">*</span> <span class="n">back_sat</span><span class="o">/</span><span class="n">sat</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">reconstr</span><span class="p">)</span>
+    <span class="n">reconstructed_vE</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">reconstr</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[ 90.0001306   70.00001497 -30.00000441  50.00001114]
+[100.00012651 100.00001843  30.00000995  50.00000594]
+[110.00014927  60.00001297  75.00002126  50.00000644]
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">vE</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([[ 90,  70, -30,  50],
+       [100, 100,  30,  50],
+       [110,  60,  75,  50]])
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

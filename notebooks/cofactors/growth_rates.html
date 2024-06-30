@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Importing multiple plates with different layouts &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Importing multiple plates with different layouts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/notebooks/cofactors/growth_rates.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">polars</span> <span class="k">as</span> <span class="nn">pl</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="k">as</span> <span class="nn">sm</span>
+
+<span class="k">def</span> <span class="nf">regress</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">yvar</span><span class="p">,</span> <span class="n">xvars</span><span class="p">):</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">yvar</span><span class="p">]</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">xvars</span><span class="p">]</span>
+    <span class="n">X</span><span class="p">[</span><span class="s1">&#39;intercept&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">params</span>
+
+<span class="k">def</span> <span class="nf">regress_error</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">yvar</span><span class="p">,</span> <span class="n">xvars</span><span class="p">):</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">yvar</span><span class="p">]</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">xvars</span><span class="p">]</span>
+    <span class="n">X</span><span class="p">[</span><span class="s1">&#39;intercept&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">bse</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;slope&quot;</span><span class="p">,</span> <span class="s2">&quot;intercept&quot;</span><span class="p">,</span> <span class="s2">&quot;slope_e&quot;</span><span class="p">,</span> <span class="s2">&quot;intercept_e&quot;</span><span class="p">])</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">&quot;darkgrid&quot;</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="s2">&quot;Set2&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="Importing-multiple-plates-with-different-layouts">
+<h1>Importing multiple plates with different layouts<a class="headerlink" href="#Importing-multiple-plates-with-different-layouts" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">files</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="s2">&quot;growth_data/cyrus_blue_020824.txt&quot;</span><span class="p">,</span>
+              <span class="p">{</span><span class="s2">&quot;A&quot;</span><span class="p">:</span> <span class="s2">&quot;met&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="s2">&quot;B12&quot;</span><span class="p">,</span> <span class="s2">&quot;D&quot;</span><span class="p">:</span> <span class="s2">&quot;Zn&quot;</span><span class="p">,</span><span class="s2">&quot;E&quot;</span><span class="p">:</span> <span class="s2">&quot;met&quot;</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;G&quot;</span><span class="p">:</span> <span class="s2">&quot;Zn&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;B12&quot;</span><span class="p">},</span>
+              <span class="p">[[</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span> <span class="s2">&quot;4&quot;</span><span class="p">,</span> <span class="s2">&quot;5&quot;</span><span class="p">,</span> <span class="s2">&quot;6&quot;</span><span class="p">,</span> <span class="s2">&quot;7&quot;</span><span class="p">,</span> <span class="s2">&quot;8&quot;</span><span class="p">,</span> <span class="s2">&quot;9&quot;</span><span class="p">,</span> <span class="s2">&quot;10&quot;</span><span class="p">,</span> <span class="s2">&quot;11&quot;</span><span class="p">,</span> <span class="s2">&quot;12&quot;</span><span class="p">]],</span>
+              <span class="p">[[</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;D&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;E&quot;</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">,</span> <span class="s2">&quot;G&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">]],</span>
+              <span class="p">{</span><span class="s2">&quot;YkgM1&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;MG1655&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]},</span>
+             <span class="mi">12</span><span class="p">],</span>
+
+            <span class="c1"># # good?</span>
+             <span class="p">[</span><span class="s2">&quot;growth_data/cyrus_pink_020924.txt&quot;</span><span class="p">,</span>
+             <span class="p">{</span><span class="s2">&quot;A&quot;</span><span class="p">:</span> <span class="s2">&quot;met&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="s2">&quot;B12&quot;</span><span class="p">,</span> <span class="s2">&quot;D&quot;</span><span class="p">:</span> <span class="s2">&quot;Zn&quot;</span><span class="p">,</span><span class="s2">&quot;E&quot;</span><span class="p">:</span> <span class="s2">&quot;met+B12&quot;</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">:</span> <span class="s2">&quot;met+Zn&quot;</span><span class="p">,</span> <span class="s2">&quot;G&quot;</span><span class="p">:</span> <span class="s2">&quot;met+B12+Zn&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;blank&quot;</span><span class="p">},</span>
+             <span class="p">[[</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span> <span class="s2">&quot;4&quot;</span><span class="p">,</span> <span class="s2">&quot;5&quot;</span><span class="p">,</span> <span class="s2">&quot;6&quot;</span><span class="p">,</span> <span class="s2">&quot;7&quot;</span><span class="p">,</span> <span class="s2">&quot;8&quot;</span><span class="p">,</span> <span class="s2">&quot;9&quot;</span><span class="p">,</span> <span class="s2">&quot;10&quot;</span><span class="p">,</span> <span class="s2">&quot;11&quot;</span><span class="p">,</span> <span class="s2">&quot;12&quot;</span><span class="p">]],</span>
+             <span class="p">[[</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;D&quot;</span><span class="p">,</span> <span class="s2">&quot;E&quot;</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">,</span> <span class="s2">&quot;G&quot;</span><span class="p">]],</span>
+             <span class="p">{</span><span class="s2">&quot;MG1655&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]},</span>
+              <span class="mi">12</span><span class="p">],</span>
+
+             <span class="c1"># # p bad</span>
+             <span class="c1"># [&quot;growth_data/cyrus_blue_021324.txt&quot;,</span>
+             <span class="c1"># {&quot;A&quot;: &quot;met&quot;, &quot;B&quot;: &quot;none&quot;, &quot;C&quot;: &quot;B12&quot;, &quot;D&quot;: &quot;Zn&quot;,&quot;E&quot;: &quot;met+B12&quot;, &quot;F&quot;: &quot;met+Zn&quot;, &quot;G&quot;: &quot;met+B12+Zn&quot;, &quot;H&quot;: &quot;blank&quot;},</span>
+             <span class="c1"># [[&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;, &quot;7&quot;, &quot;8&quot;, &quot;9&quot;, &quot;10&quot;, &quot;11&quot;, &quot;12&quot;]],</span>
+             <span class="c1"># [[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;]],</span>
+             <span class="c1"># {&quot;MG1655&quot;: [0, 0]},</span>
+             <span class="c1">#  12],</span>
+
+
+             <span class="c1"># also p bad</span>
+             <span class="c1"># [&quot;growth_data/cyrus_blue_021424.txt&quot;,</span>
+             <span class="c1"># {&quot;A&quot;: &quot;met&quot;, &quot;B&quot;: &quot;none&quot;, &quot;C&quot;: &quot;B12&quot;, &quot;D&quot;: &quot;Zn&quot;,&quot;E&quot;: &quot;met+B12&quot;, &quot;F&quot;: &quot;met+Zn&quot;, &quot;G&quot;: &quot;met+B12+Zn&quot;, &quot;H&quot;: &quot;blank&quot;},</span>
+             <span class="c1"># [[&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;, &quot;7&quot;, &quot;8&quot;, &quot;9&quot;, &quot;10&quot;, &quot;11&quot;, &quot;12&quot;]],</span>
+             <span class="c1"># [[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;]],</span>
+             <span class="c1"># {&quot;MG1655&quot;: [0, 0]},</span>
+             <span class="c1">#  12],</span>
+
+             <span class="c1"># [&quot;growth_data/cyrus_blue_021524.txt&quot;,</span>
+             <span class="c1"># {&quot;A&quot;: &quot;met&quot;, &quot;B&quot;: &quot;met&quot;, &quot;C&quot;: &quot;none&quot;, &quot;D&quot;: &quot;B12&quot;, &quot;E&quot;: &quot;Zn&quot;,&quot;F&quot;: &quot;met+B12&quot;, &quot;G&quot;: &quot;met+Zn&quot;, &quot;H&quot;: &quot;met+B12+Zn&quot;},</span>
+             <span class="c1"># [[&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;, &quot;7&quot;, &quot;8&quot;, &quot;9&quot;, &quot;10&quot;, &quot;11&quot;, &quot;12&quot;]],</span>
+             <span class="c1"># [[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;]],</span>
+             <span class="c1"># {&quot;MG1655&quot;: [0, 0]},</span>
+             <span class="c1">#  12],</span>
+
+                <span class="c1">#200 µM paraquat</span>
+             <span class="c1"># [&quot;growth_data/cyrus_031524_paraquat_Mn.txt&quot;,</span>
+             <span class="c1"># {&quot;A&quot;: &quot;0 nM Mn&quot;, &quot;B&quot;: &quot;10^0 nM Mn&quot;, &quot;C&quot;: &quot;10^1 nM Mn&quot;, &quot;D&quot;: &quot;10^2 nM Mn&quot;,</span>
+             <span class="c1">#  &quot;E&quot;: &quot;10^3 nM Mn&quot;,&quot;F&quot;: &quot;10^4 nM Mn&quot;, &quot;G&quot;: &quot;10^5 nM Mn&quot;, &quot;H&quot;: &quot;10^6 nM Mn&quot;},</span>
+             <span class="c1"># [[&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;,], [ &quot;7&quot;, &quot;8&quot;, &quot;9&quot;, &quot;10&quot;, &quot;11&quot;, &quot;12&quot;]],</span>
+             <span class="c1"># [[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;, &quot;H&quot;]],</span>
+             <span class="c1"># {&quot;MG1655 + PQ&quot;: [0, 0], &quot;MG1655 - PQ&quot;: [0, 1]},</span>
+             <span class="c1">#  12],</span>
+
+             <span class="c1"># [&quot;growth_data/cyrus_031524_paraquat_Mn_part2.txt&quot;,</span>
+             <span class="c1"># {&quot;A&quot;: &quot;Mn 0&quot;, &quot;B&quot;: &quot;Mn 1&quot;, &quot;C&quot;: &quot;Mn 2&quot;, &quot;D&quot;: &quot;Mn 3&quot;, &quot;E&quot;: &quot;Mn 4&quot;,&quot;F&quot;: &quot;Mn 5&quot;, &quot;G&quot;: &quot;Mn 6&quot;, &quot;H&quot;: &quot;Mn 7&quot;},</span>
+             <span class="c1"># [[&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;,], [ &quot;7&quot;, &quot;8&quot;, &quot;9&quot;, &quot;10&quot;, &quot;11&quot;, &quot;12&quot;]],</span>
+             <span class="c1"># [[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;, &quot;H&quot;]],</span>
+             <span class="c1"># {&quot;MG1655 + PQ&quot;: [0, 0], &quot;MG1655 - PQ&quot;: [0, 1]},</span>
+             <span class="c1">#  12],</span>
+
+             <span class="c1"># [&quot;growth_data/cyrus_032024_paraquat_Mn.txt&quot;, 2 µM paraquat</span>
+             <span class="c1"># {&quot;A&quot;: &quot;0 nM Mn&quot;, &quot;B&quot;: &quot;10^0 nM Mn&quot;, &quot;C&quot;: &quot;10^1 nM Mn&quot;, &quot;D&quot;: &quot;10^2 nM Mn&quot;,</span>
+             <span class="c1">#  &quot;E&quot;: &quot;10^3 nM Mn&quot;,&quot;F&quot;: &quot;10^4 nM Mn&quot;, &quot;G&quot;: &quot;10^5 nM Mn&quot;, &quot;H&quot;: &quot;10^6 nM Mn&quot;},</span>
+             <span class="c1"># [[&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;,], [ &quot;7&quot;, &quot;8&quot;, &quot;9&quot;, &quot;10&quot;, &quot;11&quot;, &quot;12&quot;]],</span>
+             <span class="c1"># [[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;, &quot;H&quot;]],</span>
+             <span class="c1"># {&quot;MG1655 + PQ&quot;: [0, 0], &quot;MG1655 - PQ&quot;: [0, 1]},</span>
+             <span class="c1">#  12],</span>
+
+             <span class="c1"># 20 µM paraquat</span>
+
+             <span class="c1"># [&quot;growth_data/cyrus_Mn_032724.txt&quot;,</span>
+             <span class="c1"># {&quot;A&quot;: &quot;0 nM Mn&quot;, &quot;B&quot;: &quot;10^0 nM Mn&quot;, &quot;C&quot;: &quot;10^1 nM Mn&quot;, &quot;D&quot;: &quot;10^2 nM Mn&quot;,</span>
+             <span class="c1">#  &quot;E&quot;: &quot;10^3 nM Mn&quot;,&quot;F&quot;: &quot;10^4 nM Mn&quot;, &quot;G&quot;: &quot;10^5 nM Mn&quot;, &quot;H&quot;: &quot;10^6 nM Mn&quot;},</span>
+             <span class="c1"># [[&quot;1&quot;, &quot;2&quot;, &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;6&quot;,], [ &quot;7&quot;, &quot;8&quot;, &quot;9&quot;, &quot;10&quot;, &quot;11&quot;, &quot;12&quot;]],</span>
+             <span class="c1"># [[&quot;A&quot;, &quot;B&quot;, &quot;C&quot;, &quot;D&quot;, &quot;E&quot;, &quot;F&quot;, &quot;G&quot;, &quot;H&quot;]],</span>
+             <span class="c1"># {&quot;MG1655 + PQ&quot;: [0, 0], &quot;MG1655 - PQ&quot;: [0, 1]},</span>
+             <span class="c1">#  12],</span>
+
+        <span class="p">]</span>
+
+
+
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+
+    <span class="n">fname</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">additive</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">genotype_col</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">genotype_row</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">genotype_combinations</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+    <span class="n">n_replicate</span> <span class="o">=</span> <span class="n">file</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+
+    <span class="n">al</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">additive</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">include_header</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">al</span> <span class="o">=</span> <span class="n">al</span><span class="o">.</span><span class="n">rename</span><span class="p">({</span><span class="s2">&quot;column&quot;</span><span class="p">:</span> <span class="s2">&quot;Row&quot;</span><span class="p">,</span> <span class="s2">&quot;column_0&quot;</span><span class="p">:</span> <span class="s2">&quot;Additive&quot;</span><span class="p">})</span>
+    <span class="n">al</span> <span class="o">=</span> <span class="n">al</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">Plate</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Plate </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+
+    <span class="n">gl</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">genotype</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">genotype_combinations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+        <span class="n">gl</span><span class="o">.</span><span class="n">extend</span><span class="p">([[</span><span class="n">genotype</span><span class="p">,</span> <span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">genotype_row</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">genotype_col</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="mi">1</span><span class="p">]]])</span>
+
+    <span class="n">gl</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">gl</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+    <span class="n">gl</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">rename</span><span class="p">({</span><span class="s2">&quot;column_0&quot;</span><span class="p">:</span> <span class="s2">&quot;Genotype&quot;</span><span class="p">,</span> <span class="s2">&quot;column_1&quot;</span><span class="p">:</span> <span class="s2">&quot;Well&quot;</span><span class="p">})</span>
+    <span class="n">gl</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">Plate</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Plate </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">separator</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span> <span class="c1"># growth_data/cyrus_mutant_013124.txt</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">Plate</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="s2">&quot;Plate 1&quot;</span><span class="p">))</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">N_replicate</span> <span class="o">=</span> <span class="n">n_replicate</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;T600&#39;</span><span class="p">)</span>
+
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">gl</span>
+        <span class="n">adf</span> <span class="o">=</span> <span class="n">al</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">df_add</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">separator</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">df_add</span> <span class="o">=</span> <span class="n">df_add</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">Plate</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Plate </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+        <span class="n">df_add</span> <span class="o">=</span> <span class="n">df_add</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">N_replicate</span> <span class="o">=</span> <span class="n">n_replicate</span><span class="p">)</span>
+        <span class="n">df_add</span> <span class="o">=</span> <span class="n">df_add</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">&#39;T600&#39;</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="n">df_add</span><span class="p">])</span>
+
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">gdf</span><span class="p">,</span> <span class="n">gl</span><span class="p">])</span>
+        <span class="n">adf</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">adf</span><span class="p">,</span> <span class="n">al</span><span class="p">])</span>
+
+<span class="c1"># time conversion</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">to_time</span><span class="p">(</span><span class="s2">&quot;%H:%M:%S&quot;</span><span class="p">))</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">hour</span><span class="p">()</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int64</span><span class="p">)</span> <span class="o">+</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">minute</span><span class="p">()</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int64</span><span class="p">)</span> <span class="o">/</span> <span class="mi">60</span> <span class="o">+</span> <span class="n">df</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">second</span><span class="p">()</span> <span class="o">/</span> <span class="mi">3600</span><span class="p">)</span>
+
+<span class="c1"># get minimum OD measured, used to be 1.5</span>
+<span class="n">init_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1.5</span><span class="p">)</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s2">&quot;Time&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Plate&quot;</span><span class="p">],</span> <span class="n">variable_name</span><span class="o">=</span><span class="s2">&quot;Well&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;Initial_OD&quot;</span><span class="p">)</span>
+<span class="n">init_df</span> <span class="o">=</span> <span class="n">init_df</span><span class="o">.</span><span class="n">group_by</span><span class="p">([</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Well&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+
+<span class="n">init_df_median</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">)</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s2">&quot;Time&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Plate&quot;</span><span class="p">],</span> <span class="n">variable_name</span><span class="o">=</span><span class="s2">&quot;Well&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;Initial_OD_median&quot;</span><span class="p">)</span>
+<span class="n">init_df_median</span> <span class="o">=</span> <span class="n">init_df_median</span><span class="o">.</span><span class="n">group_by</span><span class="p">([</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Well&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">median</span><span class="p">()</span>
+
+<span class="n">init_df</span>
+
+<span class="c1"># blank_df.head(3)</span>
+<span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (3, 99)</small><table border="1" class="dataframe"><thead><tr><th>Time</th><th>A1</th><th>A2</th><th>A3</th><th>A4</th><th>A5</th><th>A6</th><th>A7</th><th>A8</th><th>A9</th><th>A10</th><th>A11</th><th>A12</th><th>B1</th><th>B2</th><th>B3</th><th>B4</th><th>B5</th><th>B6</th><th>B7</th><th>B8</th><th>B9</th><th>B10</th><th>B11</th><th>B12</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th><th>C5</th><th>C6</th><th>C7</th><th>C8</th><th>C9</th><th>C10</th><th>C11</th><th>C12</th><th>&hellip;</th><th>F2</th><th>F3</th><th>F4</th><th>F5</th><th>F6</th><th>F7</th><th>F8</th><th>F9</th><th>F10</th><th>F11</th><th>F12</th><th>G1</th><th>G2</th><th>G3</th><th>G4</th><th>G5</th><th>G6</th><th>G7</th><th>G8</th><th>G9</th><th>G10</th><th>G11</th><th>G12</th><th>H1</th><th>H2</th><th>H3</th><th>H4</th><th>H5</th><th>H6</th><th>H7</th><th>H8</th><th>H9</th><th>H10</th><th>H11</th><th>H12</th><th>Plate</th><th>N_replicate</th></tr><tr><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>&hellip;</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>f64</td><td>str</td><td>i32</td></tr></thead><tbody><tr><td>0.011111</td><td>0.096</td><td>0.094</td><td>0.096</td><td>0.095</td><td>0.096</td><td>0.097</td><td>0.102</td><td>0.094</td><td>0.093</td><td>0.095</td><td>0.094</td><td>0.095</td><td>0.091</td><td>0.091</td><td>0.092</td><td>0.09</td><td>0.092</td><td>0.092</td><td>0.091</td><td>0.09</td><td>0.091</td><td>0.092</td><td>0.09</td><td>0.09</td><td>0.095</td><td>0.093</td><td>0.095</td><td>0.093</td><td>0.104</td><td>0.094</td><td>0.093</td><td>0.093</td><td>0.096</td><td>0.092</td><td>0.097</td><td>0.095</td><td>&hellip;</td><td>0.092</td><td>0.095</td><td>0.093</td><td>0.093</td><td>0.093</td><td>0.092</td><td>0.092</td><td>0.091</td><td>0.091</td><td>0.096</td><td>0.09</td><td>0.095</td><td>0.097</td><td>0.095</td><td>0.094</td><td>0.098</td><td>0.093</td><td>0.095</td><td>0.099</td><td>0.094</td><td>0.093</td><td>0.094</td><td>0.095</td><td>0.095</td><td>0.096</td><td>0.095</td><td>0.094</td><td>0.093</td><td>0.093</td><td>0.092</td><td>0.093</td><td>0.096</td><td>0.092</td><td>0.11</td><td>0.09</td><td>&quot;Plate 1&quot;</td><td>12</td></tr><tr><td>0.036111</td><td>0.096</td><td>0.094</td><td>0.096</td><td>0.095</td><td>0.096</td><td>0.097</td><td>0.102</td><td>0.094</td><td>0.094</td><td>0.095</td><td>0.094</td><td>0.095</td><td>0.091</td><td>0.091</td><td>0.091</td><td>0.09</td><td>0.091</td><td>0.091</td><td>0.091</td><td>0.09</td><td>0.091</td><td>0.092</td><td>0.09</td><td>0.09</td><td>0.095</td><td>0.093</td><td>0.094</td><td>0.093</td><td>0.104</td><td>0.094</td><td>0.093</td><td>0.092</td><td>0.096</td><td>0.092</td><td>0.097</td><td>0.094</td><td>&hellip;</td><td>0.092</td><td>0.095</td><td>0.093</td><td>0.092</td><td>0.092</td><td>0.091</td><td>0.092</td><td>0.09</td><td>0.091</td><td>0.096</td><td>0.09</td><td>0.096</td><td>0.097</td><td>0.095</td><td>0.093</td><td>0.097</td><td>0.092</td><td>0.095</td><td>0.099</td><td>0.094</td><td>0.093</td><td>0.094</td><td>0.094</td><td>0.095</td><td>0.096</td><td>0.095</td><td>0.094</td><td>0.093</td><td>0.093</td><td>0.092</td><td>0.093</td><td>0.095</td><td>0.092</td><td>0.11</td><td>0.09</td><td>&quot;Plate 1&quot;</td><td>12</td></tr><tr><td>0.061111</td><td>0.096</td><td>0.094</td><td>0.096</td><td>0.095</td><td>0.096</td><td>0.097</td><td>0.102</td><td>0.094</td><td>0.094</td><td>0.095</td><td>0.094</td><td>0.095</td><td>0.091</td><td>0.091</td><td>0.092</td><td>0.09</td><td>0.091</td><td>0.092</td><td>0.091</td><td>0.09</td><td>0.091</td><td>0.092</td><td>0.09</td><td>0.09</td><td>0.095</td><td>0.093</td><td>0.095</td><td>0.093</td><td>0.105</td><td>0.094</td><td>0.092</td><td>0.092</td><td>0.096</td><td>0.092</td><td>0.097</td><td>0.094</td><td>&hellip;</td><td>0.092</td><td>0.095</td><td>0.093</td><td>0.092</td><td>0.093</td><td>0.092</td><td>0.092</td><td>0.09</td><td>0.091</td><td>0.093</td><td>0.09</td><td>0.096</td><td>0.097</td><td>0.095</td><td>0.093</td><td>0.095</td><td>0.092</td><td>0.095</td><td>0.099</td><td>0.094</td><td>0.093</td><td>0.094</td><td>0.094</td><td>0.095</td><td>0.096</td><td>0.095</td><td>0.094</td><td>0.093</td><td>0.093</td><td>0.093</td><td>0.093</td><td>0.095</td><td>0.093</td><td>0.111</td><td>0.09</td><td>&quot;Plate 1&quot;</td><td>12</td></tr></tbody></table></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># melt to experiments</span>
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">id_vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;N_replicate&quot;</span><span class="p">],</span> <span class="n">variable_name</span><span class="o">=</span><span class="s2">&quot;Well&quot;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s2">&quot;OD&quot;</span><span class="p">)</span>
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">with_columns</span><span class="p">((</span><span class="n">mdf</span><span class="p">[</span><span class="s2">&quot;Well&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Row&quot;</span><span class="p">))</span>
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">with_columns</span><span class="p">((</span><span class="n">mdf</span><span class="p">[</span><span class="s2">&quot;Well&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Column&quot;</span><span class="p">))</span>
+
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">adf</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Row&quot;</span><span class="p">])</span>
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Well&quot;</span><span class="p">])</span>
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">init_df</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Well&quot;</span><span class="p">,</span> <span class="s2">&quot;Plate&quot;</span><span class="p">])</span>
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">init_df_median</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Well&quot;</span><span class="p">,</span> <span class="s2">&quot;Plate&quot;</span><span class="p">])</span>
+
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span>   <span class="p">((</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Column&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int32</span><span class="p">)</span>  <span class="o">+</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;N_replicate&quot;</span><span class="p">)</span>  <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span>  <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;N_replicate&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Replicate&quot;</span><span class="p">))</span>
+
+<span class="c1"># mdf = mdf.with_columns(((pl.col(&quot;Column&quot;).cast(pl.Int32)+3) % 4 + 1).alias(&quot;Replicate&quot;))</span>
+<span class="c1"># mdf = mdf.with_columns(((pl.col(&quot;Column&quot;).cast(pl.Int32)+11) % 12 + 1).alias(&quot;Replicate&quot;))</span>
+<span class="c1"># mdf.group_by([&quot;Plate&quot;,&quot;Additive&quot;,&quot;Genotype&quot;]).size()</span>
+<span class="c1"># mdf = mdf.filter(pl.col(&quot;Genotype&quot;) == &quot;MG1655&quot;)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">with_columns</span><span class="p">([</span>
+    <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;OD&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Initial_OD&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Initial_corrected_OD&quot;</span><span class="p">),</span>
+<span class="p">])</span>
+
+<span class="n">mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">with_columns</span><span class="p">([</span>
+    <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;OD&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Initial_OD_median&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Initial_median_corrected_OD&quot;</span><span class="p">),</span>
+<span class="p">])</span>
+
+
+<span class="n">mdf</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+  text-align: right;
+  white-space: pre-wrap;
+}
+</style>
+<small>shape: (5, 14)</small><table border="1" class="dataframe"><thead><tr><th>Time</th><th>Plate</th><th>N_replicate</th><th>Well</th><th>OD</th><th>Row</th><th>Column</th><th>Additive</th><th>Genotype</th><th>Initial_OD</th><th>Initial_OD_median</th><th>Replicate</th><th>Initial_corrected_OD</th><th>Initial_median_corrected_OD</th></tr><tr><td>f64</td><td>str</td><td>i32</td><td>str</td><td>f64</td><td>str</td><td>str</td><td>str</td><td>str</td><td>f64</td><td>f64</td><td>i32</td><td>f64</td><td>f64</td></tr></thead><tbody><tr><td>0.011111</td><td>&quot;Plate 1&quot;</td><td>12</td><td>&quot;A1&quot;</td><td>0.096</td><td>&quot;A&quot;</td><td>&quot;1&quot;</td><td>&quot;met&quot;</td><td>&quot;YkgM1&quot;</td><td>0.096</td><td>0.097</td><td>1</td><td>0.0</td><td>-0.001</td></tr><tr><td>0.036111</td><td>&quot;Plate 1&quot;</td><td>12</td><td>&quot;A1&quot;</td><td>0.096</td><td>&quot;A&quot;</td><td>&quot;1&quot;</td><td>&quot;met&quot;</td><td>&quot;YkgM1&quot;</td><td>0.096</td><td>0.097</td><td>1</td><td>0.0</td><td>-0.001</td></tr><tr><td>0.061111</td><td>&quot;Plate 1&quot;</td><td>12</td><td>&quot;A1&quot;</td><td>0.096</td><td>&quot;A&quot;</td><td>&quot;1&quot;</td><td>&quot;met&quot;</td><td>&quot;YkgM1&quot;</td><td>0.096</td><td>0.097</td><td>1</td><td>0.0</td><td>-0.001</td></tr><tr><td>0.086111</td><td>&quot;Plate 1&quot;</td><td>12</td><td>&quot;A1&quot;</td><td>0.096</td><td>&quot;A&quot;</td><td>&quot;1&quot;</td><td>&quot;met&quot;</td><td>&quot;YkgM1&quot;</td><td>0.096</td><td>0.097</td><td>1</td><td>0.0</td><td>-0.001</td></tr><tr><td>0.111111</td><td>&quot;Plate 1&quot;</td><td>12</td><td>&quot;A1&quot;</td><td>0.096</td><td>&quot;A&quot;</td><td>&quot;1&quot;</td><td>&quot;met&quot;</td><td>&quot;YkgM1&quot;</td><td>0.096</td><td>0.097</td><td>1</td><td>0.0</td><td>-0.001</td></tr></tbody></table></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="s2">&quot;talk&quot;</span><span class="p">)</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">relplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;Initial_corrected_OD&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s2">&quot;Row&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="s2">&quot;Column&quot;</span><span class="p">,</span> \
+            <span class="c1"># row=&quot;Genotype&quot;,</span>
+            <span class="n">height</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> \
+            <span class="c1"># col_wrap=4,</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">mdf</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;seaborn.axisgrid.FacetGrid at 0x106f67340&gt;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_growth_rates_5_1.png" src="../../_images/notebooks_cofactors_growth_rates_5_1.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f_mdf</span> <span class="o">=</span> <span class="n">mdf</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Initial_corrected_OD&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
+<span class="n">f_mdf</span> <span class="o">=</span> <span class="n">f_mdf</span><span class="o">.</span><span class="n">with_columns</span><span class="p">([</span>
+    <span class="p">((</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Initial_corrected_OD&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">log</span><span class="p">())</span>
+    <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">)</span>
+<span class="p">])</span>
+
+<span class="n">f_mdf</span> <span class="o">=</span> <span class="n">f_mdf</span><span class="o">.</span><span class="n">with_columns</span><span class="p">([</span>
+    <span class="p">((</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Initial_median_corrected_OD&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">log</span><span class="p">())</span>
+    <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Log_initial_median_corrected_OD&quot;</span><span class="p">)</span>
+<span class="p">])</span>
+
+
+<span class="n">f_mdf</span> <span class="o">=</span> <span class="n">f_mdf</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">is_not_nan</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+
+    <span class="n">sns</span><span class="o">.</span><span class="n">relplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;line&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="s2">&quot;Column&quot;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s2">&quot;Row&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> \
+                <span class="n">data</span><span class="o">=</span><span class="n">f_mdf</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">))</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_growth_rates_7_0.png" src="../../_images/notebooks_cofactors_growth_rates_7_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">gr_df</span> <span class="o">=</span> <span class="n">f_mdf</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span> <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">20</span><span class="p">))</span>
+<span class="n">minimum_start_times</span> <span class="o">=</span> <span class="n">gr_df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">([</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Well&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Time_exp_start&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s2">&quot;Time_exp_start&quot;</span><span class="p">)</span>
+<span class="n">minimum_end_times</span> <span class="o">=</span> <span class="n">gr_df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">([</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Well&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Time_exp_end&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="s2">&quot;Time_exp_end&quot;</span><span class="p">)</span>
+
+<span class="n">gr_df</span> <span class="o">=</span> <span class="n">gr_df</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">minimum_start_times</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Well&quot;</span><span class="p">])</span>
+<span class="n">gr_df</span> <span class="o">=</span> <span class="n">gr_df</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">minimum_end_times</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Well&quot;</span><span class="p">])</span>
+<span class="n">gr_df</span> <span class="o">=</span> <span class="n">gr_df</span><span class="o">.</span><span class="n">filter</span><span class="p">((</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time_exp_start&quot;</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time_exp_end&quot;</span><span class="p">)))</span>
+<span class="n">gr_df</span> <span class="o">=</span> <span class="n">gr_df</span><span class="o">.</span><span class="n">with_columns</span><span class="p">((</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time&quot;</span><span class="p">)</span> <span class="o">-</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Time_exp_start&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="s2">&quot;Corrected_time&quot;</span><span class="p">))</span>
+<span class="n">gr_df</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+<span class="c1"># regress and pick top x</span>
+<span class="n">predicted_gr</span> <span class="o">=</span> <span class="n">gr_df</span> \
+<span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;Genotype&#39;</span><span class="p">,</span> <span class="s1">&#39;Additive&#39;</span><span class="p">,</span><span class="s1">&#39;Replicate&#39;</span><span class="p">,</span> <span class="s1">&#39;Plate&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">regress_error</span><span class="p">,</span> <span class="s1">&#39;Log_initial_corrected_OD&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;Corrected_time&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+<span class="n">M</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">6</span>
+<span class="n">top_gr</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">predicted_gr</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Genotype&quot;</span><span class="p">,</span> <span class="s2">&quot;Additive&quot;</span><span class="p">,</span> <span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;slope&quot;</span><span class="p">],</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;Genotype&#39;</span><span class="p">,</span> <span class="s1">&#39;Additive&#39;</span><span class="p">,</span> <span class="s1">&#39;Plate&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">nth</span><span class="p">[</span><span class="n">M</span><span class="p">:</span><span class="n">N</span><span class="p">])</span>
+<span class="n">top_gr</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+
+<span class="n">gr_df</span> <span class="o">=</span> <span class="n">gr_df</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">top_gr</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Additive&quot;</span><span class="p">,</span> <span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Replicate&quot;</span><span class="p">,</span> <span class="s2">&quot;Genotype&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/var/folders/dx/0239zgvj0tgf46b5h8l7v_fc0000gn/T/ipykernel_51909/739033653.py:13: DeprecationWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+  .to_pandas().groupby([&#39;Genotype&#39;, &#39;Additive&#39;,&#39;Replicate&#39;, &#39;Plate&#39;]).apply(regress_error, &#39;Log_initial_corrected_OD&#39;, [&#39;Corrected_time&#39;]).reset_index()
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+
+    <span class="n">sns</span><span class="o">.</span><span class="n">relplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;line&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="s2">&quot;Genotype&quot;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s2">&quot;Additive&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;Replicate&quot;</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> \
+                <span class="n">data</span><span class="o">=</span><span class="n">f_mdf</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">top_gr</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Additive&quot;</span><span class="p">,</span> <span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="s2">&quot;Replicate&quot;</span><span class="p">,</span> <span class="s2">&quot;Genotype&quot;</span><span class="p">]))</span>
+
+<span class="c1"># plt.savefig(&quot;weird_plate.png&quot;)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_growth_rates_9_0.png" src="../../_images/notebooks_cofactors_growth_rates_9_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+
+    <span class="n">sns</span><span class="o">.</span><span class="n">set_context</span><span class="p">(</span><span class="s2">&quot;paper&quot;</span><span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">relplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Corrected_time&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;line&quot;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s2">&quot;Additive&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;Replicate&quot;</span><span class="p">,</span>
+                <span class="n">col_wrap</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+                <span class="c1"># row=&quot;Genotype&quot;,</span>
+                <span class="n">height</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> \
+                <span class="n">data</span><span class="o">=</span><span class="n">gr_df</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+
+<span class="c1"># plt.savefig(&quot;plates.png&quot;)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_growth_rates_10_0.png" src="../../_images/notebooks_cofactors_growth_rates_10_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">lmplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Corrected_time&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;Log_initial_corrected_OD&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Replicate&quot;</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="s2">&quot;Additive&quot;</span><span class="p">,</span>
+           <span class="c1"># col_wrap=4,  \</span>
+           <span class="n">row</span><span class="o">=</span><span class="s2">&quot;Genotype&quot;</span><span class="p">,</span>
+           <span class="n">height</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+           <span class="n">data</span><span class="o">=</span><span class="n">gr_df</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">(),</span> <span class="n">scatter_kws</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">})</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(0.0, 3.0)
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_growth_rates_11_1.png" src="../../_images/notebooks_cofactors_growth_rates_11_1.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># sns.relplot(x=&quot;Time&quot;, y=&quot;Log_initial_corrected_OD&quot;, kind=&quot;line&quot;, row=&quot;Replicate&quot;, col=&quot;Additive&quot;, height=3, \</span>
+<span class="c1">#             data=f_mdf.filter(pl.col(&quot;Time&quot;) &lt; 15))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># sns.set_context(&quot;paper&quot;)</span>
+
+<span class="c1"># sns.relplot(x=&quot;Time&quot;, y=&quot;Initial_corrected_OD&quot;, hue=&quot;Plate&quot;, style=&quot;Replicate&quot;, kind=&quot;scatter&quot;, col=&quot;Additive&quot;, \</span>
+<span class="c1">#             # row=&quot;Genotype&quot;, height=3, \</span>
+<span class="c1">#             col_wrap=4,</span>
+<span class="c1">#             data=mdf)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">predicted_gr</span> <span class="o">=</span> <span class="n">gr_df</span> \
+<span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;Genotype&#39;</span><span class="p">,</span> <span class="s1">&#39;Additive&#39;</span><span class="p">,</span><span class="s1">&#39;Replicate&#39;</span><span class="p">,</span> <span class="s1">&#39;Plate&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">regress_error</span><span class="p">,</span> <span class="s1">&#39;Log_initial_corrected_OD&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;Corrected_time&#39;</span><span class="p">])</span>
+<span class="n">predicted_gr</span><span class="p">[</span><span class="s2">&quot;doubling_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">predicted_gr</span><span class="p">[</span><span class="s2">&quot;slope&quot;</span><span class="p">]</span>
+<span class="n">predicted_gr</span> <span class="o">=</span> <span class="n">predicted_gr</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+
+<span class="n">gr_mean_std</span> <span class="o">=</span> <span class="n">predicted_gr</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;Genotype&#39;</span><span class="p">,</span> <span class="s1">&#39;Additive&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="s1">&#39;slope&#39;</span><span class="p">:[</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span><span class="s1">&#39;std&#39;</span><span class="p">]})</span>
+<span class="n">gr_mean_std</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">gr_mean_std</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">gr_mean_std</span><span class="p">[</span><span class="s2">&quot;doubling_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">gr_mean_std</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span>
+<span class="c1"># gr_mean_std = gr_mean_std.reset_index()</span>
+
+<span class="n">predicted_gr</span><span class="p">[</span><span class="s2">&quot;doubling_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="n">predicted_gr</span><span class="p">[</span><span class="s2">&quot;slope&quot;</span><span class="p">]</span>
+<span class="n">predicted_gr</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/var/folders/dx/0239zgvj0tgf46b5h8l7v_fc0000gn/T/ipykernel_51909/544480332.py:2: DeprecationWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+  .to_pandas().groupby([&#39;Genotype&#39;, &#39;Additive&#39;,&#39;Replicate&#39;, &#39;Plate&#39;]).apply(regress_error, &#39;Log_initial_corrected_OD&#39;, [&#39;Corrected_time&#39;])
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Genotype</th>
+      <th>Additive</th>
+      <th>Replicate</th>
+      <th>Plate</th>
+      <th>slope</th>
+      <th>intercept</th>
+      <th>slope_e</th>
+      <th>intercept_e</th>
+      <th>doubling_time</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>MG1655</td>
+      <td>B12</td>
+      <td>1</td>
+      <td>Plate 1</td>
+      <td>0.893910</td>
+      <td>-4.024589</td>
+      <td>0.004011</td>
+      <td>0.005080</td>
+      <td>0.775410</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>MG1655</td>
+      <td>B12</td>
+      <td>1</td>
+      <td>Plate 2</td>
+      <td>1.100492</td>
+      <td>-4.022322</td>
+      <td>0.009637</td>
+      <td>0.009841</td>
+      <td>0.629852</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>MG1655</td>
+      <td>B12</td>
+      <td>4</td>
+      <td>Plate 1</td>
+      <td>0.919232</td>
+      <td>-4.007174</td>
+      <td>0.004642</td>
+      <td>0.005678</td>
+      <td>0.754051</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>MG1655</td>
+      <td>B12</td>
+      <td>7</td>
+      <td>Plate 2</td>
+      <td>0.987671</td>
+      <td>-4.001742</td>
+      <td>0.010589</td>
+      <td>0.012648</td>
+      <td>0.701800</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>MG1655</td>
+      <td>B12</td>
+      <td>9</td>
+      <td>Plate 1</td>
+      <td>0.936275</td>
+      <td>-3.946152</td>
+      <td>0.011471</td>
+      <td>0.014694</td>
+      <td>0.740324</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>85</th>
+      <td>YkgM1</td>
+      <td>none</td>
+      <td>3</td>
+      <td>Plate 1</td>
+      <td>0.938877</td>
+      <td>-4.011636</td>
+      <td>0.007643</td>
+      <td>0.009570</td>
+      <td>0.738273</td>
+    </tr>
+    <tr>
+      <th>86</th>
+      <td>YkgM1</td>
+      <td>none</td>
+      <td>4</td>
+      <td>Plate 1</td>
+      <td>0.908694</td>
+      <td>-4.014494</td>
+      <td>0.008406</td>
+      <td>0.010283</td>
+      <td>0.762795</td>
+    </tr>
+    <tr>
+      <th>87</th>
+      <td>YkgM1</td>
+      <td>none</td>
+      <td>5</td>
+      <td>Plate 1</td>
+      <td>0.920192</td>
+      <td>-4.008047</td>
+      <td>0.009055</td>
+      <td>0.010685</td>
+      <td>0.753264</td>
+    </tr>
+    <tr>
+      <th>88</th>
+      <td>YkgM1</td>
+      <td>none</td>
+      <td>6</td>
+      <td>Plate 1</td>
+      <td>0.952904</td>
+      <td>-4.006978</td>
+      <td>0.006226</td>
+      <td>0.007436</td>
+      <td>0.727405</td>
+    </tr>
+    <tr>
+      <th>89</th>
+      <td>YkgM1</td>
+      <td>none</td>
+      <td>8</td>
+      <td>Plate 1</td>
+      <td>0.927989</td>
+      <td>-3.985137</td>
+      <td>0.007154</td>
+      <td>0.008854</td>
+      <td>0.746935</td>
+    </tr>
+  </tbody>
+</table>
+<p>90 rows × 9 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+
+    <span class="n">filter_df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">predicted_gr</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">((</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;Genotype&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;MG1655&quot;</span><span class="p">))</span>
+    <span class="n">filter_df</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+    <span class="n">g</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">catplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Genotype&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;slope&quot;</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Additive&quot;</span><span class="p">,</span>
+                    <span class="n">data</span><span class="o">=</span><span class="n">filter_df</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">(),</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;bar&quot;</span><span class="p">,</span>
+                    <span class="n">height</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">errorbar</span><span class="o">=</span><span class="s2">&quot;ci&quot;</span><span class="p">,</span>
+                    <span class="n">col</span><span class="o">=</span><span class="s2">&quot;Plate&quot;</span><span class="p">,</span> <span class="n">col_wrap</span><span class="o">=</span><span class="mi">3</span>
+                       <span class="p">);</span>
+    <span class="n">g</span><span class="o">.</span><span class="n">map_dataframe</span><span class="p">(</span><span class="n">sns</span><span class="o">.</span><span class="n">stripplot</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s2">&quot;Genotype&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;slope&quot;</span><span class="p">,</span>
+                    <span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Additive&quot;</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="s2">&quot;Set2&quot;</span><span class="p">,</span>
+                    <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">dodge</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Maximum growth rate, average (bar) and individual measurements (point), n=3. 95% CI shown.&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">])</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+   <span class="c1">#  g.savefig(&quot;story1.png&quot;)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/notebooks_cofactors_growth_rates_15_0.png" src="../../_images/notebooks_cofactors_growth_rates_15_0.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># with warnings.catch_warnings():</span>
+<span class="c1">#     warnings.simplefilter(&#39;ignore&#39;)</span>
+
+<span class="c1">#     filter_df = pl.DataFrame(predicted_gr).filter((pl.col(&quot;Genotype&quot;) == &quot;MG1655&quot;))</span>
+<span class="c1">#     filter_df.head(5)</span>
+
+<span class="c1">#     g = sns.catplot(x=&quot;Genotype&quot;, y=&quot;slope&quot;, hue=&quot;Additive&quot;,</span>
+<span class="c1">#                     data=filter_df.to_pandas(), kind=&quot;bar&quot;,</span>
+<span class="c1">#                     height=5, aspect=1, alpha=0.5, hue_order=[&quot;none&quot;, &quot;Zn&quot;, &quot;B12&quot;, &quot;met&quot;], errorbar=&quot;ci&quot;);</span>
+<span class="c1">#     g.map_dataframe(sns.stripplot, x=&quot;Genotype&quot;, y=&quot;slope&quot;,</span>
+<span class="c1">#                     hue=&quot;Additive&quot;, palette=&quot;Set2&quot;,</span>
+<span class="c1">#                     alpha=0.6, dodge=True, hue_order=[&quot;none&quot;, &quot;Zn&quot;, &quot;B12&quot;, &quot;met&quot;])</span>
+
+<span class="c1">#     plt.title(&quot;Minimum doubling time, average (bar) and individual measurements (point), n=3. 95% CI shown.&quot;)</span>
+<span class="c1">#     plt.ylim([1, 1.3])</span>
+
+<span class="c1">#     plt.show()</span>
+
+<span class="c1">#    #  g.savefig(&quot;story1.png&quot;)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

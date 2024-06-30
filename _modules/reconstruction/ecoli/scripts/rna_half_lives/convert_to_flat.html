@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Extracts half-lives of RNAs from Supplementary Table S4 of Chen et al.,</span>
+<span class="sd">&quot;Genome-wide study of mRNA degradation and transcript elongation in Escherichia</span>
+<span class="sd">coli&quot; (2014) and Supporting Table 5 of Bernstein et al., &quot;Global analysis of</span>
+<span class="sd">mRNA decay and abundance in Escherichi coli at single gene resoluation using</span>
+<span class="sd">two-color fluorescent DNA microarrays&quot; (2002). Optionally generates a comparison</span>
+<span class="sd">plot for degradation rates reported for the same gene from these two sources.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.io</span> <span class="kn">import</span> <span class="n">tsv</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.filepath</span> <span class="kn">import</span> <span class="n">ROOT_PATH</span>
+
+<span class="c1"># If True, plot comparison between half-lives from Chen et al. and Bernstein</span>
+<span class="c1"># et al.</span>
+<span class="n">PLOT_COMPARISON</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="c1"># Number of decimals when rounding half-life values (in units of min)</span>
+<span class="n">ROUND_N_DECIMALS</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="c1"># Directories</span>
+<span class="n">FILE_LOCATION</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+<span class="n">DATA_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">)</span>
+<span class="n">OUT_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;out&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">OUT_DIR</span><span class="p">):</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">OUT_DIR</span><span class="p">)</span>
+
+<span class="c1"># Files</span>
+<span class="n">CHEN_INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+    <span class="n">DATA_DIR</span><span class="p">,</span> <span class="s2">&quot;msb145794-sup-0009-supp_table_s4.csv&quot;</span>
+<span class="p">)</span>  <span class="c1"># Supplementary Table S4</span>
+<span class="n">BERNSTEIN_INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+    <span class="n">DATA_DIR</span><span class="p">,</span> <span class="s2">&quot;3181Table5.csv&quot;</span>
+<span class="p">)</span>  <span class="c1"># Supporting Table 5, saved as .csv (originally .xls) and comments removed</span>
+<span class="n">GENES_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ROOT_PATH</span><span class="p">,</span> <span class="s2">&quot;reconstruction&quot;</span><span class="p">,</span> <span class="s2">&quot;ecoli&quot;</span><span class="p">,</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span> <span class="s2">&quot;genes.tsv&quot;</span><span class="p">)</span>
+<span class="n">TRANSCRIPTION_UNITS_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+    <span class="n">ROOT_PATH</span><span class="p">,</span> <span class="s2">&quot;reconstruction&quot;</span><span class="p">,</span> <span class="s2">&quot;ecoli&quot;</span><span class="p">,</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span> <span class="s2">&quot;transcription_units.tsv&quot;</span>
+<span class="p">)</span>
+<span class="n">OUTPUT_FLAT_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+    <span class="n">ROOT_PATH</span><span class="p">,</span> <span class="s2">&quot;reconstruction&quot;</span><span class="p">,</span> <span class="s2">&quot;ecoli&quot;</span><span class="p">,</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span> <span class="s2">&quot;rna_half_lives.tsv&quot;</span>
+<span class="p">)</span>
+<span class="k">if</span> <span class="n">PLOT_COMPARISON</span><span class="p">:</span>
+    <span class="n">OUTPUT_COMPARISON_PLOT_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">OUT_DIR</span><span class="p">,</span> <span class="s2">&quot;chen_bernstein_comparison.png&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_symbols_to_ids">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.get_symbols_to_ids">[docs]</a>
+<span class="k">def</span> <span class="nf">get_symbols_to_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Builds a mapping from gene/transcription unit symbols to their corresponding</span>
+<span class="sd">    IDs that gets used in later data import functions.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            symbols_to_ids: Dictionary that maps gene/transcription unit symbols</span>
+<span class="sd">            to gene/transcription unit IDs used by the model.</span>
+<span class="sd">            all_gene_ids: Set of all gene IDs used by the model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">symbols_to_ids</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">ids_to_synonyms</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">all_gene_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">all_gene_symbols</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="c1"># Map gene symbols to gene IDs</span>
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">GENES_FILE</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">headers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+
+        <span class="n">gene_id_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">gene_symbol_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;symbol&quot;</span><span class="p">)</span>
+        <span class="n">synonyms_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;synonyms&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">gene_symbol</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">gene_symbol_index</span><span class="p">]</span>
+            <span class="n">gene_id</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">gene_id_index</span><span class="p">]</span>
+            <span class="n">synonyms</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">synonyms_index</span><span class="p">])</span>
+
+            <span class="n">symbols_to_ids</span><span class="p">[</span><span class="n">gene_symbol</span><span class="p">]</span> <span class="o">=</span> <span class="n">gene_id</span>
+            <span class="n">ids_to_synonyms</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">synonyms</span>
+            <span class="n">all_gene_ids</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">gene_id</span><span class="p">)</span>
+            <span class="n">all_gene_symbols</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">gene_symbol</span><span class="p">)</span>
+
+    <span class="c1"># Add nonconflicting gene ID synonyms to mapping (this is needed because</span>
+    <span class="c1"># Bernstein et al. uses older genomic annotations)</span>
+    <span class="k">for</span> <span class="n">gene_id</span><span class="p">,</span> <span class="n">synonyms</span> <span class="ow">in</span> <span class="n">ids_to_synonyms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">synonym</span> <span class="ow">in</span> <span class="n">synonyms</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">synonym</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">symbols_to_ids</span><span class="p">:</span>
+                <span class="n">symbols_to_ids</span><span class="p">[</span><span class="n">synonym</span><span class="p">]</span> <span class="o">=</span> <span class="n">gene_id</span>
+                <span class="n">all_gene_symbols</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">gene_symbol</span><span class="p">)</span>
+
+    <span class="c1"># Map transcription unit symbols to transcription unit IDs</span>
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">TRANSCRIPTION_UNITS_FILE</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">headers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+
+        <span class="n">tu_id_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">tu_symbol_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;common_name&quot;</span><span class="p">)</span>
+        <span class="n">gene_list_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;genes&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">tu_symbol</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">tu_symbol_index</span><span class="p">]</span>
+            <span class="n">gene_list</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">gene_list_index</span><span class="p">])</span>
+
+            <span class="c1"># Skip TUs whose symbols are just existing single gene symbols</span>
+            <span class="k">if</span> <span class="n">tu_symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_gene_symbols</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gene_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">symbols_to_ids</span><span class="p">[</span><span class="n">line</span><span class="p">[</span><span class="n">tu_symbol_index</span><span class="p">]]</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">tu_id_index</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">symbols_to_ids</span><span class="p">[</span><span class="n">line</span><span class="p">[</span><span class="n">tu_symbol_index</span><span class="p">]]</span> <span class="o">=</span> <span class="n">gene_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">symbols_to_ids</span><span class="p">,</span> <span class="n">all_gene_ids</span></div>
+
+
+
+<div class="viewcode-block" id="get_chen_half_lives">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.get_chen_half_lives">[docs]</a>
+<span class="k">def</span> <span class="nf">get_chen_half_lives</span><span class="p">(</span><span class="n">symbols_to_ids</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads RNA half lives reported by Chen et al., and stores them in a</span>
+<span class="sd">    dictionary. Any gene/transcription unit listed that does not exist in the</span>
+<span class="sd">    model are skipped.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            symbols_to_ids: Dictionary that maps gene/transcription unit symbols</span>
+<span class="sd">            to gene/transcription unit IDs used by the model.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            id_to_half_life: Dictionary that maps gene/transcription unit IDs to</span>
+<span class="sd">            their half lives (in minutes) reported by Chen et al.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">id_to_half_life</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">CHEN_INPUT</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+        <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+        <span class="n">rna_symbol_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;RNA&quot;</span><span class="p">)</span>
+        <span class="n">avg_lifetime_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;Avg lifetime&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">rna_symbol</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">rna_symbol_index</span><span class="p">]</span>
+            <span class="n">avg_lifetime</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">avg_lifetime_index</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">rna_symbol</span> <span class="ow">in</span> <span class="n">symbols_to_ids</span><span class="p">:</span>
+                <span class="c1"># Convert average liftime to half-life</span>
+                <span class="n">id_to_half_life</span><span class="p">[</span><span class="n">symbols_to_ids</span><span class="p">[</span><span class="n">rna_symbol</span><span class="p">]]</span> <span class="o">=</span> <span class="n">avg_lifetime</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">id_to_half_life</span></div>
+
+
+
+<div class="viewcode-block" id="get_bernstein_half_lives">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.get_bernstein_half_lives">[docs]</a>
+<span class="k">def</span> <span class="nf">get_bernstein_half_lives</span><span class="p">(</span><span class="n">symbols_to_ids</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads RNA half lives reported by Bernstein et al., and stores them in a</span>
+<span class="sd">    dictionary. Any gene listed that does not exist in the model are skipped.</span>
+<span class="sd">    Bernstein et al. only reports half-lives of monocistronic RNAs.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            symbols_to_ids: Dictionary that maps gene/transcription unit symbols</span>
+<span class="sd">            to gene/transcription unit IDs used by the model.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            id_to_half_life: Dictionary that maps gene IDs to their RNA half lives</span>
+<span class="sd">            (in minutes) reported by Bernstein et al.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">id_to_half_life</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">BERNSTEIN_INPUT</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+        <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+        <span class="n">rna_symbol_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;Symbol&quot;</span><span class="p">)</span>
+        <span class="n">half_life_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;Half-lives in M9&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">half_life_index</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">rna_symbol</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">rna_symbol_index</span><span class="p">]</span>
+            <span class="n">half_life</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">half_life_index</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">rna_symbol</span> <span class="ow">in</span> <span class="n">symbols_to_ids</span><span class="p">:</span>
+                <span class="n">id_to_half_life</span><span class="p">[</span><span class="n">symbols_to_ids</span><span class="p">[</span><span class="n">rna_symbol</span><span class="p">]]</span> <span class="o">=</span> <span class="n">half_life</span>
+
+    <span class="k">return</span> <span class="n">id_to_half_life</span></div>
+
+
+
+<div class="viewcode-block" id="build_half_life_table">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.build_half_life_table">[docs]</a>
+<span class="k">def</span> <span class="nf">build_half_life_table</span><span class="p">(</span>
+    <span class="n">chen_half_lives</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="n">bernstein_half_lives</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+    <span class="n">all_gene_ids</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Builds the RNA half-life flat file that is used as raw_data for the</span>
+<span class="sd">    simulation using the data from the two papers. If data for a gene exists in</span>
+<span class="sd">    both papers, we use data from Chen et al. assuming that their methodology is</span>
+<span class="sd">    more accurate. In the output file monocistronic RNAs (represented by their</span>
+<span class="sd">    corresponding gene IDs) are listed first, followed by polycistronic RNAs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">monocistronic_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">polycistronic_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">all_chen_gene_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">rna_id</span><span class="p">,</span> <span class="n">half_life</span> <span class="ow">in</span> <span class="n">chen_half_lives</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">rna_id</span> <span class="ow">in</span> <span class="n">all_gene_ids</span><span class="p">:</span>
+            <span class="n">monocistronic_data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">rna_id</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">half_life</span><span class="p">,</span> <span class="n">ROUND_N_DECIMALS</span><span class="p">)))</span>
+            <span class="n">all_chen_gene_ids</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">rna_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">polycistronic_data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">rna_id</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">half_life</span><span class="p">,</span> <span class="n">ROUND_N_DECIMALS</span><span class="p">)))</span>
+
+    <span class="c1"># Only use data from Bernstein et al. if gene does not exist in Chen et al.</span>
+    <span class="k">for</span> <span class="n">gene_id</span><span class="p">,</span> <span class="n">half_life</span> <span class="ow">in</span> <span class="n">bernstein_half_lives</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">gene_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_chen_gene_ids</span><span class="p">:</span>
+            <span class="n">monocistronic_data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">gene_id</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="n">half_life</span><span class="p">,</span> <span class="n">ROUND_N_DECIMALS</span><span class="p">)))</span>
+
+    <span class="c1"># Sort by ID</span>
+    <span class="n">monocistronic_data</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">polycistronic_data</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># Write to flat file</span>
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">OUTPUT_FLAT_FILE</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Writing to </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">quotechar</span><span class="o">=</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="n">lineterminator</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s2">&quot;# Generated by </span><span class="si">{}</span><span class="s2"> on </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">())])</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;&quot;id&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;half_life (units.min)&quot;&#39;</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">monocistronic_data</span><span class="p">,</span> <span class="n">polycistronic_data</span><span class="p">):</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="compare_half_lives">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.rna_half_lives.convert_to_flat.compare_half_lives">[docs]</a>
+<span class="k">def</span> <span class="nf">compare_half_lives</span><span class="p">(</span>
+    <span class="n">chen_half_lives</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">bernstein_half_lives</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a scatter plot that compares the half-lives of RNAs reported in</span>
+<span class="sd">    both Chen et al. and Bernstein et al.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">chen_genes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">chen_half_lives</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">bernstein_genes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">bernstein_half_lives</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="n">overlapping_genes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">chen_genes</span> <span class="o">&amp;</span> <span class="n">bernstein_genes</span><span class="p">))</span>
+
+    <span class="n">overlapping_chen_half_lives</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">chen_half_lives</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">overlapping_genes</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">overlapping_bernstein_half_lives</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">bernstein_half_lives</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">overlapping_genes</span><span class="p">]</span>
+    <span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">overlapping_bernstein_half_lives</span><span class="p">,</span> <span class="n">overlapping_chen_half_lives</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">35</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">35</span><span class="p">])</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;RNA half-lives from Bernstein et al. (min)&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;RNA half-lives from Chen et al. (min)&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">OUTPUT_COMPARISON_PLOT_FILE</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">symbols_to_ids</span><span class="p">,</span> <span class="n">all_gene_ids</span> <span class="o">=</span> <span class="n">get_symbols_to_ids</span><span class="p">()</span>
+    <span class="n">chen_half_lives</span> <span class="o">=</span> <span class="n">get_chen_half_lives</span><span class="p">(</span><span class="n">symbols_to_ids</span><span class="p">)</span>
+    <span class="n">bernstein_half_lives</span> <span class="o">=</span> <span class="n">get_bernstein_half_lives</span><span class="p">(</span><span class="n">symbols_to_ids</span><span class="p">)</span>
+
+    <span class="n">build_half_life_table</span><span class="p">(</span><span class="n">chen_half_lives</span><span class="p">,</span> <span class="n">bernstein_half_lives</span><span class="p">,</span> <span class="n">all_gene_ids</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">PLOT_COMPARISON</span><span class="p">:</span>
+        <span class="n">compare_half_lives</span><span class="p">(</span><span class="n">chen_half_lives</span><span class="p">,</span> <span class="n">bernstein_half_lives</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

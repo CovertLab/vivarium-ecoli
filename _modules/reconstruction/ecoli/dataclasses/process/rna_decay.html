@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.dataclasses.process.rna_decay &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.dataclasses.process.rna_decay</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.dataclasses.process.rna_decay</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SimulationData for rna decay process</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="kn">import</span> <span class="nn">aesara.tensor</span> <span class="k">as</span> <span class="nn">T</span>
+<span class="kn">from</span> <span class="nn">aesara</span> <span class="kn">import</span> <span class="n">function</span><span class="p">,</span> <span class="n">gradient</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+<div class="viewcode-block" id="RnaDecay">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.rna_decay.html#reconstruction.ecoli.dataclasses.process.rna_decay.RnaDecay">[docs]</a>
+<span class="k">class</span> <span class="nc">RnaDecay</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;RnaDecay&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_buildRnaDecayData</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RnaDecay._buildRnaDecayData">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.rna_decay.html#reconstruction.ecoli.dataclasses.process.rna_decay.RnaDecay._buildRnaDecayData">[docs]</a>
+    <span class="k">def</span> <span class="nf">_buildRnaDecayData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">sim_data</span>  <span class="c1"># unused</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">endoRNase_ids</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span><span class="p">[</span><span class="s2">&quot;endoRnase&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_compartment_tag</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;endoRnase&quot;</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">endoRNases</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kcats</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;kcat&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">endoRNases</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stats_fit</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;LossKm&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;LossKmOpt&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;RnegKmOpt&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;ResKm&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;ResKmOpt&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;ResEndoRNKm&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;ResEndoRNKmOpt&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;ResScaledKm&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="s2">&quot;ResScaledKmOpt&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># store Residuals re-scaled (sensitivity analysis &quot;alpha&quot;)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensitivity_analysis_alpha_residual</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensitivity_analysis_alpha_regular_i_neg</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># store Km&#39;s and Residuals re-scaled (sensitivity analysis &quot;kcat EndoRNases&quot;)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensitivity_analysis_kcat</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensitivity_analysis_kcat_res_ini</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensitivity_analysis_kcat_res_opt</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># store Km&#39;s from first-order RNA decay</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Km_first_order_decay</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># store convergence of non-linear Km&#39;s (G(km))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Km_convergence</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+
+<div class="viewcode-block" id="RnaDecay.km_loss_function">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.rna_decay.html#reconstruction.ecoli.dataclasses.process.rna_decay.RnaDecay.km_loss_function">[docs]</a>
+    <span class="k">def</span> <span class="nf">km_loss_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vMax</span><span class="p">,</span> <span class="n">rnaConc</span><span class="p">,</span> <span class="n">kDeg</span><span class="p">,</span> <span class="n">isEndoRnase</span><span class="p">,</span> <span class="n">alpha</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generates the functions used for estimating the per-RNA affinities (Michaelis-Menten</span>
+<span class="sd">        constants) to the endoRNAses.</span>
+
+<span class="sd">        The optimization problem is formulated as a multidimensional root-finding problem; the goal</span>
+<span class="sd">        is to find a set of Michaelis-Menten constants such that the endoRNAse-mediated degradation</span>
+<span class="sd">        under basal concentrations is consistent with the experimentally observed half-lives, thus</span>
+
+<span class="sd">        (nonlinear rate) = (linear rate)</span>
+
+<span class="sd">        where the nonlinear rate is the rate as predicted from some kinetic rate law, and the</span>
+<span class="sd">        linear rate is proportional to the inverse of the observed half-life.  Then, reordering,</span>
+
+<span class="sd">        0 = (nonlinear rate) - (linear rate)</span>
+
+<span class="sd">        is (for the moment) the root we wish to find, for each RNA species, giving us the</span>
+<span class="sd">        multidimensional function</span>
+
+<span class="sd">        R_aux = (nonlinear rate) - (linear rate)</span>
+
+<span class="sd">        This is the unnormalized residual function; the normalized residuals are</span>
+
+<span class="sd">        R = (nonlinear rate)/(linear rate) - 1</span>
+
+<span class="sd">        In addition to matching our half-lives we also desire the Michaelis-Menten constants to be</span>
+<span class="sd">        non-negative (negative values have no physical meaning).  Thus we introduce a penalty term</span>
+<span class="sd">        for negative values.  TODO (John): explain penalty term</span>
+
+<span class="sd">        The two terms (the residuals R and the negative value penalty Rneg) are combined into one</span>
+<span class="sd">        &#39;loss&#39; function L (alpha is the weighting on the negative value penalty):</span>
+
+<span class="sd">        L = ln((exp(R) + exp(alpha*Rneg))/2)</span>
+<span class="sd">          = ln(exp(R) + exp(alpha*Rneg)) - ln(2)</span>
+
+<span class="sd">        The loss function has one element for each RNA.  This functional form is a soft</span>
+<span class="sd">        (continuous and differentiable) approximation to</span>
+
+<span class="sd">        L = max(R, alpha*Rneg)</span>
+
+<span class="sd">        The root finder, provided with L, will attempt to make each element of L as close to zero</span>
+<span class="sd">        as possible, and therefore minimize both R and Rneg.</span>
+
+<span class="sd">        The third-party package Aesara (formerly Theano) creates the functions and finds an analytic</span>
+<span class="sd">        expression for the Jacobian.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        vMax: scalar</span>
+<span class="sd">                The total endoRNAse capacity, in dimensions of amount per volume per time.</span>
+<span class="sd">        rnaConc: 1-D array, float</span>
+<span class="sd">                Concentrations of RNAs (that will be degraded), in dimensions of amount per volume.</span>
+<span class="sd">        kDeg: 1-D array, float</span>
+<span class="sd">                Experimentally observed degradation rates (computed from half-lives), in dimensions of</span>
+<span class="sd">                per unit time.</span>
+<span class="sd">        isEndoRnase: 1-D array, bool</span>
+<span class="sd">                A vector that is True everywhere that an RNA corresponds to an endoRNAse; that is, an</span>
+<span class="sd">                endoRNAse (or endoRNAse subunit) mRNA.</span>
+<span class="sd">        alpha: scalar, &gt;0</span>
+<span class="sd">                Regularization weight, used to penalize for negative Michaelis-Menten value predictions</span>
+<span class="sd">                during the course of the optimization.  Typical value is 0.5.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        L: function</span>
+<span class="sd">                The &#39;loss&#39; function.</span>
+<span class="sd">        Rneg: function</span>
+<span class="sd">                The negative Michaelis-Menten constant penalty terms.</span>
+<span class="sd">        R: function</span>
+<span class="sd">                The residual error (deviation from steady-state).</span>
+<span class="sd">        Lp: function</span>
+<span class="sd">                The Jacobian of the loss function L with respect to the Michaelis-Menten constants.</span>
+<span class="sd">        R_aux: function</span>
+<span class="sd">                Unnormalized &#39;residual&#39; function.</span>
+<span class="sd">        L_aux: function</span>
+<span class="sd">                Unnormalized &#39;loss&#39; function.</span>
+<span class="sd">        Lp_aux: function</span>
+<span class="sd">                Jacobian of the unnormalized &#39;loss&#39; function.</span>
+<span class="sd">        Jacob: function</span>
+<span class="sd">                Duplicate with Lp.</span>
+<span class="sd">        Jacob_aux: function</span>
+<span class="sd">                Duplicate with Lp_aux.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The regularization term also includes a penalty for the endoRNAse residuals, as well as a</span>
+<span class="sd">        fixed weighting (WFendoR = 0.1).</span>
+<span class="sd">        TODO (John): Why is this needed?  It seems redundant.</span>
+<span class="sd">        TODO (John): How do we know this weight is sufficient?</span>
+
+<span class="sd">        All of the outputs are Aesara functions, and take a 1-D array of Michaelis-Menten constants</span>
+<span class="sd">        as their sole inputs.  All of the functions return a 1-D array, with the exception of the</span>
+<span class="sd">        Jacobians, which return matrices.</span>
+
+<span class="sd">        TODO (John): Remove the redundant outputs.</span>
+
+<span class="sd">        TODO (John): Consider redesigning this as an objective minimization problem rather than a</span>
+<span class="sd">        root finding problem.</span>
+
+<span class="sd">        TODO (John): Consider replacing the Michaelis-Menten constants with logarithmic</span>
+<span class="sd">        equivalents, thereby eliminating the requirement for the negative value penalty.</span>
+
+<span class="sd">        TODO (John): Consider moving this method out of this class, as it is, in fact, a static</span>
+<span class="sd">        method, and isn&#39;t utilized anywhere within this class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">N</span> <span class="o">=</span> <span class="n">rnaConc</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">km</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">dvector</span><span class="p">()</span>
+
+        <span class="c1"># Residuals of non-linear optimization</span>
+        <span class="n">residual</span> <span class="o">=</span> <span class="p">(</span><span class="n">vMax</span> <span class="o">/</span> <span class="n">km</span> <span class="o">/</span> <span class="n">kDeg</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">rnaConc</span> <span class="o">/</span> <span class="n">km</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+        <span class="n">residual_aux</span> <span class="o">=</span> <span class="p">(</span><span class="n">vMax</span> <span class="o">*</span> <span class="n">rnaConc</span> <span class="o">/</span> <span class="n">km</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">rnaConc</span> <span class="o">/</span> <span class="n">km</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span> <span class="o">-</span> <span class="p">(</span>
+            <span class="n">kDeg</span> <span class="o">*</span> <span class="n">rnaConc</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Counting negative Km&#39;s (first regularization term)</span>
+        <span class="n">regularizationNegativeNumbers</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">N</span><span class="p">)</span> <span class="o">-</span> <span class="n">km</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">km</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">N</span>
+
+        <span class="c1"># Penalties for EndoR Km&#39;s, which might be potentially nonf-fitted</span>
+        <span class="n">regularizationEndoR</span> <span class="o">=</span> <span class="p">(</span><span class="n">isEndoRnase</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">residual</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># Multi objective-based regularization</span>
+        <span class="n">WFendoR</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># weighting factor to protect Km optimized of EndoRNases</span>
+        <span class="n">regularization</span> <span class="o">=</span> <span class="n">regularizationNegativeNumbers</span> <span class="o">+</span> <span class="p">(</span><span class="n">WFendoR</span> <span class="o">*</span> <span class="n">regularizationEndoR</span><span class="p">)</span>
+
+        <span class="c1"># Loss function</span>
+        <span class="n">LossFunction</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">T</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">residual</span><span class="p">)</span> <span class="o">+</span> <span class="n">T</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">regularization</span><span class="p">))</span> <span class="o">-</span> <span class="n">T</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">LossFunction_aux</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+            <span class="n">T</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">residual_aux</span><span class="p">)</span> <span class="o">+</span> <span class="n">T</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">regularization</span><span class="p">)</span>
+        <span class="p">)</span> <span class="o">-</span> <span class="n">T</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">J</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">LossFunction</span><span class="p">,</span> <span class="n">km</span><span class="p">)</span>
+        <span class="n">J_aux</span> <span class="o">=</span> <span class="n">gradient</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">LossFunction_aux</span><span class="p">,</span> <span class="n">km</span><span class="p">)</span>
+        <span class="n">Jacob</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">J</span><span class="p">)</span>
+        <span class="n">Jacob_aux</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">J_aux</span><span class="p">)</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">LossFunction</span><span class="p">)</span>
+        <span class="n">L_aux</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">LossFunction_aux</span><span class="p">)</span>
+        <span class="n">Rneg</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">regularizationNegativeNumbers</span><span class="p">)</span>
+        <span class="n">R</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">residual</span><span class="p">)</span>
+        <span class="n">Lp</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">J</span><span class="p">)</span>
+        <span class="n">Lp_aux</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">J_aux</span><span class="p">)</span>
+        <span class="n">R_aux</span> <span class="o">=</span> <span class="n">function</span><span class="p">([</span><span class="n">km</span><span class="p">],</span> <span class="n">residual_aux</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">L</span><span class="p">,</span> <span class="n">Rneg</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">Lp</span><span class="p">,</span> <span class="n">R_aux</span><span class="p">,</span> <span class="n">L_aux</span><span class="p">,</span> <span class="n">Lp_aux</span><span class="p">,</span> <span class="n">Jacob</span><span class="p">,</span> <span class="n">Jacob_aux</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

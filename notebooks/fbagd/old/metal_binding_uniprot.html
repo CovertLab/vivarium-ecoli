@@ -1,0 +1,2536 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Use uniprot id to get cofactor comments &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Use uniprot id to get cofactor comments</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/notebooks/fbagd/old/metal_binding_uniprot.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pprint</span>
+<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="n">pp</span> <span class="o">=</span> <span class="n">pprint</span><span class="o">.</span><span class="n">PrettyPrinter</span><span class="p">(</span><span class="n">depth</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/vivarium-ecoli&#39;</span><span class="p">))</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+
+<span class="n">s</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="c1"># create session</span>
+<span class="c1"># Post login credentials to session:</span>
+<span class="n">s</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;https://websvc.biocyc.org/credentials/login/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;email&#39;</span><span class="p">:</span><span class="s1">&#39;cellulararchitect@protonmail.com&#39;</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span><span class="s1">&#39;Cellman0451&#39;</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Response [200]&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">complexation_rxn_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;reconstruction/ecoli/flat/complexation_reactions.tsv&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="n">stoich_series</span> <span class="o">=</span> <span class="n">complexation_rxn_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,[</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">stoich_list</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">stoich</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stoich_series</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">]):</span>
+
+    <span class="n">stoich</span> <span class="o">=</span> <span class="n">stoich</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;null&#39;</span><span class="p">,</span> <span class="s1">&#39;-1&#39;</span><span class="p">)</span>
+
+    <span class="n">stoich</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">stoich</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">stoich</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">stoich_list</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">stoich_series</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]])</span>
+
+<span class="n">pre_complex_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">stoich_list</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;complex&#39;</span><span class="p">,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">,</span> <span class="s1">&#39;reaction&#39;</span><span class="p">])</span>
+<span class="n">pre_complex_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>complex</th>
+      <th>stoichiometry</th>
+      <th>reaction</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-PFK</td>
+      <td>1</td>
+      <td>1-PFK_RXN</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1-PFK-MONOMER</td>
+      <td>-2</td>
+      <td>1-PFK_RXN</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2OXOGLUTARATEDEH-CPLX</td>
+      <td>1</td>
+      <td>2OXOGLUTARATEDEH-CPLX_RXN</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>E1O</td>
+      <td>-1</td>
+      <td>2OXOGLUTARATEDEH-CPLX_RXN</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>E2O</td>
+      <td>-1</td>
+      <td>2OXOGLUTARATEDEH-CPLX_RXN</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>2811</th>
+      <td>FFS-RNA</td>
+      <td>-1</td>
+      <td>SRP-CPLX_RXN</td>
+    </tr>
+    <tr>
+      <th>2812</th>
+      <td>CPLX0-7796APO</td>
+      <td>1</td>
+      <td>CPLX0-7796APO_RXN</td>
+    </tr>
+    <tr>
+      <th>2813</th>
+      <td>PD04032</td>
+      <td>-2</td>
+      <td>CPLX0-7796APO_RXN</td>
+    </tr>
+    <tr>
+      <th>2814</th>
+      <td>ARCB-CPLX</td>
+      <td>1</td>
+      <td>ARCB-CPLX_RXN</td>
+    </tr>
+    <tr>
+      <th>2815</th>
+      <td>ARCB-MONOMER</td>
+      <td>-2</td>
+      <td>ARCB-CPLX_RXN</td>
+    </tr>
+  </tbody>
+</table>
+<p>2816 rows × 3 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># get a set of all monomers with an associated uniprot id</span>
+<span class="n">proteins_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;reconstruction/ecoli/flat/proteins.tsv&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;common_name&quot;</span><span class="p">]]</span>
+<span class="n">proteins_df</span><span class="p">[</span><span class="s2">&quot;uniprot_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+<span class="n">proteins_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>uniprot_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>
+      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1-PFK-MONOMER</td>
+      <td>1-phosphofructokinase</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>
+      <td>2-dehydropantoate 2-reductase</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2-ISOPROPYLMALATESYN-MONOMER</td>
+      <td>2-isopropylmalate synthase</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>
+      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>4415</th>
+      <td>YTFR-MONOMER</td>
+      <td>galactofuranose ABC transporter putative ATP b...</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>4416</th>
+      <td>YTFT-MONOMER</td>
+      <td>galactofuranose ABC transporter putative membr...</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>4417</th>
+      <td>ZNUA-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>4418</th>
+      <td>ZNUB-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>
+      <td></td>
+    </tr>
+    <tr>
+      <th>4419</th>
+      <td>ZNUC-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+<p>4420 rows × 3 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[55]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">proteins_df</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="n">protein</span> <span class="o">=</span> <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
+    <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">protein</span><span class="si">}</span><span class="s1">&amp;detail=high&#39;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">protein</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;NO ECOCYC ENTRY&#39;</span>
+        <span class="k">continue</span>
+
+    <span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="s1">&#39;Protein&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">o</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;no protein for </span><span class="si">{</span><span class="n">protein</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;NO PROTEIN ENTRY&#39;</span>
+        <span class="k">continue</span>
+    <span class="k">elif</span> <span class="s1">&#39;dblink&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;no dblink for </span><span class="si">{</span><span class="n">protein</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;NO DBLINK ENTRY&#39;</span>
+        <span class="k">continue</span>
+
+    <span class="n">o</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;dblink&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span><span class="p">]</span>
+
+    <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">for</span> <span class="n">data_source</span> <span class="ow">in</span> <span class="n">o</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">data_source</span><span class="p">[</span><span class="s1">&#39;dblink-db&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;UNIPROT&#39;</span> <span class="ow">and</span> <span class="s1">&#39;dblink-oid&#39;</span> <span class="ow">in</span> <span class="n">data_source</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">uniprot_id</span> <span class="o">=</span> <span class="n">data_source</span><span class="p">[</span><span class="s1">&#39;dblink-oid&#39;</span><span class="p">]</span>
+
+            <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">uniprot_id</span>
+
+            <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;no uniprot id for </span><span class="si">{</span><span class="n">protein</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;NO UNIPROT ENTRY&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0
+no protein for AGAA-MONOMER
+100
+200
+300
+no protein for EG10010-MONOMER
+400
+500
+no protein for EG10659-MONOMER
+600
+700
+no protein for EG11092-MONOMER
+800
+900
+no protein for EG11304-MONOMER
+no protein for EG11386-MONOMER
+1000
+no protein for EG11496-MONOMER
+1100
+EG11708-MONOMER 404
+no protein for EG11766-MONOMER
+no protein for EG11770-MONOMER
+1200
+no protein for EG11778-MONOMER
+no protein for EG11780-MONOMER
+1300
+no protein for EG11927-MONOMER
+no protein for EG11986-MONOMER
+no protein for EG12020-MONOMER
+no protein for EG12051-MONOMER
+1400
+no protein for EG12161-MONOMER
+no protein for EG12208-MONOMER
+no protein for EG12227-MONOMER
+no protein for EG12238-MONOMER
+no protein for EG12261-MONOMER
+1500
+no protein for EG12364-MONOMER
+1600
+no protein for EG12881-MONOMER
+1700
+no protein for G0-16653-MONOMER
+no protein for G0-16659-MONOMER
+no protein for G0-16666-MONOMER
+no protein for G0-16672-MONOMER
+no protein for G0-16713-MONOMER
+no protein for G0-16715-MONOMER
+no protein for G0-16716-MONOMER
+no protein for G0-16717-MONOMER
+no protein for G0-16718-MONOMER
+no protein for G0-16719-MONOMER
+no protein for G0-16720-MONOMER
+1800
+no protein for G6102-MONOMER
+no protein for G6113-MONOMER
+no protein for G6114-MONOMER
+no protein for G6119-MONOMER
+no protein for G6130-MONOMER
+no protein for G6137-MONOMER
+no protein for G6170-MONOMER
+no protein for G6214-MONOMER
+no protein for G6222-MONOMER
+1900
+no protein for G6231-MONOMER
+no protein for G6271-MONOMER
+no protein for G6295-MONOMER
+no protein for G6298-MONOMER
+no protein for G6316-MONOMER
+2000
+no protein for G6376-MONOMER
+no protein for G6377-MONOMER
+2100
+no protein for G6535-MONOMER
+no protein for G6596-MONOMER
+no protein for G6599-MONOMER
+no protein for G6609-MONOMER
+2200
+no protein for G6632-MONOMER
+no protein for G6686-MONOMER
+no protein for G6692-MONOMER
+no protein for G6722-MONOMER
+2300
+no protein for G6767-MONOMER
+no protein for G6771-MONOMER
+no protein for G6796-MONOMER
+no protein for G6836-MONOMER
+no protein for G6837-MONOMER
+2400
+no protein for G6926-MONOMER
+2500
+no protein for G7043-MONOMER
+no protein for G7044-MONOMER
+no protein for G7052-MONOMER
+no protein for G7066-MONOMER
+no protein for G7075-MONOMER
+no protein for G7079-MONOMER
+2600
+no protein for G7120-MONOMER
+no protein for G7155-MONOMER
+no protein for G7209-MONOMER
+no protein for G7224-MONOMER
+2700
+2800
+no protein for G7376-MONOMER
+no protein for G7383-MONOMER
+no protein for G7389-MONOMER
+no protein for G7470-MONOMER
+no protein for G7474-MONOMER
+no protein for G7475-MONOMER
+no protein for G7476-MONOMER
+no protein for G7478-MONOMER
+no protein for G7479-MONOMER
+no protein for G7482-MONOMER
+2900
+no protein for G7515-MONOMER
+no protein for G7557-MONOMER
+no protein for G7585-MONOMER
+3000
+no protein for G7633-MONOMER
+no protein for G7671-MONOMER
+3100
+no protein for G7760-MONOMER
+no protein for G7798-MONOMER
+no protein for G7863-MONOMER
+no protein for G7898-MONOMER
+3200
+no protein for G7902-MONOMER
+no protein for G7903-MONOMER
+no protein for G7904-MONOMER
+no protein for G7907-MONOMER
+no protein for G7918-MONOMER
+no protein for G7934-MONOMER
+no protein for G8205-MONOMER
+no protein for G8221-MONOMER
+no protein for GATC-MONOMER
+3300
+3400
+3500
+no dblink for MONOMER0-1241
+no protein for MONOMER0-2653
+no protein for MONOMER0-2666
+no protein for MONOMER0-2667
+no uniprot id for MONOMER0-2748
+no uniprot id for MONOMER0-2755
+no uniprot id for MONOMER0-2756
+no uniprot id for MONOMER0-2757
+no uniprot id for MONOMER0-2761
+no protein for MONOMER0-2778
+3600
+no uniprot id for MONOMER0-2824
+no uniprot id for MONOMER0-2825
+no uniprot id for MONOMER0-2851
+no dblink for MONOMER0-4223
+no uniprot id for MONOMER0-4229
+no uniprot id for MONOMER0-4230
+no uniprot id for MONOMER0-4231
+no uniprot id for MONOMER0-4246
+no uniprot id for MONOMER0-4247
+no uniprot id for MONOMER0-4248
+no uniprot id for MONOMER0-4249
+no uniprot id for MONOMER0-4255
+no uniprot id for MONOMER0-4256
+no uniprot id for MONOMER0-4257
+no uniprot id for MONOMER0-4258
+no uniprot id for MONOMER0-4259
+no uniprot id for MONOMER0-4345
+no uniprot id for MONOMER0-4346
+no protein for MONOMER0-4386
+no protein for MONOMER0-4395
+3700
+no dblink for MONOMER0-4509
+no uniprot id for MONOMER0-4519
+no uniprot id for MONOMER0-4521
+3800
+3900
+no protein for PD00338
+no protein for PD03576
+4000
+no protein for PHNE-MONOMER
+4100
+4200
+4300
+no protein for YCJV-MONOMER
+no protein for YGAY-MONOMER
+no protein for YHDW-MONOMER
+4400
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[56]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">proteins_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;notebooks/fbagd/proteins.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">proteins_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;notebooks/fbagd/proteins.csv&#39;</span><span class="p">)</span>
+<span class="n">proteins_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[95]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>uniprot_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>
+      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>
+      <td>P26647</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1-PFK-MONOMER</td>
+      <td>1-phosphofructokinase</td>
+      <td>P0AEW9</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>
+      <td>2-dehydropantoate 2-reductase</td>
+      <td>P0A9J4</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2-ISOPROPYLMALATESYN-MONOMER</td>
+      <td>2-isopropylmalate synthase</td>
+      <td>P09151</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>
+      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>
+      <td>P0A887</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>4415</th>
+      <td>YTFR-MONOMER</td>
+      <td>galactofuranose ABC transporter putative ATP b...</td>
+      <td>Q6BEX0</td>
+    </tr>
+    <tr>
+      <th>4416</th>
+      <td>YTFT-MONOMER</td>
+      <td>galactofuranose ABC transporter putative membr...</td>
+      <td>P39328</td>
+    </tr>
+    <tr>
+      <th>4417</th>
+      <td>ZNUA-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>
+      <td>P39172</td>
+    </tr>
+    <tr>
+      <th>4418</th>
+      <td>ZNUB-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>
+      <td>P39832</td>
+    </tr>
+    <tr>
+      <th>4419</th>
+      <td>ZNUC-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>
+      <td>P0A9X1</td>
+    </tr>
+  </tbody>
+</table>
+<p>4420 rows × 3 columns</p>
+</div></div>
+</div>
+<section id="Use-uniprot-id-to-get-cofactor-comments">
+<h1>Use uniprot id to get cofactor comments<a class="headerlink" href="#Use-uniprot-id-to-get-cofactor-comments" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">cofactor_slot_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;protein&#39;</span><span class="p">,</span> <span class="s1">&#39;cofactor_uniprot_name&#39;</span><span class="p">,</span> <span class="s1">&#39;cofactor_uniprot_id&#39;</span><span class="p">,</span> <span class="s1">&#39;cofactor_uniprot_db&#39;</span><span class="p">,</span> <span class="s1">&#39;cofactor_comment&#39;</span><span class="p">,</span> <span class="s1">&#39;subunit_comment&#39;</span><span class="p">])</span>
+<span class="n">cofactor_slot_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>protein</th>
+      <th>cofactor_uniprot_name</th>
+      <th>cofactor_uniprot_id</th>
+      <th>cofactor_uniprot_db</th>
+      <th>comment</th>
+    </tr>
+  </thead>
+  <tbody>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[94]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span> <span class="c1"># range(len(proteins_df.index)):</span>
+    <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="n">protein</span> <span class="o">=</span> <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">protein</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;NO UNIPROT ENTRY&#39;</span><span class="p">,</span> <span class="s1">&#39;NO PROTEIN ENTRY&#39;</span><span class="p">,</span> <span class="s1">&#39;NO DBLINK ENTRY&#39;</span><span class="p">,</span> <span class="s1">&#39;NO ECOCYC ENTRY&#39;</span><span class="p">]:</span>
+        <span class="k">continue</span>
+
+    <span class="c1"># use uniprot api to get protein associated with uniprot id</span>
+    <span class="c1"># req_str = f&#39;https://www.uniprot.org/uniprot/{protein}.xml&#39;</span>
+    <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://rest.uniprot.org/uniprotkb/</span><span class="si">{</span><span class="n">protein</span><span class="si">}</span><span class="s1">.xml&#39;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+    <span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">protein</span><span class="p">)</span>
+
+    <span class="n">cofactor_n</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">if</span> <span class="s1">&#39;comment&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;uniprot&#39;</span><span class="p">][</span><span class="s1">&#39;entry&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+
+        <span class="n">comments</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;uniprot&#39;</span><span class="p">][</span><span class="s1">&#39;entry&#39;</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">comments</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">comments</span> <span class="o">=</span> <span class="p">[</span><span class="n">comments</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">comment</span> <span class="ow">in</span> <span class="n">comments</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">comment</span><span class="p">[</span><span class="s1">&#39;@type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;cofactor&#39;</span><span class="p">:</span>
+
+
+                <span class="n">cofactor_n</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">cofactor_slot</span> <span class="o">=</span> <span class="n">comment</span><span class="p">[</span><span class="s1">&#39;cofactor&#39;</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">cofactor_slot</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                    <span class="n">cofactor_slot</span> <span class="o">=</span> <span class="p">[</span><span class="n">cofactor_slot</span><span class="p">]</span>
+
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">cofactor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cofactor_slot</span><span class="p">):</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Cofactor </span><span class="si">{</span><span class="n">cofactor_n</span><span class="si">}</span><span class="s1">, option </span><span class="si">{</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;dbReference&#39;</span><span class="p">][</span><span class="s1">&#39;@id&#39;</span><span class="p">],</span> <span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;dbReference&#39;</span><span class="p">][</span><span class="s1">&#39;@type&#39;</span><span class="p">])</span>
+                    <span class="n">cofactor_slot_df</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;protein&#39;</span><span class="p">:</span><span class="n">protein</span><span class="p">,</span>
+                                                                <span class="s1">&#39;cofactor_uniprot_name&#39;</span><span class="p">:</span><span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
+                                                                <span class="s1">&#39;cofactor_uniprot_id&#39;</span><span class="p">:</span><span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;dbReference&#39;</span><span class="p">][</span><span class="s1">&#39;@id&#39;</span><span class="p">],</span>
+                                                                <span class="s1">&#39;cofactor_uniprot_db&#39;</span><span class="p">:</span><span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;dbReference&#39;</span><span class="p">][</span><span class="s1">&#39;@type&#39;</span><span class="p">]},</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                    <span class="c1"># proteins_df.loc[i, &#39;cofactor_uniprot_name&#39;] = cofactor[&#39;cofactor&#39;][&#39;name&#39;]</span>
+                    <span class="c1"># proteins_df.loc[i, &#39;cofactor_uniprot_id&#39;] = cofactor[&#39;cofactor&#39;][&#39;dbReference&#39;][&#39;@id&#39;]</span>
+                    <span class="c1"># proteins_df.loc[i, &#39;cofactor_uniprot_db&#39;] = cofactor[&#39;cofactor&#39;][&#39;dbReference&#39;][&#39;@type&#39;]</span>
+
+                <span class="k">if</span> <span class="s1">&#39;text&#39;</span> <span class="ow">in</span> <span class="n">comment</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">])</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Comment: &#39;</span><span class="p">,</span><span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Comment: &#39;</span><span class="p">,</span><span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No cofactor slot comment&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">comment</span><span class="p">[</span><span class="s1">&#39;@type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;subunit&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s1">&#39;text&#39;</span> <span class="ow">in</span> <span class="n">comment</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">])</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Subunit: &#39;</span><span class="p">,</span> <span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Subunit: &#39;</span><span class="p">,</span> <span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Subunit: no subunit comment&#39;</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;no protein comment&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0
+
+
+P26647
+
+
+P0AEW9
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Comment:  Can also use Mn(2+) or Co(2+), with lower efficiency.
+Subunit:  Homodimer.
+
+
+P0A9J4
+Subunit:  Monomer.
+
+
+P09151
+Cofactor 1, option 1 Mn(2+) CHEBI:29035 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+P0A887
+Subunit:  Component of the Ubi complex metabolon, which regroups five ubiquinone biosynthesis proteins (UbiE, UbiF, UbiG, UbiH and UbiI) and two accessory factors (UbiK and the lipid-binding protein UbiJ).
+
+
+P0A6A0
+
+
+P31057
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Cofactor 1, option 2 Mn(2+) CHEBI:29035 ChEBI
+Cofactor 1, option 3 Co(2+) CHEBI:48828 ChEBI
+Cofactor 1, option 4 Zn(2+) CHEBI:29105 ChEBI
+Comment:  Binds 1 Mg(2+) ion per subunit. Can also use Mn(2+), Co(2+) and Zn(2+) to a lesser extent.
+Subunit:  Homodecamer; pentamer of dimers.
+
+
+P30125
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Cofactor 1, option 2 Mn(2+) CHEBI:29035 ChEBI
+Comment:  Binds 1 Mg(2+) or Mn(2+) ion per subunit.
+Subunit:  Homodimer.
+
+
+P0AEK2
+Subunit:  Homotetramer.
+
+
+P0AAI5
+Subunit:  Homodimer.
+
+
+P0AGK1
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Comment:  Can also use Mn(2+) and Co(2+) with lower efficiency.
+
+
+P0A796
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+No cofactor slot comment
+Subunit:  Homotetramer.
+
+
+P06999
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+P00350
+Subunit:  Homodimer.
+
+
+P52697
+
+
+P0AET8
+Subunit:  Homotetramer.
+
+
+P12998
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+P31119
+
+
+P30750
+Subunit:  The complex is composed of two ATP-binding proteins (MetN), two transmembrane proteins (MetI) and a solute-binding protein (MetQ).
+
+
+P46133
+
+
+P0A6A3
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Cofactor 1, option 2 Mn(2+) CHEBI:29035 ChEBI
+Comment:  Mg(2+). Can also accept Mn(2+).
+Subunit:  Homodimer.
+
+
+P00894
+Subunit:  Dimer of large and small chains.
+
+
+P00893
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Comment:  Binds 1 Mg(2+) ion per subunit.
+Cofactor 2, option 1 thiamine diphosphate CHEBI:58937 ChEBI
+Comment:  Binds 1 thiamine pyrophosphate per subunit.
+Subunit:  Dimer of large and small chains.
+
+
+P76461
+
+
+P0A6C8
+Subunit:  Homodimer.
+
+
+P23908
+Cofactor 1, option 1 Zn(2+) CHEBI:29105 ChEBI
+Cofactor 1, option 2 Co(2+) CHEBI:48828 ChEBI
+Comment:  Binds 2 Zn(2+) or Co(2+) ions per subunit.
+Cofactor 2, option 1 glutathione CHEBI:57925 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+P18335
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+Comment:  Binds 1 pyridoxal phosphate per subunit.
+Subunit:  Homodimer.
+
+
+P0A6L4
+Subunit:  Homotetramer.
+
+
+P25516
+Cofactor 1, option 1 [4Fe-4S] cluster CHEBI:49883 ChEBI
+Comment:  Binds 1 [4Fe-4S] cluster per subunit.
+Subunit:  Monomer.
+
+
+P36683
+Cofactor 1, option 1 [4Fe-4S] cluster CHEBI:49883 ChEBI
+Comment:  Binds 1 [4Fe-4S] cluster per subunit.
+Subunit:  Monomer. AcnB can also form a homodimer. The monomer-homodimer transition is dependent on iron availability and the carboxymethylation of C-273 inhibits the dimer formation.
+
+
+P69330
+Subunit:  Oligomer with a subunit composition of (alpha,beta,gamma)6.
+
+
+P31224
+Subunit:  Homotrimer, with large domains that extend into the periplasm, interacts with AcrA and TolC. AcrA may be required to stably link this protein and TolC. Interacts with AcrZ. Part of the AcrA-AcrB-AcrZ-TolC efflux pump.
+
+
+P24177
+
+
+P24181
+Subunit:  Part of the tripartite efflux system AcrEF-TolC, which is composed of an inner membrane transporter, AcrF, a periplasmic membrane fusion protein, AcrE, and an outer membrane component, TolC. The complex forms a large protein conduit and can translocate molecules across both the inner and outer membranes (Probable).
+
+
+P27550
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+No cofactor slot comment
+Subunit:  Forms a 1:1 complex with CobB/NAD-dependent deacetylase.
+
+
+P0ABK5
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer (Ref.6, PubMed:27531961). Forms a cysteine synthase complex with 1 copy of CysE (By similarity).
+Subunit:  (Microbial infection) Interacts with CdiA-CT from strain 536 / UPEC, this is blocked upon preincubation with O-acetyl-L-serine. CysK forms a complex with CdiA-CT/CdiI (PubMed:22333533). One CdiA toxin subunit binds to each subunit of the CysK homodimer, and one CdiI immunity protein binds to each toxin subunit; the immune complex is thus a dimer of trimers. The 4 C-terminal residues of CdiA fit into the active site of CysK (PubMed:27531961).
+
+
+P16703
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+Q47146
+Cofactor 1, option 1 FAD CHEBI:57692 ChEBI
+No cofactor slot comment
+
+
+P69451
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+P28305
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+P22333
+Cofactor 1, option 1 Zn(2+) CHEBI:29105 ChEBI
+Comment:  Binds 1 zinc ion per subunit.
+
+
+P69503
+Subunit:  Homodimer.
+
+
+P69441
+Subunit:  Monomer.
+
+
+P00936
+
+
+P0A7D4
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Comment:  Binds 1 Mg(2+) ion per subunit.
+Subunit:  Homodimer.
+
+
+P0A6J1
+
+
+P25437
+Cofactor 1, option 1 Zn(2+) CHEBI:29105 ChEBI
+Comment:  Binds 2 Zn(2+) ions per subunit.
+Subunit:  Homodimer.
+
+
+P0A9Q7
+Cofactor 1, option 1 Fe(2+) CHEBI:29033 ChEBI
+No cofactor slot comment
+Subunit:  Forms long filaments, called spirosomes (PubMed:31586059, PubMed:32188856, PubMed:32523125). Forms rod-like ultrastructures composed of 20-60 identical subunits (PubMed:1325457). Two monomers form a dimer in a head-to-head arm-crossing fashion through the ALDH domains (PubMed:31586059). Subsequently, two dimers form one helical pitch via the interaction of ADH domains in a tail-to-tail manner (PubMed:31586059, PubMed:32523125). These units are further assembled into spirosomes (PubMed:31586059, PubMed:32188856, PubMed:32523125). Formation of these spirosomes is required for activity (PubMed:31586059, PubMed:32188856, PubMed:32523125). Can be isolated in vitro in a wide range of oligomeric states (PubMed:31586059).
+
+
+P39451
+Cofactor 1, option 1 Zn(2+) CHEBI:29105 ChEBI
+Comment:  Binds 2 Zn(2+) ions per subunit.
+
+
+P13035
+Cofactor 1, option 1 FAD CHEBI:57692 ChEBI
+No cofactor slot comment
+
+
+P42909
+
+
+P42910
+
+
+P42911
+
+
+P36881
+
+
+P60651
+Cofactor 1, option 1 Mn(2+) CHEBI:29035 ChEBI
+No cofactor slot comment
+
+
+P15639
+
+
+P08178
+Subunit:  Homodimer.
+
+
+P0AB77
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+Comment:  Binds 1 pyridoxal phosphate per subunit.
+Subunit:  Homodimer.
+
+
+P0A6B4
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+No cofactor slot comment
+Subunit:  Homodimer.
+
+
+P29012
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+No cofactor slot comment
+
+
+P00957
+Cofactor 1, option 1 Zn(2+) CHEBI:29105 ChEBI
+Comment:  Binds 1 zinc ion per subunit; it is not clear where this binding occurs.
+Subunit:  Homotetramer.
+
+
+P37685
+Subunit:  Homotetramer.
+
+
+P23883
+
+
+P0A9C3
+
+
+P00634
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Comment:  Binds 1 Mg(2+) ion.
+Cofactor 2, option 1 Zn(2+) CHEBI:29105 ChEBI
+Comment:  Binds 2 Zn(2+) ions.
+Subunit:  Isozymes 1 and 3 are a dimer of identical chains, isozyme 2 is a dimer of heterogeneous chains, one of each of the subunits from isozymes 1 and 3.
+
+
+P26612
+Cofactor 1, option 1 Ca(2+) CHEBI:29108 ChEBI
+Comment:  Binds 1 Ca(2+) ion per subunit.
+Subunit:  Monomer.
+
+
+P25718
+Cofactor 1, option 1 Ca(2+) CHEBI:29108 ChEBI
+Comment:  Binds 1 Ca(2+) ion per subunit.
+Subunit:  Monomer.
+
+
+P38038
+Cofactor 1, option 1 FAD CHEBI:57692 ChEBI
+Comment:  Binds 1 FAD per subunit.
+Cofactor 2, option 1 FMN CHEBI:58210 ChEBI
+Comment:  Binds 1 FMN per subunit.
+Subunit:  Alpha(8)-beta(8). The alpha component is a flavoprotein, the beta component is a hemoprotein.
+
+
+P06720
+Cofactor 1, option 1 NAD(+) CHEBI:57540 ChEBI
+Comment:  Binds 1 NAD(+) per subunit.
+Cofactor 2, option 1 Mn(2+) CHEBI:29035 ChEBI
+Comment:  Binds 1 Mn(2+) ion per subunit.
+Subunit:  Homodimer.
+
+
+P0A6L7
+
+
+P42604
+Cofactor 1, option 1 Fe(2+) CHEBI:29033 ChEBI
+Cofactor 1, option 2 Mn(2+) CHEBI:29035 ChEBI
+Comment:  Mn(2+) can substitute for iron, but in higher concentrations. Cannot use Fe(3+), Ni(2+) or Mg(2+).
+
+
+P46883
+Cofactor 1, option 1 Cu cation CHEBI:23378 ChEBI
+Cofactor 1, option 2 Zn(2+) CHEBI:29105 ChEBI
+Comment:  Binds 1 copper ion per subunit. Can also use zinc ion as cofactor (By similarity).
+Cofactor 2, option 1 Ca(2+) CHEBI:29108 ChEBI
+Comment:  Binds 2 calcium ions per subunit.
+Cofactor 3, option 1 L-topaquinone CHEBI:79027 ChEBI
+Comment:  Contains 1 topaquinone per subunit.
+Cofactor 4, option 1 Mn(2+) CHEBI:29035 ChEBI
+Comment:  Binds 1 Mn(2+) ion per subunit.
+Subunit:  Homodimer.
+
+
+P0AE12
+Subunit:  Homohexamer. Trimer of dimers.
+
+
+P0AE16
+
+
+P69681
+Subunit:  Homotrimer (PubMed:12023896, PubMed:15563598, PubMed:15361618, PubMed:17040913). In response to elevation of the extracellular ammonium concentration, interacts and forms a complex with GlnK (PubMed:10637624, PubMed:11847102, PubMed:14668330, PubMed:17220269, PubMed:17190799, PubMed:16864585, PubMed:20639578). Interacts with GlnK with a stoichiometry of AmtB(3):GlnK(3) (PubMed:17220269, PubMed:17190799). Sequestration of GlnK is reversible (PubMed:14668330).
+
+
+P15977
+
+
+P0A9C0
+Cofactor 1, option 1 FAD CHEBI:57692 ChEBI
+No cofactor slot comment
+Cofactor 2, option 1 FMN CHEBI:58210 ChEBI
+No cofactor slot comment
+Subunit:  Composed of a catalytic GlpA/B dimer and of membrane bound GlpC.
+
+
+P13033
+Cofactor 1, option 1 FMN CHEBI:58210 ChEBI
+No cofactor slot comment
+Subunit:  Composed of a catalytic GlpA/B dimer and of membrane bound GlpC.
+
+
+P0A996
+Subunit:  Composed of a catalytic GlpA/B dimer and of GlpC.
+
+
+P0A962
+Subunit:  Homotetramer.
+
+
+P00805
+Subunit:  Homotetramer.
+
+
+P77610
+
+
+P00895
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Comment:  Binds 1 Mg(2+) ion per subunit.
+Subunit:  Heterotetramer consisting of two non-identical subunits: a beta subunit (TrpG) and a large lpha subunit (TrpE).
+
+
+P00904
+Subunit:  Heterotetramer consisting of two non-identical subunits: a beta subunit (TrpG) and a large alpha subunit (TrpE).
+
+
+P0AE22
+Cofactor 1, option 1 Mg(2+) CHEBI:18420 ChEBI
+Comment:  Binds 1 Mg(2+) ion per subunit.
+Subunit:  Homotetramer.
+
+
+P07102
+Subunit:  Monomer.
+
+
+P26458
+Cofactor 1, option 1 heme CHEBI:30413 ChEBI
+Comment:  May bind up to 3 heme groups per complex.
+Subunit:  Heterodimer of subunits I and II.
+
+
+P26459
+Cofactor 1, option 1 heme CHEBI:30413 ChEBI
+Comment:  May bind up to 3 heme groups per complex.
+Subunit:  Heterodimer of subunits I and II.
+
+
+P60844
+Subunit:  Homotetramer.
+
+
+P08202
+Cofactor 1, option 1 Mn(2+) CHEBI:29035 ChEBI
+Comment:  Binds 1 Mn(2+) ion per subunit.
+Subunit:  Homohexamer.
+
+
+P0AE24
+
+
+P02924
+
+
+P0AAF3
+Subunit:  The complex is composed of two ATP-binding proteins (AraG), two transmembrane proteins (AraH) and a solute-binding protein (AraF).
+
+
+P0AE26
+
+
+P23910
+
+
+P0A9Q1
+
+
+P0AEC3
+
+
+P0AAE5
+
+
+P21170
+Cofactor 1, option 1 pyridoxal 5&#39;-phosphate CHEBI:597326 ChEBI
+No cofactor slot comment
+Cofactor 2, option 1 Mg(2+) CHEBI:18420 ChEBI
+No cofactor slot comment
+Subunit:  Homotetramer.
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[93]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">protein</span> <span class="o">=</span> <span class="s1">&#39;P09152&#39;</span>
+
+<span class="c1"># use uniprot api to get protein associated with uniprot id</span>
+<span class="c1"># req_str = f&#39;https://www.uniprot.org/uniprot/{protein}.xml&#39;</span>
+<span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://rest.uniprot.org/uniprotkb/</span><span class="si">{</span><span class="n">protein</span><span class="si">}</span><span class="s1">.xml&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+<span class="n">pp</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;uniprot&#39;</span><span class="p">][</span><span class="s1">&#39;entry&#39;</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+[{&#39;@type&#39;: &#39;function&#39;,
+  &#39;text&#39;: &#39;The nitrate reductase enzyme complex allows E.coli to use nitrate &#39;
+          &#39;as an electron acceptor during anaerobic growth. The alpha chain is &#39;
+          &#39;the actual site of nitrate reduction.&#39;},
+ {&#39;@type&#39;: &#39;catalytic activity&#39;,
+  &#39;reaction&#39;: {&#39;dbReference&#39;: [{&#39;@id&#39;: &#39;RHEA:56144&#39;, &#39;@type&#39;: &#39;Rhea&#39;},
+                               {&#39;@id&#39;: &#39;CHEBI:15377&#39;, &#39;@type&#39;: &#39;ChEBI&#39;},
+                               {&#39;@id&#39;: &#39;CHEBI:16301&#39;, &#39;@type&#39;: &#39;ChEBI&#39;},
+                               {&#39;@id&#39;: &#39;CHEBI:17632&#39;, &#39;@type&#39;: &#39;ChEBI&#39;},
+                               {&#39;@id&#39;: &#39;CHEBI:24646&#39;, &#39;@type&#39;: &#39;ChEBI&#39;},
+                               {&#39;@id&#39;: &#39;CHEBI:132124&#39;, &#39;@type&#39;: &#39;ChEBI&#39;},
+                               {&#39;@id&#39;: &#39;1.7.5.1&#39;, &#39;@type&#39;: &#39;EC&#39;}],
+               &#39;text&#39;: &#39;a quinol + nitrate = a quinone + H2O + nitrite&#39;}},
+ {&#39;@type&#39;: &#39;cofactor&#39;,
+  &#39;cofactor&#39;: {&#39;dbReference&#39;: {&#39;@id&#39;: &#39;CHEBI:49883&#39;, &#39;@type&#39;: &#39;ChEBI&#39;},
+               &#39;name&#39;: &#39;[4Fe-4S] cluster&#39;},
+  &#39;text&#39;: &#39;Binds 1 [4Fe-4S] cluster per subunit.&#39;},
+ {&#39;@type&#39;: &#39;cofactor&#39;,
+  &#39;cofactor&#39;: {&#39;dbReference&#39;: {&#39;@id&#39;: &#39;CHEBI:60539&#39;, &#39;@type&#39;: &#39;ChEBI&#39;},
+               &#39;name&#39;: &#39;Mo-bis(molybdopterin guanine dinucleotide)&#39;},
+  &#39;text&#39;: &#39;Binds 1 molybdenum-bis(molybdopterin guanine dinucleotide) &#39;
+          &#39;(Mo-bis-MGD) cofactor per subunit.&#39;},
+ {&#39;@type&#39;: &#39;subunit&#39;,
+  &#39;text&#39;: {&#39;#text&#39;: &#39;Dimer of heterotrimers each composed of an alpha, a beta &#39;
+                    &#39;and a gamma chain. Alpha and beta are catalytic chains; &#39;
+                    &#39;gamma chains are involved in binding the enzyme complex &#39;
+                    &#39;to the cytoplasmic membrane. Interacts with the NarJ &#39;
+                    &#39;chaperone.&#39;,
+           &#39;@evidence&#39;: &#39;2 3 4 7&#39;}},
+ {&#39;@type&#39;: &#39;interaction&#39;,
+  &#39;experiments&#39;: &#39;13&#39;,
+  &#39;interactant&#39;: [{&#39;@intactId&#39;: &#39;EBI-547248&#39;, &#39;id&#39;: &#39;P09152&#39;},
+                  {&#39;@intactId&#39;: &#39;EBI-555067&#39;, &#39;id&#39;: &#39;P11349&#39;, &#39;label&#39;: &#39;narH&#39;}],
+  &#39;organismsDiffer&#39;: &#39;false&#39;},
+ {&#39;@type&#39;: &#39;interaction&#39;,
+  &#39;experiments&#39;: &#39;18&#39;,
+  &#39;interactant&#39;: [{&#39;@intactId&#39;: &#39;EBI-547248&#39;, &#39;id&#39;: &#39;P09152&#39;},
+                  {&#39;@intactId&#39;: &#39;EBI-555043&#39;, &#39;id&#39;: &#39;P0AF26&#39;, &#39;label&#39;: &#39;narJ&#39;}],
+  &#39;organismsDiffer&#39;: &#39;false&#39;},
+ {&#39;@type&#39;: &#39;interaction&#39;,
+  &#39;experiments&#39;: &#39;9&#39;,
+  &#39;interactant&#39;: [{&#39;@intactId&#39;: &#39;EBI-547248&#39;, &#39;id&#39;: &#39;P09152&#39;},
+                  {&#39;@intactId&#39;: &#39;EBI-555088&#39;, &#39;id&#39;: &#39;P19317&#39;, &#39;label&#39;: &#39;narW&#39;}],
+  &#39;organismsDiffer&#39;: &#39;false&#39;},
+ {&#39;@type&#39;: &#39;interaction&#39;,
+  &#39;experiments&#39;: &#39;5&#39;,
+  &#39;interactant&#39;: [{&#39;@intactId&#39;: &#39;EBI-547248&#39;, &#39;id&#39;: &#39;P09152&#39;},
+                  {&#39;@intactId&#39;: &#39;EBI-555059&#39;, &#39;id&#39;: &#39;P19318&#39;, &#39;label&#39;: &#39;narY&#39;}],
+  &#39;organismsDiffer&#39;: &#39;false&#39;},
+ {&#39;@type&#39;: &#39;subcellular location&#39;,
+  &#39;subcellularLocation&#39;: {&#39;location&#39;: &#39;Cell membrane&#39;,
+                          &#39;topology&#39;: &#39;Peripheral membrane protein&#39;}},
+ {&#39;@type&#39;: &#39;induction&#39;, &#39;text&#39;: &#39;By nitrate.&#39;},
+ {&#39;@type&#39;: &#39;domain&#39;,
+  &#39;text&#39;: {&#39;#text&#39;: &#39;Apoenzyme contains at least 2 NarJ-binding sites, one &#39;
+                    &#39;interfering with membrane anchoring and another being &#39;
+                    &#39;involved in molybdenum insertion. The first binding-site &#39;
+                    &#39;is a short peptide sequence near the N-terminus that &#39;
+                    &#39;contains a twin-arginine homologous motif.&#39;,
+           &#39;@evidence&#39;: &#39;2 3&#39;}},
+ {&#39;@type&#39;: &#39;similarity&#39;,
+  &#39;text&#39;: {&#39;#text&#39;: &#39;Belongs to the prokaryotic molybdopterin-containing &#39;
+                    &#39;oxidoreductase family.&#39;,
+           &#39;@evidence&#39;: &#39;8&#39;}},
+ {&#39;@name&#39;: &#39;Worthington enzyme manual&#39;,
+  &#39;@type&#39;: &#39;online information&#39;,
+  &#39;link&#39;: {&#39;@uri&#39;: &#39;https://www.worthington-biochem.com/NAR/&#39;}}]
+</pre></div></div>
+</div>
+</section>
+<section id="Get-the-monomers-of-a-complex">
+<h1>Get the monomers of a complex<a class="headerlink" href="#Get-the-monomers-of-a-complex" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">s</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="c1"># create session</span>
+<span class="c1"># Post login credentials to session:</span>
+<span class="n">s</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;https://websvc.biocyc.org/credentials/login/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;email&#39;</span><span class="p">:</span><span class="s1">&#39;cellulararchitect@protonmail.com&#39;</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span><span class="s1">&#39;Cellman0451&#39;</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Response [200]&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="nb">complex</span> <span class="o">=</span> <span class="s1">&#39;LEUC-MONOMER&#39;</span>
+
+<span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="nb">complex</span><span class="si">}</span><span class="s1">&amp;detail=high&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Protein&#39;</span><span class="p">]</span>
+<span class="n">pp</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;@ID&#39;: &#39;ECOLI:LEUC-MONOMER&#39;,
+ &#39;@detail&#39;: &#39;full&#39;,
+ &#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+ &#39;@orgid&#39;: &#39;ECOLI&#39;,
+ &#39;citation&#39;: [{&#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-320178&#39;,
+                               &#39;@detail&#39;: &#39;full&#39;,
+                               &#39;@frameid&#39;: &#39;PUB-320178&#39;,
+                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                               &#39;author&#39;: [{&#39;#text&#39;: &#39;Davis MG&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Calvo JM&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;}],
+                               &#39;pubmed-id&#39;: {&#39;#text&#39;: &#39;320178&#39;,
+                                             &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;source&#39;: {&#39;#text&#39;: &#39;J Bacteriol 129(2);1078-90&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;title&#39;: {&#39;#text&#39;: &#39;Isolation and &#39;
+                                                  &#39;characterization of lambda &#39;
+                                                  &#39;pleu bacteriophages.&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;year&#39;: {&#39;#text&#39;: &#39;1977&#39;,
+                                        &#39;@datatype&#39;: &#39;integer&#39;}}},
+              {&#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-15657047&#39;,
+                               &#39;@detail&#39;: &#39;full&#39;,
+                               &#39;@frameid&#39;: &#39;PUB-15657047&#39;,
+                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                               &#39;author&#39;: [{&#39;#text&#39;: &#39;Yang CR&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Shapiro BE&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Hung SP&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Mjolsness ED&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Hatfield GW&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;}],
+                               &#39;pubmed-id&#39;: {&#39;#text&#39;: &#39;15657047&#39;,
+                                             &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;source&#39;: {&#39;#text&#39;: &#39;J Biol Chem &#39;
+                                                   &#39;280(12);11224-32&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;title&#39;: {&#39;#text&#39;: &#39;A mathematical model for &#39;
+                                                  &#39;the branched chain amino &#39;
+                                                  &#39;acid biosynthetic pathways &#39;
+                                                  &#39;of Escherichia coli K12.&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;year&#39;: {&#39;#text&#39;: &#39;2005&#39;,
+                                        &#39;@datatype&#39;: &#39;integer&#39;}}},
+              {&#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-28637476&#39;,
+                               &#39;@detail&#39;: &#39;full&#39;,
+                               &#39;@frameid&#39;: &#39;PUB-28637476&#39;,
+                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                               &#39;author&#39;: [{&#39;#text&#39;: &#39;Parimi NS&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Durie IA&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Wu X&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Niyas AMM&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Eiteman MA&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;}],
+                               &#39;pubmed-id&#39;: {&#39;#text&#39;: &#39;28637476&#39;,
+                                             &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;source&#39;: {&#39;#text&#39;: &#39;Microb Cell Fact 16(1);114&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;title&#39;: {&#39;#text&#39;: &#39;Eliminating acetate &#39;
+                                                  &#39;formation improves &#39;
+                                                  &#39;citramalate production by &#39;
+                                                  &#39;metabolically engineered &#39;
+                                                  &#39;Escherichia coli.&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;year&#39;: {&#39;#text&#39;: &#39;2017&#39;,
+                                        &#39;@datatype&#39;: &#39;integer&#39;}}},
+              {&#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-28744578&#39;,
+                               &#39;@detail&#39;: &#39;full&#39;,
+                               &#39;@frameid&#39;: &#39;PUB-28744578&#39;,
+                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                               &#39;author&#39;: [{&#39;#text&#39;: &#39;Wu X&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;},
+                                          {&#39;#text&#39;: &#39;Eiteman MA&#39;,
+                                           &#39;@datatype&#39;: &#39;string&#39;}],
+                               &#39;pubmed-id&#39;: {&#39;#text&#39;: &#39;28744578&#39;,
+                                             &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;source&#39;: {&#39;#text&#39;: &#39;J Ind Microbiol Biotechnol &#39;
+                                                   &#39;44(10);1483-1490&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;title&#39;: {&#39;#text&#39;: &#39;Synthesis of citramalic &#39;
+                                                  &#39;acid from glycerol by &#39;
+                                                  &#39;metabolically engineered &#39;
+                                                  &#39;Escherichia coli.&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;},
+                               &#39;year&#39;: {&#39;#text&#39;: &#39;2017&#39;,
+                                        &#39;@datatype&#39;: &#39;integer&#39;}}}],
+ &#39;comment&#39;: {&#39;#text&#39;: &#39;Isopropylmalate (IPM) isomerase catalyzes the second &#39;
+                      &#39;step in leucine biosynthesis, converting &#39;
+                      &#39;2-isopropylmalate to 3-isopropylmalate. LeuC and LeuD &#39;
+                      &#39;are both required for the activity of IPM isomerase [&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/4587614&#34;&gt;Yang74&lt;/a&gt;, &#39;
+                      &#39;&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/23636690&#34;&gt;Carlsen13&lt;/a&gt;]. \n&#39;
+                      &#39;&lt;p&gt;\n&#39;
+                      &#39;Based on the IPM isomerase in &lt;i&gt;Salmonella &#39;
+                      &#39;typhimurium&lt;/i&gt; and cross-species complementation &#39;
+                      &#39;studies with the &lt;i&gt;Salmonella&lt;/i&gt; [&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/7026530&#34;&gt;Fultz81&lt;/a&gt;, &#39;
+                      &#39;&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/374346&#34;&gt;Fultz79&lt;/a&gt;] &#39;
+                      &#39;and &lt;i&gt;S. cerevisiae&lt;/i&gt; [&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/23636690&#34;&gt;Carlsen13&lt;/a&gt;] &#39;
+                      &#39;enzymes, &lt;i&gt;E. coli&lt;/i&gt; IPM isomerase is likely to be a &#39;
+                      &#39;protein complex consisting of a 1:1 pairing of the of &#39;
+                      &#39;&lt;i&gt;leuC&lt;/i&gt; and &lt;i&gt;leuD&lt;/i&gt; gene products [&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/7026530&#34;&gt;Fultz81&lt;/a&gt;, &#39;
+                      &#39;&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/374346&#34;&gt;Fultz79&lt;/a&gt;].\n&#39;
+                      &#39;&lt;p&gt;\n&#39;
+                      &#39;LeuC protein levels are increased in a &#39;
+                      &#39;threonine-overproducing mutant [&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/15104539&#34;&gt;Kim04&lt;/a&gt;]; &#39;
+                      &#39;LeuC leves are decreased after 30 minutes of excess &#39;
+                      &#39;zinc stress [&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/17122063&#34;&gt;Easton06&lt;/a&gt;].\n&#39;
+                      &#39;&lt;p&gt;\n&#39;
+                      &#39;&lt;i&gt;leuC&lt;/i&gt; insertion mutants, which cause leucine &#39;
+                      &#39;auxotrophy, lead to increased antibiotic tolerance in &#39;
+                      &#39;biofilms under leucine starvation conditions [&lt;a &#39;
+                      &#39;href=&#34;http://www.ncbi.nlm.nih.gov/pubmed/23300476&#34;&gt;Bernier13&lt;/a&gt;].&#39;,
+             &#39;@datatype&#39;: &#39;string&#39;},
+ &#39;common-name&#39;: {&#39;#text&#39;: &#39;3-isopropylmalate dehydratase subunit LeuC&#39;,
+                 &#39;@datatype&#39;: &#39;string&#39;},
+ &#39;component-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;3-ISOPROPYLMALISOM-CPLX&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:3-ISOPROPYLMALISOM-CPLX&#39;}},
+ &#39;credits&#39;: {&#39;last-curated&#39;: [{&#39;Organization&#39;: {&#39;@frameid&#39;: &#39;SRI&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:SRI&#39;},
+                               &#39;Person&#39;: {&#39;@ID&#39;: &#39;ECOLI:kubo&#39;,
+                                          &#39;@detail&#39;: &#39;full&#39;,
+                                          &#39;@frameid&#39;: &#39;kubo&#39;,
+                                          &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                          &#39;affiliations&#39;: {&#39;Organization&#39;: {&#39;@ID&#39;: &#39;ECOLI:SRI&#39;,
+                                                                            &#39;@detail&#39;: &#39;full&#39;,
+                                                                            &#39;@frameid&#39;: &#39;SRI&#39;,
+                                                                            &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                                            &#39;abbrev-name&#39;: {&#39;#text&#39;: &#39;SRI &#39;
+                                                                                                     &#39;International&#39;,
+                                                                                            &#39;@datatype&#39;: &#39;string&#39;},
+                                                                            &#39;common-name&#39;: {&#39;#text&#39;: &#39;SRI &#39;
+                                                                                                     &#39;International&#39;,
+                                                                                            &#39;@datatype&#39;: &#39;string&#39;},
+                                                                            &#39;email&#39;: {&#39;#text&#39;: &#39;ptools-support@ai.sri.com&#39;,
+                                                                                      &#39;@datatype&#39;: &#39;string&#39;},
+                                                                            &#39;url&#39;: {&#39;#text&#39;: &#39;http://bioinformatics.ai.sri.com/&#39;,
+                                                                                    &#39;@datatype&#39;: &#39;string&#39;}}},
+                                          &#39;email&#39;: {&#39;#text&#39;: &#39;kubo@ai.sri.com&#39;,
+                                                    &#39;@datatype&#39;: &#39;string&#39;}},
+                               &#39;date&#39;: {&#39;#text&#39;: &#39;2013-09-26&#39;,
+                                        &#39;@datatype&#39;: &#39;date&#39;}},
+                              {&#39;Organization&#39;: {&#39;@frameid&#39;: &#39;SRI&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:SRI&#39;},
+                               &#39;Person&#39;: {&#39;@ID&#39;: &#39;ECOLI:keseler&#39;,
+                                          &#39;@detail&#39;: &#39;full&#39;,
+                                          &#39;@frameid&#39;: &#39;keseler&#39;,
+                                          &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                          &#39;affiliations&#39;: {&#39;Organization&#39;: {&#39;@frameid&#39;: &#39;SRI&#39;,
+                                                                            &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                                            &#39;@resource&#39;: &#39;#ECOLI:SRI&#39;}},
+                                          &#39;common-name&#39;: {&#39;#text&#39;: &#39;Ingrid &#39;
+                                                                   &#39;Keseler&#39;,
+                                                          &#39;@datatype&#39;: &#39;string&#39;},
+                                          &#39;email&#39;: {&#39;#text&#39;: &#39;keseler@ai.sri.com&#39;,
+                                                    &#39;@datatype&#39;: &#39;string&#39;}},
+                               &#39;date&#39;: {&#39;#text&#39;: &#39;2018-02-09&#39;,
+                                        &#39;@datatype&#39;: &#39;date&#39;}}]},
+ &#39;dblink&#39;: [{&#39;dblink-URL&#39;: &#39;https://alphafold.ebi.ac.uk/entry/P0A6A6&#39;,
+             &#39;dblink-db&#39;: &#39;ALPHAFOLD&#39;,
+             &#39;dblink-oid&#39;: &#39;P0A6A6&#39;,
+             &#39;dblink-relationship&#39;: &#39;unification&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ebi.ac.uk/interpro/entry/IPR036008&#39;,
+             &#39;dblink-db&#39;: &#39;INTERPRO&#39;,
+             &#39;dblink-oid&#39;: &#39;IPR036008&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;https://www.ebi.ac.uk/interpro/entry/pfam/PF00330&#39;,
+             &#39;dblink-db&#39;: &#39;PFAM&#39;,
+             &#39;dblink-oid&#39;: &#39;PF00330&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ebi.ac.uk/interpro/entry/IPR033941&#39;,
+             &#39;dblink-db&#39;: &#39;INTERPRO&#39;,
+             &#39;dblink-oid&#39;: &#39;IPR033941&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://dip.doe-mbi.ucla.edu/dip/Browse.cgi?ID=DIP-35834N&#39;,
+             &#39;dblink-db&#39;: &#39;DIP&#39;,
+             &#39;dblink-oid&#39;: &#39;DIP-35834N&#39;,
+             &#39;dblink-relationship&#39;: &#39;unification&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ebi.ac.uk/interpro/entry/IPR018136&#39;,
+             &#39;dblink-db&#39;: &#39;INTERPRO&#39;,
+             &#39;dblink-oid&#39;: &#39;IPR018136&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ebi.ac.uk/interpro/entry/IPR001030&#39;,
+             &#39;dblink-db&#39;: &#39;INTERPRO&#39;,
+             &#39;dblink-oid&#39;: &#39;IPR001030&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ebi.ac.uk/interpro/entry/IPR015931&#39;,
+             &#39;dblink-db&#39;: &#39;INTERPRO&#39;,
+             &#39;dblink-oid&#39;: &#39;IPR015931&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ebi.ac.uk/interpro/entry/IPR004430&#39;,
+             &#39;dblink-db&#39;: &#39;INTERPRO&#39;,
+             &#39;dblink-oid&#39;: &#39;IPR004430&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://prosite.expasy.org/cgi-bin/prosite/nicedoc.pl?PS01244&#39;,
+             &#39;dblink-db&#39;: &#39;PROSITE&#39;,
+             &#39;dblink-oid&#39;: &#39;PS01244&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://prosite.expasy.org/cgi-bin/prosite/nicedoc.pl?PS00450&#39;,
+             &#39;dblink-db&#39;: &#39;PROSITE&#39;,
+             &#39;dblink-oid&#39;: &#39;PS00450&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ebi.ac.uk/pride/searchSummary.do?queryTypeSelected=identification%20accession%20number&amp;identificationAccessionNumber=P0A6A6&#39;,
+             &#39;dblink-db&#39;: &#39;PRIDE&#39;,
+             &#39;dblink-oid&#39;: &#39;P0A6A6&#39;,
+             &#39;dblink-relationship&#39;: &#39;unification&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.bioinf.manchester.ac.uk/cgi-bin/dbbrowser/sprint/searchprintss.cgi?display_opts=Prints&amp;category=None&amp;queryform=false&amp;prints_accn=PR00415&#39;,
+             &#39;dblink-db&#39;: &#39;PRINTS&#39;,
+             &#39;dblink-oid&#39;: &#39;PR00415&#39;,
+             &#39;dblink-relationship&#39;: &#39;IN-FAMILY&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://pir.georgetown.edu/cgi-bin/pro/entry_pro?id=PRO_000023083&#39;,
+             &#39;dblink-db&#39;: &#39;PRODB&#39;,
+             &#39;dblink-oid&#39;: &#39;PRO_000023083&#39;,
+             &#39;dblink-relationship&#39;: &#39;unification&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://ecoliwiki.org/colipedia/index.php/b0072&#39;,
+             &#39;dblink-db&#39;: &#39;ECOLIWIKI&#39;,
+             &#39;dblink-oid&#39;: &#39;b0072&#39;,
+             &#39;dblink-relationship&#39;: &#39;unification&#39;},
+            {&#39;dblink-URL&#39;: &#39;https://www.uniprot.org/uniprot/P0A6A6&#39;,
+             &#39;dblink-db&#39;: &#39;UNIPROT&#39;,
+             &#39;dblink-oid&#39;: &#39;P0A6A6&#39;,
+             &#39;dblink-relationship&#39;: &#39;unification&#39;},
+            {&#39;dblink-URL&#39;: &#39;http://www.ncbi.nlm.nih.gov/entrez/viewer.fcgi?val=NP_414614&#39;,
+             &#39;dblink-db&#39;: &#39;REFSEQ&#39;,
+             &#39;dblink-oid&#39;: &#39;NP_414614&#39;,
+             &#39;dblink-relationship&#39;: &#39;unification&#39;}],
+ &#39;gene&#39;: {&#39;Gene&#39;: {&#39;@frameid&#39;: &#39;EG11576&#39;,
+                   &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                   &#39;@resource&#39;: &#39;getxml?ECOLI:EG11576&#39;}},
+ &#39;has-feature&#39;: [{&#39;Feature&#39;: {&#39;@ID&#39;: &#39;ECOLI:FTR0-1602312&#39;,
+                              &#39;@detail&#39;: &#39;full&#39;,
+                              &#39;@frameid&#39;: &#39;FTR0-1602312&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;accession-1&#39;: {&#39;#text&#39;: &#39;PF00330.23&#39;,
+                                              &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@ID&#39;: &#39;ECOLI:EV-COMP-AINF&#39;,
+                                                             &#39;@class&#39;: &#39;true&#39;,
+                                                             &#39;@detail&#39;: &#39;full&#39;,
+                                                             &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                             &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                             &#39;comment&#39;: {...},
+                                                             &#39;common-name&#39;: {&#39;#text&#39;: &#39;Inferred &#39;
+                                                                                      &#39;computationally &#39;
+                                                                                      &#39;without &#39;
+                                                                                      &#39;human &#39;
+                                                                                      &#39;oversight&#39;,
+                                                                             &#39;@datatype&#39;: &#39;string&#39;},
+                                                             &#39;parent&#39;: {...}},
+                                           &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-26673716&#39;,
+                                                           &#39;@detail&#39;: &#39;full&#39;,
+                                                           &#39;@frameid&#39;: &#39;PUB-26673716&#39;,
+                                                           &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                           &#39;author&#39;: [...],
+                                                           &#39;pubmed-id&#39;: {...},
+                                                           &#39;source&#39;: {...},
+                                                           &#39;title&#39;: {...},
+                                                           &#39;year&#39;: {...}}},
+                              &#39;feature-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;#ECOLI:LEUC-MONOMER&#39;}},
+                              &#39;left-end-position&#39;: {&#39;#text&#39;: &#39;7&#39;,
+                                                    &#39;@datatype&#39;: &#39;integer&#39;},
+                              &#39;parent&#39;: {&#39;Feature&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                     &#39;@frameid&#39;: &#39;Pfam-Features&#39;,
+                                                     &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                     &#39;@resource&#39;: &#39;getxml?ECOLI:Pfam-Features&#39;}},
+                              &#39;right-end-position&#39;: {&#39;#text&#39;: &#39;457&#39;,
+                                                     &#39;@datatype&#39;: &#39;integer&#39;}}},
+                 {&#39;Feature&#39;: {&#39;@ID&#39;: &#39;ECOLI:FTR0-1589756&#39;,
+                              &#39;@detail&#39;: &#39;full&#39;,
+                              &#39;@frameid&#39;: &#39;FTR0-1589756&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;alternate-sequence&#39;: {&#39;#text&#39;: &#39;G&#39;,
+                                                     &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;comment&#39;: {&#39;#text&#39;: &#39;UniProt: In Ref. 5; &#39;
+                                                   &#39;BAA21004/BAA21005..&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;evidence&#39;: [{&#39;Evidence-Code&#39;: {...},
+                                            &#39;Publication&#39;: {...}},
+                                           {&#39;Evidence-Code&#39;: {...},
+                                            &#39;Publication&#39;: {...}}],
+                              &#39;feature-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;#ECOLI:LEUC-MONOMER&#39;}},
+                              &#39;left-end-position&#39;: {&#39;#text&#39;: &#39;74&#39;,
+                                                    &#39;@datatype&#39;: &#39;integer&#39;},
+                              &#39;parent&#39;: {&#39;Feature&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                     &#39;@frameid&#39;: &#39;Sequence-Conflicts&#39;,
+                                                     &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                     &#39;@resource&#39;: &#39;getxml?ECOLI:Sequence-Conflicts&#39;}},
+                              &#39;right-end-position&#39;: {&#39;#text&#39;: &#39;74&#39;,
+                                                     &#39;@datatype&#39;: &#39;integer&#39;}}},
+                 {&#39;Feature&#39;: {&#39;@ID&#39;: &#39;ECOLI:FTR0-1589755&#39;,
+                              &#39;@detail&#39;: &#39;full&#39;,
+                              &#39;@frameid&#39;: &#39;FTR0-1589755&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;comment&#39;: {&#39;#text&#39;: &#39;UniProt: Iron-sulfur &#39;
+                                                   &#39;(4Fe-4S).&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@ID&#39;: &#39;ECOLI:EV-COMP-HINF-ISM&#39;,
+                                                             &#39;@class&#39;: &#39;true&#39;,
+                                                             &#39;@detail&#39;: &#39;full&#39;,
+                                                             &#39;@frameid&#39;: &#39;EV-COMP-HINF-ISM&#39;,
+                                                             &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                             &#39;comment&#39;: {...},
+                                                             &#39;common-name&#39;: {&#39;#text&#39;: &#39;Inferred &#39;
+                                                                                      &#39;from &#39;
+                                                                                      &#39;Sequence &#39;
+                                                                                      &#39;Model&#39;,
+                                                                             &#39;@datatype&#39;: &#39;string&#39;},
+                                                             &#39;parent&#39;: {...}},
+                                           &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-UNIPROT-2021-03&#39;,
+                                                           &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                           &#39;@resource&#39;: &#39;#ECOLI:PUB-UNIPROT-2021-03&#39;}},
+                              &#39;feature-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;#ECOLI:LEUC-MONOMER&#39;}},
+                              &#39;parent&#39;: {&#39;Feature&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                     &#39;@frameid&#39;: &#39;Metal-Binding-Sites&#39;,
+                                                     &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                     &#39;@resource&#39;: &#39;getxml?ECOLI:Metal-Binding-Sites&#39;}},
+                              &#39;residue-number&#39;: {&#39;#text&#39;: &#39;410&#39;,
+                                                 &#39;@datatype&#39;: &#39;integer&#39;}}},
+                 {&#39;Feature&#39;: {&#39;@ID&#39;: &#39;ECOLI:FTR0-1589754&#39;,
+                              &#39;@detail&#39;: &#39;full&#39;,
+                              &#39;@frameid&#39;: &#39;FTR0-1589754&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;comment&#39;: {&#39;#text&#39;: &#39;UniProt: Iron-sulfur &#39;
+                                                   &#39;(4Fe-4S).&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                             &#39;@frameid&#39;: &#39;EV-COMP-HINF-ISM&#39;,
+                                                             &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                             &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-HINF-ISM&#39;},
+                                           &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-UNIPROT-2021-03&#39;,
+                                                           &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                           &#39;@resource&#39;: &#39;#ECOLI:PUB-UNIPROT-2021-03&#39;}},
+                              &#39;feature-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;#ECOLI:LEUC-MONOMER&#39;}},
+                              &#39;parent&#39;: {&#39;Feature&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                     &#39;@frameid&#39;: &#39;Metal-Binding-Sites&#39;,
+                                                     &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                     &#39;@resource&#39;: &#39;getxml?ECOLI:Metal-Binding-Sites&#39;}},
+                              &#39;residue-number&#39;: {&#39;#text&#39;: &#39;407&#39;,
+                                                 &#39;@datatype&#39;: &#39;integer&#39;}}},
+                 {&#39;Feature&#39;: {&#39;@ID&#39;: &#39;ECOLI:FTR0-1589753&#39;,
+                              &#39;@detail&#39;: &#39;full&#39;,
+                              &#39;@frameid&#39;: &#39;FTR0-1589753&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;comment&#39;: {&#39;#text&#39;: &#39;UniProt: Iron-sulfur &#39;
+                                                   &#39;(4Fe-4S).&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                             &#39;@frameid&#39;: &#39;EV-COMP-HINF-ISM&#39;,
+                                                             &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                             &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-HINF-ISM&#39;},
+                                           &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-UNIPROT-2021-03&#39;,
+                                                           &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                           &#39;@resource&#39;: &#39;#ECOLI:PUB-UNIPROT-2021-03&#39;}},
+                              &#39;feature-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;#ECOLI:LEUC-MONOMER&#39;}},
+                              &#39;parent&#39;: {&#39;Feature&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                     &#39;@frameid&#39;: &#39;Metal-Binding-Sites&#39;,
+                                                     &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                     &#39;@resource&#39;: &#39;getxml?ECOLI:Metal-Binding-Sites&#39;}},
+                              &#39;residue-number&#39;: {&#39;#text&#39;: &#39;347&#39;,
+                                                 &#39;@datatype&#39;: &#39;integer&#39;}}},
+                 {&#39;Feature&#39;: {&#39;@ID&#39;: &#39;ECOLI:FTR0-1589752&#39;,
+                              &#39;@detail&#39;: &#39;full&#39;,
+                              &#39;@frameid&#39;: &#39;FTR0-1589752&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;comment&#39;: {&#39;#text&#39;: &#39;UniProt: 3-isopropylmalate &#39;
+                                                   &#39;dehydratase large subunit.&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@ID&#39;: &#39;ECOLI:EV-AS-NAS&#39;,
+                                                             &#39;@class&#39;: &#39;true&#39;,
+                                                             &#39;@detail&#39;: &#39;full&#39;,
+                                                             &#39;@frameid&#39;: &#39;EV-AS-NAS&#39;,
+                                                             &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                             &#39;comment&#39;: {...},
+                                                             &#39;common-name&#39;: {&#39;#text&#39;: &#39;Non-traceable &#39;
+                                                                                      &#39;author &#39;
+                                                                                      &#39;statement&#39;,
+                                                                             &#39;@datatype&#39;: &#39;string&#39;},
+                                                             &#39;parent&#39;: {...}},
+                                           &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-UNIPROT-2021-03&#39;,
+                                                           &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                           &#39;@resource&#39;: &#39;#ECOLI:PUB-UNIPROT-2021-03&#39;}},
+                              &#39;feature-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;#ECOLI:LEUC-MONOMER&#39;}},
+                              &#39;left-end-position&#39;: {&#39;#text&#39;: &#39;2&#39;,
+                                                    &#39;@datatype&#39;: &#39;integer&#39;},
+                              &#39;parent&#39;: {&#39;Feature&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                     &#39;@frameid&#39;: &#39;Chains&#39;,
+                                                     &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                     &#39;@resource&#39;: &#39;getxml?ECOLI:Chains&#39;}},
+                              &#39;right-end-position&#39;: {&#39;#text&#39;: &#39;466&#39;,
+                                                     &#39;@datatype&#39;: &#39;integer&#39;}}},
+                 {&#39;Feature&#39;: {&#39;@ID&#39;: &#39;ECOLI:FTR0-1440529&#39;,
+                              &#39;@detail&#39;: &#39;full&#39;,
+                              &#39;@frameid&#39;: &#39;FTR0-1440529&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;comment&#39;: {&#39;#text&#39;: &#39;UniProt: Removed.&#39;,
+                                          &#39;@datatype&#39;: &#39;string&#39;},
+                              &#39;evidence&#39;: [{&#39;Evidence-Code&#39;: {...},
+                                            &#39;Publication&#39;: {...}},
+                                           {&#39;Evidence-Code&#39;: {...},
+                                            &#39;Publication&#39;: {...}},
+                                           {&#39;Evidence-Code&#39;: {...},
+                                            &#39;Publication&#39;: {...}}],
+                              &#39;feature-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;#ECOLI:LEUC-MONOMER&#39;}},
+                              &#39;parent&#39;: {&#39;Feature&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                     &#39;@frameid&#39;: &#39;Cleavage-of-Initial-Methionine&#39;,
+                                                     &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                     &#39;@resource&#39;: &#39;getxml?ECOLI:Cleavage-of-Initial-Methionine&#39;}},
+                              &#39;residue-number&#39;: {&#39;#text&#39;: &#39;1&#39;,
+                                                 &#39;@datatype&#39;: &#39;integer&#39;},
+                              &#39;residue-type&#39;: {&#39;Compound&#39;: {&#39;@frameid&#39;: &#39;MET&#39;,
+                                                            &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                            &#39;@resource&#39;: &#39;getxml?ECOLI:MET&#39;}}}}],
+ &#39;has-go-term&#39;: [{&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0043436&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0043436&#39;},
+                  &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                 &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                 &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                 &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                               &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-GO_REF-0000117&#39;,
+                                               &#39;@detail&#39;: &#39;full&#39;,
+                                               &#39;@frameid&#39;: &#39;PUB-GO_REF-0000117&#39;,
+                                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                               &#39;author&#39;: {&#39;#text&#39;: &#39;UniProt&#39;,
+                                                          &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;title&#39;: {&#39;#text&#39;: &#39;Electronic &#39;
+                                                                  &#39;Gene &#39;
+                                                                  &#39;Ontology &#39;
+                                                                  &#39;annotations &#39;
+                                                                  &#39;created by &#39;
+                                                                  &#39;ARBA &#39;
+                                                                  &#39;machine &#39;
+                                                                  &#39;learning &#39;
+                                                                  &#39;models&#39;,
+                                                         &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;url&#39;: {&#39;#text&#39;: &#39;http://www.geneontology.org/doc/GO.references&#39;,
+                                                       &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;year&#39;: {&#39;#text&#39;: &#39;2021&#39;,
+                                                        &#39;@datatype&#39;: &#39;integer&#39;}},
+                               &#39;with&#39;: {&#39;#text&#39;: &#39;ARBA\\:ARBA00027279&#39;,
+                                        &#39;@datatype&#39;: &#39;string&#39;}}},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0005515&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0005515&#39;},
+                  &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@ID&#39;: &#39;ECOLI:EV-EXP-IPI&#39;,
+                                                 &#39;@class&#39;: &#39;true&#39;,
+                                                 &#39;@detail&#39;: &#39;full&#39;,
+                                                 &#39;@frameid&#39;: &#39;EV-EXP-IPI&#39;,
+                                                 &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                 &#39;comment&#39;: {&#39;#text&#39;: &#39;IPI &#39;
+                                                                      &#39;inferred &#39;
+                                                                      &#39;from &#39;
+                                                                      &#39;physical &#39;
+                                                                      &#39;interaction\n&#39;
+                                                                      &#39;\n&#39;
+                                                                      &#39;&lt;br&gt;\n&#39;
+                                                                      &#39;The &#39;
+                                                                      &#39;assertion &#39;
+                                                                      &#39;was &#39;
+                                                                      &#39;inferred &#39;
+                                                                      &#39;from a &#39;
+                                                                      &#39;physical &#39;
+                                                                      &#39;interaction &#39;
+                                                                      &#39;such &#39;
+                                                                      &#39;as\n&#39;
+                                                                      &#39;&lt;ul&gt;\n&#39;
+                                                                      &#39;    &#39;
+                                                                      &#39;&lt;li&gt; &#39;
+                                                                      &#39;2-hybrid &#39;
+                                                                      &#39;interactions\n&#39;
+                                                                      &#39;    &#39;
+                                                                      &#39;&lt;li&gt; &#39;
+                                                                      &#39;Co-purification\n&#39;
+                                                                      &#39;    &#39;
+                                                                      &#39;&lt;li&gt; &#39;
+                                                                      &#39;Co-immunoprecipitation\n&#39;
+                                                                      &#39;    &#39;
+                                                                      &#39;&lt;li&gt; &#39;
+                                                                      &#39;Ion/protein &#39;
+                                                                      &#39;binding &#39;
+                                                                      &#39;experiments\n&#39;
+                                                                      &#39;&lt;/ul&gt;&lt;p &#39;
+                                                                      &#39;class=ecocomment&gt;\n&#39;
+                                                                      &#39;This &#39;
+                                                                      &#39;code &#39;
+                                                                      &#39;covers &#39;
+                                                                      &#39;physical &#39;
+                                                                      &#39;interactions &#39;
+                                                                      &#39;between &#39;
+                                                                      &#39;the &#39;
+                                                                      &#39;gene &#39;
+                                                                      &#39;product &#39;
+                                                                      &#39;of\n&#39;
+                                                                      &#39;interest &#39;
+                                                                      &#39;and &#39;
+                                                                      &#39;another &#39;
+                                                                      &#39;molecule &#39;
+                                                                      &#39;(or &#39;
+                                                                      &#39;ion, or &#39;
+                                                                      &#39;complex). &#39;
+                                                                      &#39;For &#39;
+                                                                      &#39;functions &#39;
+                                                                      &#39;such\n&#39;
+                                                                      &#39;as &#39;
+                                                                      &#39;protein &#39;
+                                                                      &#39;binding &#39;
+                                                                      &#39;or &#39;
+                                                                      &#39;nucleic &#39;
+                                                                      &#39;acid &#39;
+                                                                      &#39;binding, &#39;
+                                                                      &#39;a &#39;
+                                                                      &#39;binding &#39;
+                                                                      &#39;assay &#39;
+                                                                      &#39;is\n&#39;
+                                                                      &#39;simultaneously &#39;
+                                                                      &#39;IPI and &#39;
+                                                                      &#39;IDA; &#39;
+                                                                      &#39;IDA is &#39;
+                                                                      &#39;preferred &#39;
+                                                                      &#39;because &#39;
+                                                                      &#39;the &#39;
+                                                                      &#39;assay\n&#39;
+                                                                      &#39;directly &#39;
+                                                                      &#39;detects &#39;
+                                                                      &#39;the &#39;
+                                                                      &#39;binding. &#39;
+                                                                      &#39;For &#39;
+                                                                      &#39;both &#39;
+                                                                      &#39;IPI and &#39;
+                                                                      &#39;IGI, it &#39;
+                                                                      &#39;would &#39;
+                                                                      &#39;be &#39;
+                                                                      &#39;good\n&#39;
+                                                                      &#39;practice &#39;
+                                                                      &#39;to &#39;
+                                                                      &#39;qualify &#39;
+                                                                      &#39;them &#39;
+                                                                      &#39;with &#39;
+                                                                      &#39;the &#39;
+                                                                      &#39;gene/protein/ion.&#39;,
+                                                             &#39;@datatype&#39;: &#39;string&#39;},
+                                                 &#39;common-name&#39;: {&#39;#text&#39;: &#39;Inferred &#39;
+                                                                          &#39;from &#39;
+                                                                          &#39;physical &#39;
+                                                                          &#39;interaction&#39;,
+                                                                 &#39;@datatype&#39;: &#39;string&#39;},
+                                                 &#39;parent&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                                              &#39;@frameid&#39;: &#39;EV-EXP&#39;,
+                                                                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                                              &#39;@resource&#39;: &#39;#ECOLI:EV-EXP&#39;}}},
+                               &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-24561554&#39;,
+                                               &#39;@detail&#39;: &#39;full&#39;,
+                                               &#39;@frameid&#39;: &#39;PUB-24561554&#39;,
+                                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                               &#39;author&#39;: [{...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...},
+                                                          {...}],
+                                               &#39;pubmed-id&#39;: {&#39;#text&#39;: &#39;24561554&#39;,
+                                                             &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;source&#39;: {&#39;#text&#39;: &#39;Nat &#39;
+                                                                   &#39;Biotechnol &#39;
+                                                                   &#39;32(3);285-90&#39;,
+                                                          &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;title&#39;: {&#39;#text&#39;: &#39;The binary &#39;
+                                                                  &#39;protein-protein &#39;
+                                                                  &#39;interaction &#39;
+                                                                  &#39;landscape &#39;
+                                                                  &#39;of &#39;
+                                                                  &#39;Escherichia &#39;
+                                                                  &#39;coli.&#39;,
+                                                         &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;year&#39;: {&#39;#text&#39;: &#39;2014&#39;,
+                                                        &#39;@datatype&#39;: &#39;integer&#39;}},
+                               &#39;with&#39;: {&#39;#text&#39;: &#39;UniProtKB\\:P30126&#39;,
+                                        &#39;@datatype&#39;: &#39;string&#39;}}},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0016829&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0016829&#39;},
+                  &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                 &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                 &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                 &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                               &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-GO_REF-0000043&#39;,
+                                               &#39;@detail&#39;: &#39;full&#39;,
+                                               &#39;@frameid&#39;: &#39;PUB-GO_REF-0000043&#39;,
+                                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                               &#39;author&#39;: {&#39;#text&#39;: &#39;UniProt-GOA&#39;,
+                                                          &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;title&#39;: {&#39;#text&#39;: &#39;Gene &#39;
+                                                                  &#39;Ontology &#39;
+                                                                  &#39;annotation &#39;
+                                                                  &#39;based on &#39;
+                                                                  &#39;UniProtKB/Swiss-Prot &#39;
+                                                                  &#39;keyword &#39;
+                                                                  &#39;mapping, &#39;
+                                                                  &#39;accompanied &#39;
+                                                                  &#39;by &#39;
+                                                                  &#39;conservative &#39;
+                                                                  &#39;changes to &#39;
+                                                                  &#39;GO terms &#39;
+                                                                  &#39;applied by &#39;
+                                                                  &#39;UniProt.&#39;,
+                                                         &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;url&#39;: {&#39;#text&#39;: &#39;http://www.geneontology.org/doc/GO.references&#39;,
+                                                       &#39;@datatype&#39;: &#39;string&#39;},
+                                               &#39;year&#39;: {&#39;#text&#39;: &#39;2012&#39;,
+                                                        &#39;@datatype&#39;: &#39;integer&#39;}},
+                               &#39;with&#39;: {&#39;#text&#39;: &#39;SP_KW\\:KW-0456&#39;,
+                                        &#39;@datatype&#39;: &#39;string&#39;}}},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0009082&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0009082&#39;},
+                  &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                 &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                 &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                 &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                               &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000043&#39;,
+                                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                               &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000043&#39;},
+                               &#39;with&#39;: {&#39;#text&#39;: &#39;SP_KW\\:KW-0100&#39;,
+                                        &#39;@datatype&#39;: &#39;string&#39;}}},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0008652&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0008652&#39;},
+                  &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                 &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                 &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                 &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                               &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000043&#39;,
+                                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                               &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000043&#39;},
+                               &#39;with&#39;: {&#39;#text&#39;: &#39;SP_KW\\:KW-0028&#39;,
+                                        &#39;@datatype&#39;: &#39;string&#39;}}},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0051536&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0051536&#39;},
+                  &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                 &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                 &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                 &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                               &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000043&#39;,
+                                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                               &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000043&#39;},
+                               &#39;with&#39;: {&#39;#text&#39;: &#39;SP_KW\\:KW-0411&#39;,
+                                        &#39;@datatype&#39;: &#39;string&#39;}}},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0046872&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0046872&#39;},
+                  &#39;evidence&#39;: {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                 &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                 &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                 &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                               &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000043&#39;,
+                                               &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                               &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000043&#39;},
+                               &#39;with&#39;: {&#39;#text&#39;: &#39;SP_KW\\:KW-0479&#39;,
+                                        &#39;@datatype&#39;: &#39;string&#39;}}},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0003861&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0003861&#39;},
+                  &#39;evidence&#39;: [{&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-GO_REF-0000002&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-GO_REF-0000002&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;title&#39;: {...},
+                                                &#39;url&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;InterPro\\:IPR004430|InterPro\\:IPR033941&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-GO_REF-0000003&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-GO_REF-0000003&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;url&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;EC\\:4.2.1.33&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-GO_REF-0000116&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-GO_REF-0000116&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;url&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;RHEA\\:32287&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-GO_REF-0000104&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-GO_REF-0000104&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;url&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;UniRule\\:UR000100515&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}}]},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0009316&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0009316&#39;},
+                  &#39;evidence&#39;: [{&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-AS-NAS&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-AS-NAS&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-4587614&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-4587614&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@ID&#39;: &#39;ECOLI:EV-EXP-IGI-FUNC-COMPLEMENTATION&#39;,
+                                                  &#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@detail&#39;: &#39;full&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-EXP-IGI-FUNC-COMPLEMENTATION&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;comment&#39;: {...},
+                                                  &#39;common-name&#39;: {...},
+                                                  &#39;parent&#39;: {...}},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-374346&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-374346&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-EXP-IGI-FUNC-COMPLEMENTATION&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-EXP-IGI-FUNC-COMPLEMENTATION&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-23636690&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-23636690&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}}]},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0005829&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0005829&#39;},
+                  &#39;evidence&#39;: [{&#39;Evidence-Code&#39;: {&#39;@ID&#39;: &#39;ECOLI:EV-EXP-IDA&#39;,
+                                                  &#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@detail&#39;: &#39;full&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-EXP-IDA&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;comment&#39;: {...},
+                                                  &#39;common-name&#39;: {...},
+                                                  &#39;parent&#39;: {...}},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-15911532&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-15911532&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-EXP-IDA&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-EXP-IDA&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-18304323&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-18304323&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-19054114&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-19054114&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}}]},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0051539&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0051539&#39;},
+                  &#39;evidence&#39;: [{&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000002&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000002&#39;},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;InterPro\\:IPR004430&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000043&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000043&#39;},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;SP_KW\\:KW-0004&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-IC&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-IC&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-17102132&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-17102132&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}}]},
+                 {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                              &#39;@frameid&#39;: &#39;GO:0009098&#39;,
+                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                              &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0009098&#39;},
+                  &#39;evidence&#39;: [{&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-AS-NAS&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-AS-NAS&#39;},
+                                &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-4587614&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:PUB-4587614&#39;},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000002&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000002&#39;},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;InterPro\\:IPR004430&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000043&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000043&#39;},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;SP_KW\\:KW-0432&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@frameid&#39;: &#39;PUB-GO_REF-0000104&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;@resource&#39;: &#39;#ECOLI:PUB-GO_REF-0000104&#39;},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;UniRule\\:UR000100515&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-COMP-AINF&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;@resource&#39;: &#39;#ECOLI:EV-COMP-AINF&#39;},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-GO_REF-0000041&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-GO_REF-0000041&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;url&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;#text&#39;: &#39;UniPathway\\:UPA00048&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}},
+                               {&#39;Evidence-Code&#39;: {&#39;@ID&#39;: &#39;ECOLI:EV-EXP-IMP&#39;,
+                                                  &#39;@class&#39;: &#39;true&#39;,
+                                                  &#39;@detail&#39;: &#39;full&#39;,
+                                                  &#39;@frameid&#39;: &#39;EV-EXP-IMP&#39;,
+                                                  &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                  &#39;comment&#39;: {...},
+                                                  &#39;common-name&#39;: {...},
+                                                  &#39;parent&#39;: {...}},
+                                &#39;Publication&#39;: {&#39;@ID&#39;: &#39;ECOLI:PUB-4570778&#39;,
+                                                &#39;@detail&#39;: &#39;full&#39;,
+                                                &#39;@frameid&#39;: &#39;PUB-4570778&#39;,
+                                                &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                &#39;author&#39;: [...],
+                                                &#39;pubmed-id&#39;: {...},
+                                                &#39;source&#39;: {...},
+                                                &#39;title&#39;: {...},
+                                                &#39;year&#39;: {...}},
+                                &#39;with&#39;: {&#39;@datatype&#39;: &#39;string&#39;}}]}],
+ &#39;location&#39;: {&#39;cco&#39;: {&#39;@frameid&#39;: &#39;CCI-CYTOSOL-GN&#39;,
+                      &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                      &#39;@resource&#39;: &#39;getxml?ECOLI:CCI-CYTOSOL-GN&#39;}},
+ &#39;molecular-weight-seq&#39;: {&#39;#text&#39;: &#39;49.882&#39;,
+                          &#39;@datatype&#39;: &#39;float&#39;,
+                          &#39;@units&#39;: &#39;kD&#39;},
+ &#39;parent&#39;: {&#39;Protein&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                        &#39;@frameid&#39;: &#39;Polypeptides&#39;,
+                        &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                        &#39;@resource&#39;: &#39;getxml?ECOLI:Polypeptides&#39;}},
+ &#39;synonym&#39;: [{&#39;#text&#39;: &#39;LeuC&#39;, &#39;@datatype&#39;: &#39;string&#39;},
+             {&#39;#text&#39;: &#39;3-isopropylmalate dehydratase, large subunit&#39;,
+              &#39;@datatype&#39;: &#39;string&#39;}]}
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">req_str</span> <span class="o">=</span> <span class="s1">&#39;https://websvc.biocyc.org/apixml?fn=monomers-of-protein&amp;id=ECOLI:LEUC-MONOMER&amp;detail=low&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+<span class="n">pp</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;ptools-xml&#39;: {&#39;@ptools-version&#39;: &#39;27.0&#39;,
+                &#39;@xml:base&#39;: &#39;http://BioCyc.org/apixml?fn=monomers-of-protein%26id=ECOLI:LEUC-MONOMER%26detail=LOW&#39;,
+                &#39;Protein&#39;: {&#39;@ID&#39;: &#39;ECOLI:LEUC-MONOMER&#39;,
+                            &#39;@detail&#39;: &#39;low&#39;,
+                            &#39;@frameid&#39;: &#39;LEUC-MONOMER&#39;,
+                            &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                            &#39;common-name&#39;: {&#39;#text&#39;: &#39;3-isopropylmalate &#39;
+                                                     &#39;dehydratase subunit LeuC&#39;,
+                                            &#39;@datatype&#39;: &#39;string&#39;},
+                            &#39;component-of&#39;: {&#39;Protein&#39;: {&#39;@frameid&#39;: &#39;3-ISOPROPYLMALISOM-CPLX&#39;,
+                                                         &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                         &#39;@resource&#39;: &#39;getxml?ECOLI:3-ISOPROPYLMALISOM-CPLX&#39;}},
+                            &#39;gene&#39;: {&#39;Gene&#39;: {&#39;@frameid&#39;: &#39;EG11576&#39;,
+                                              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                              &#39;@resource&#39;: &#39;getxml?ECOLI:EG11576&#39;}},
+                            &#39;parent&#39;: {&#39;Protein&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                                   &#39;@frameid&#39;: &#39;Polypeptides&#39;,
+                                                   &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                                   &#39;@resource&#39;: &#39;getxml?ECOLI:Polypeptides&#39;}},
+                            &#39;synonym&#39;: [{&#39;#text&#39;: &#39;LeuC&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;},
+                                        {&#39;#text&#39;: &#39;3-isopropylmalate &#39;
+                                                  &#39;dehydratase, large subunit&#39;,
+                                         &#39;@datatype&#39;: &#39;string&#39;}]},
+                &#39;metadata&#39;: {&#39;PGDB&#39;: {&#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                      &#39;@version&#39;: &#39;27.0&#39;,
+                                      &#39;species&#39;: {&#39;#text&#39;: &#39;Escherichia coli&#39;,
+                                                  &#39;@datatype&#39;: &#39;string&#39;},
+                                      &#39;strain&#39;: {&#39;#text&#39;: &#39;K-12 substr. MG1655&#39;,
+                                                 &#39;@datatype&#39;: &#39;string&#39;}},
+                             &#39;num_results&#39;: &#39;1&#39;,
+                             &#39;query&#39;: &#39;fn=monomers-of-protein&amp;id=ECOLI:LEUC-MONOMER&amp;detail=LOW&#39;,
+                             &#39;service_name&#39;: &#39;apixml&#39;,
+                             &#39;url&#39;: &#39;http://BioCyc.org/&#39;}}}
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

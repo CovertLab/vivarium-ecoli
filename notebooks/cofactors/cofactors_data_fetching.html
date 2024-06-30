@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Setup</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/notebooks/cofactors/cofactors_data_fetching.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="Setup">
+<h1>Setup<a class="headerlink" href="#Setup" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pprint</span>
+<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="n">pp</span> <span class="o">=</span> <span class="n">pprint</span><span class="o">.</span><span class="n">PrettyPrinter</span><span class="p">(</span><span class="n">depth</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/vivarium-ecoli&#39;</span><span class="p">))</span>
+
+<span class="n">ALLOWED_METAL_NAMES</span> <span class="o">=</span>   <span class="p">{</span><span class="s1">&#39;Iron&#39;</span><span class="p">:</span> <span class="s1">&#39;FE+2&#39;</span><span class="p">,</span> <span class="s1">&#39;Cobalt&#39;</span><span class="p">:</span> <span class="s1">&#39;CO+2&#39;</span><span class="p">,</span> <span class="s1">&#39;Copper&#39;</span><span class="p">:</span> <span class="s1">&#39;CU+2&#39;</span><span class="p">,</span> <span class="s1">&#39;Manganese&#39;</span><span class="p">:</span> <span class="s1">&#39;MN+2&#39;</span><span class="p">,</span> <span class="s1">&#39;Molybdenum&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-8123&#39;</span><span class="p">,</span> <span class="s1">&#39;Nickel&#39;</span><span class="p">:</span> <span class="s1">&#39;NI+2&#39;</span><span class="p">,</span> <span class="s1">&#39;Zinc&#39;</span><span class="p">:</span> <span class="s1">&#39;ZN+2&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;Calcium&#39;</span><span class="p">:</span> <span class="s1">&#39;CA+2&#39;</span><span class="p">,</span> <span class="s1">&#39;Magnesium&#39;</span><span class="p">:</span> <span class="s1">&#39;MG+2&#39;</span><span class="p">,</span> <span class="s1">&#39;Sodium&#39;</span><span class="p">:</span> <span class="s1">&#39;NA+&#39;</span><span class="p">,</span> <span class="s1">&#39;Potassium&#39;</span><span class="p">:</span> <span class="s1">&#39;K+&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;Iron-sulfur \(4Fe-4S\)&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-7&#39;</span><span class="p">,</span> <span class="s1">&#39;Iron-sulfur \(2Fe-2S\)&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-6&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;Iron-sulfur \(4Fe-4S-S-AdoMet\)&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-7&#39;</span><span class="p">,</span> <span class="s1">&#39;Iron-sulfur \(3Fe-4S\)&#39;</span><span class="p">:</span> <span class="s1">&#39;3FE-4S&#39;</span><span class="p">,</span> <span class="s1">&#39;Iron-oxo-sulfur \(4Fe-2O-2S\)&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-7&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;Iron-sulfur&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-7&#39;</span><span class="p">,</span> <span class="c1"># has to be after others since it is a substring of others</span>
+                        <span class="s1">&#39;heme&#39;</span><span class="p">:</span> <span class="s1">&#39;Heme-b&#39;</span><span class="p">,</span> <span class="s1">&#39;Molybdate&#39;</span><span class="p">:</span> <span class="s1">&#39;CPD-3&#39;</span><span class="p">,</span> <span class="s1">&#39;heme B&#39;</span><span class="p">:</span> <span class="s1">&#39;Heme-b&#39;</span><span class="p">,</span> <span class="s1">&#39;Cobalamin&#39;</span><span class="p">:</span> <span class="s1">&#39;COB-I-ALAMIN&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;Selenocysteine&#39;</span><span class="p">:</span> <span class="s1">&#39;L-SELENOCYSTEINE&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;Divalent metal cation&#39;</span><span class="p">:</span> <span class="s1">&#39;Any+2&#39;</span><span class="p">}</span>
+
+
+
+<span class="c1"># What else should I include, copilot?</span>
+<span class="c1"># 1. Transcription</span>
+<span class="c1"># 2. Translation</span>
+<span class="c1"># 3. Iron-sulfur cluster assembly</span>
+<span class="c1"># 4. DNA repair</span>
+<span class="c1"># 5. DNA replication</span>
+<span class="c1"># 6. Cell division</span>
+<span class="c1"># 7. Cell cycle</span>
+<span class="c1"># 8. Cell wall biosynthesis</span>
+
+
+<span class="n">ACCEPTED_OTHER_FEATURES</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;PYRIDOXAL_PHOSPHATE&#39;</span><span class="p">,</span> <span class="s1">&#39;THIAMINE-PYROPHOSPHATE&#39;</span><span class="p">,</span> <span class="s1">&#39;FMN&#39;</span><span class="p">,</span> <span class="s1">&#39;FAD&#39;</span><span class="p">,</span> <span class="s1">&#39;LIPOIC-ACID&#39;</span><span class="p">,</span> <span class="s1">&#39;BIOTIN&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<section id="Connect-to-api">
+<h2>Connect to api<a class="headerlink" href="#Connect-to-api" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">password</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter Password: &quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">s</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="c1"># create session</span>
+<span class="c1"># Post login credentials to session:</span>
+<span class="n">s</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;https://websvc.biocyc.org/credentials/login/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;email&#39;</span><span class="p">:</span><span class="s1">&#39;cellulararchitect@protonmail.com&#39;</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">password</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Response [200]&gt;
+</pre></div></div>
+</div>
+</section>
+<section id="api-test">
+<h2>api test<a class="headerlink" href="#api-test" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># example entry</span>
+<span class="c1"># entity = &#39;PWY0-1356&#39;</span>
+<span class="n">entity</span> <span class="o">=</span> <span class="s1">&#39;MIX0-76&#39;</span>
+<span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">entity</span><span class="si">}</span><span class="s1">&amp;detail=full&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+<span class="n">pp</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;#text&#39;: &#39;Neidhardt EZ rich defined medium&#39;,
+ &#39;@ptools-version&#39;: &#39;27.5&#39;,
+ &#39;@xml:base&#39;: &#39;http://BioCyc.org/getxml?ECOLI:MIX0-76&#39;,
+ &#39;metadata&#39;: {&#39;PGDB&#39;: {&#39;@orgid&#39;: &#39;ECOLI&#39;,
+                       &#39;@version&#39;: &#39;27.5&#39;,
+                       &#39;dblink&#39;: {&#39;dblink-URL&#39;: &#39;http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&amp;id=511145&#39;,
+                                  &#39;dblink-db&#39;: &#39;NCBI-TAXONOMY-DB&#39;,
+                                  &#39;dblink-oid&#39;: &#39;511145&#39;,
+                                  &#39;dblink-relationship&#39;: &#39;unification&#39;},
+                       &#39;species&#39;: {&#39;#text&#39;: &#39;Escherichia coli&#39;,
+                                   &#39;@datatype&#39;: &#39;string&#39;},
+                       &#39;strain&#39;: {&#39;#text&#39;: &#39;K-12 substr. MG1655&#39;,
+                                  &#39;@datatype&#39;: &#39;string&#39;}},
+              &#39;num_results&#39;: &#39;1&#39;,
+              &#39;query&#39;: &#39;ECOLI:MIX0-76&#39;,
+              &#39;service_name&#39;: &#39;getxml&#39;,
+              &#39;url&#39;: &#39;http://BioCyc.org/&#39;}}
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="s1">&#39;Fermentation&#39;</span>
+
+<span class="n">fn</span> <span class="o">=</span> <span class="s1">&#39;get-class-all-instances&#39;</span>
+<span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/apixml?fn=</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s1">&amp;id=ECOLI:</span><span class="si">{</span><span class="n">entity</span><span class="si">}</span><span class="s1">&amp;detail=none&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+<span class="n">pp</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;@ptools-version&#39;: &#39;27.5&#39;,
+ &#39;@xml:base&#39;: &#39;http://BioCyc.org/apixml?fn=get-class-all-instances%26id=ECOLI:Fermentation%26detail=NONE&#39;,
+ &#39;Pathway&#39;: [{&#39;@frameid&#39;: &#39;PWY-5480&#39;,
+              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+              &#39;@resource&#39;: &#39;getxml?ECOLI:PWY-5480&#39;},
+             {&#39;@frameid&#39;: &#39;FERMENTATION-PWY&#39;,
+              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+              &#39;@resource&#39;: &#39;getxml?ECOLI:FERMENTATION-PWY&#39;},
+             {&#39;@frameid&#39;: &#39;PWY-5437&#39;,
+              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+              &#39;@resource&#39;: &#39;getxml?ECOLI:PWY-5437&#39;},
+             {&#39;@frameid&#39;: &#39;PWY-5485&#39;,
+              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+              &#39;@resource&#39;: &#39;getxml?ECOLI:PWY-5485&#39;},
+             {&#39;@frameid&#39;: &#39;PWY0-1312&#39;,
+              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+              &#39;@resource&#39;: &#39;getxml?ECOLI:PWY0-1312&#39;},
+             {&#39;@frameid&#39;: &#39;PWY-8274&#39;,
+              &#39;@orgid&#39;: &#39;ECOLI&#39;,
+              &#39;@resource&#39;: &#39;getxml?ECOLI:PWY-8274&#39;}],
+ &#39;metadata&#39;: {&#39;num_results&#39;: &#39;6&#39;,
+              &#39;query&#39;: &#39;fn=get-class-all-instances&amp;id=ECOLI:Fermentation&amp;detail=NONE&#39;,
+              &#39;service_name&#39;: &#39;apixml&#39;,
+              &#39;url&#39;: &#39;http://BioCyc.org/&#39;}}
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># example entry</span>
+<span class="c1"># entity = &#39;PWY0-1356&#39;</span>
+<span class="n">entity</span> <span class="o">=</span> <span class="s1">&#39;GO:0008150&#39;</span>
+<span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">entity</span><span class="si">}</span><span class="s1">&amp;detail=full&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+<span class="n">pp</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;@ptools-version&#39;: &#39;27.0&#39;,
+ &#39;@xml:base&#39;: &#39;http://BioCyc.org/getxml?ECOLI:GO:0008150&#39;,
+ &#39;GO-Term&#39;: {&#39;@ID&#39;: &#39;ECOLI:GO:0008150&#39;,
+             &#39;@class&#39;: &#39;true&#39;,
+             &#39;@detail&#39;: &#39;full&#39;,
+             &#39;@frameid&#39;: &#39;GO:0008150&#39;,
+             &#39;@orgid&#39;: &#39;ECOLI&#39;,
+             &#39;comment&#39;: {&#39;#text&#39;: &#39;Note that, in addition to forming the root &#39;
+                                  &#39;of the biological process ontology, this &#39;
+                                  &#39;term is recommended for use for the &#39;
+                                  &#39;annotation of gene products whose &#39;
+                                  &#39;biological process is unknown. When this &#39;
+                                  &#39;term is used for annotation, it indicates &#39;
+                                  &#39;that no information was available about the &#39;
+                                  &#39;biological process of the gene product &#39;
+                                  &#39;annotated as of the date the annotation was &#39;
+                                  &#34;made; the evidence code &#39;no data&#39; (ND), is &#34;
+                                  &#39;used to indicate this.&#39;,
+                         &#39;@datatype&#39;: &#39;string&#39;},
+             &#39;common-name&#39;: {&#39;#text&#39;: &#39;biological_process&#39;,
+                             &#39;@datatype&#39;: &#39;string&#39;},
+             &#39;dblink&#39;: {&#39;dblink-URL&#39;: &#39;http://en.wikipedia.org/wiki/Biological_process&#39;,
+                        &#39;dblink-db&#39;: &#39;Wikipedia&#39;,
+                        &#39;dblink-oid&#39;: &#39;Biological_process&#39;,
+                        &#39;dblink-relationship&#39;: &#39;RELATED-TO&#39;},
+             &#39;definition&#39;: {&#39;#text&#39;: &#39;A biological process is the execution of &#39;
+                                     &#39;a genetically-encoded biological module &#39;
+                                     &#39;or program. It consists of all the steps &#39;
+                                     &#39;required to achieve the specific &#39;
+                                     &#39;biological objective of the module. A &#39;
+                                     &#39;biological process is accomplished by a &#39;
+                                     &#39;particular set of molecular functions &#39;
+                                     &#39;carried out by specific gene products &#39;
+                                     &#39;(or macromolecular complexes), often in &#39;
+                                     &#39;a highly regulated manner and in a &#39;
+                                     &#39;particular temporal sequence.&#39;,
+                            &#39;@datatype&#39;: &#39;string&#39;},
+             &#39;subclass&#39;: [{&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0008152&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0008152&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0098754&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0098754&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0051179&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0051179&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0042592&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0042592&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0032501&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0032501&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0009987&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0009987&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0051703&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0051703&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0044419&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0044419&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0032502&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0032502&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0016032&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0016032&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0000003&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0000003&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0065007&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0065007&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0050896&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0050896&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0040011&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0040011&#39;}},
+                          {&#39;GO-Term&#39;: {&#39;@class&#39;: &#39;true&#39;,
+                                       &#39;@frameid&#39;: &#39;GO:0022414&#39;,
+                                       &#39;@orgid&#39;: &#39;ECOLI&#39;,
+                                       &#39;@resource&#39;: &#39;getxml?ECOLI:GO:0022414&#39;}}],
+             &#39;synonym&#39;: [{&#39;#text&#39;: &#39;GO:0000004&#39;, &#39;@datatype&#39;: &#39;string&#39;},
+                         {&#39;#text&#39;: &#39;GO:0007582&#39;, &#39;@datatype&#39;: &#39;string&#39;},
+                         {&#39;#text&#39;: &#39;GO:0044699&#39;, &#39;@datatype&#39;: &#39;string&#39;},
+                         {&#39;#text&#39;: &#39;biological process&#39;, &#39;@datatype&#39;: &#39;string&#39;},
+                         {&#39;#text&#39;: &#39;physiological process&#39;,
+                          &#39;@datatype&#39;: &#39;string&#39;}]},
+ &#39;metadata&#39;: {&#39;PGDB&#39;: {&#39;@orgid&#39;: &#39;ECOLI&#39;,
+                       &#39;@version&#39;: &#39;27.1&#39;,
+                       &#39;dblink&#39;: {&#39;dblink-URL&#39;: &#39;http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&amp;id=511145&#39;,
+                                  &#39;dblink-db&#39;: &#39;NCBI-TAXONOMY-DB&#39;,
+                                  &#39;dblink-oid&#39;: &#39;511145&#39;,
+                                  &#39;dblink-relationship&#39;: &#39;unification&#39;},
+                       &#39;species&#39;: {&#39;#text&#39;: &#39;Escherichia coli&#39;,
+                                   &#39;@datatype&#39;: &#39;string&#39;},
+                       &#39;strain&#39;: {&#39;#text&#39;: &#39;K-12 substr. MG1655&#39;,
+                                  &#39;@datatype&#39;: &#39;string&#39;}},
+              &#39;num_results&#39;: &#39;1&#39;,
+              &#39;query&#39;: &#39;ECOLI:GO:0008150&#39;,
+              &#39;service_name&#39;: &#39;getxml&#39;,
+              &#39;url&#39;: &#39;http://BioCyc.org/&#39;}}
+</pre></div></div>
+</div>
+</section>
+</section>
+<section id="Getting-raw-data">
+<h1>Getting raw data<a class="headerlink" href="#Getting-raw-data" title="Link to this heading"></a></h1>
+<section id="Fetch-EcoCyc-pathway-tree">
+<h2>Fetch EcoCyc pathway tree<a class="headerlink" href="#Fetch-EcoCyc-pathway-tree" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">recursive_pathway_tree</span><span class="p">(</span><span class="n">current_node</span><span class="p">,</span> <span class="n">parent_node</span><span class="p">,</span> <span class="n">node_dict</span><span class="p">,</span> <span class="n">level</span><span class="p">):</span>
+
+
+    <span class="k">if</span> <span class="n">current_node</span> <span class="ow">in</span> <span class="n">node_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+
+        <span class="k">if</span> <span class="n">level</span> <span class="o">&lt;</span> <span class="n">node_dict</span><span class="p">[</span><span class="n">current_node</span><span class="p">][</span><span class="s1">&#39;level&#39;</span><span class="p">]:</span>
+            <span class="n">node_dict</span><span class="p">[</span><span class="n">current_node</span><span class="p">][</span><span class="s1">&#39;level&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">level</span>
+
+        <span class="n">node_dict</span><span class="p">[</span><span class="n">current_node</span><span class="p">][</span><span class="s1">&#39;parents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parent_node</span><span class="p">)</span>
+
+        <span class="k">return</span>
+
+    <span class="k">else</span><span class="p">:</span>
+
+        <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">current_node</span><span class="si">}</span><span class="s1">&amp;detail=high&#39;</span>
+
+        <span class="n">node_dict</span><span class="p">[</span><span class="n">current_node</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;parents&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;children&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;level&#39;</span><span class="p">:</span> <span class="n">level</span><span class="p">,</span> <span class="s1">&#39;common_name&#39;</span><span class="p">:</span> <span class="s1">&#39;N/A&#39;</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">parent_node</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">node_dict</span><span class="p">[</span><span class="n">current_node</span><span class="p">][</span><span class="s1">&#39;parents&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parent_node</span><span class="p">)</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">current_node</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;common-name&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Pathway&#39;</span><span class="p">]:</span>
+            <span class="n">node_dict</span><span class="p">[</span><span class="n">current_node</span><span class="p">][</span><span class="s1">&#39;common_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Pathway&#39;</span><span class="p">][</span><span class="s1">&#39;common-name&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]</span>
+
+
+        <span class="n">subclasses</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Pathway&#39;</span><span class="p">][</span><span class="s1">&#39;subclass&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;subclass&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Pathway&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">subclasses</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">subclasses</span> <span class="o">=</span> <span class="p">[</span><span class="n">subclasses</span><span class="p">]</span>
+
+        <span class="n">instances</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Pathway&#39;</span><span class="p">][</span><span class="s1">&#39;instance&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;instance&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Pathway&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">instances</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">instances</span> <span class="o">=</span> <span class="p">[</span><span class="n">instances</span><span class="p">]</span>
+
+        <span class="n">pathways</span> <span class="o">=</span> <span class="n">subclasses</span> <span class="o">+</span> <span class="n">instances</span>
+
+        <span class="c1"># print(f&#39;{current_node}: {len(subclasses)}, {len(instances)}&#39;)</span>
+
+        <span class="k">for</span> <span class="n">pathway</span> <span class="ow">in</span> <span class="n">pathways</span><span class="p">:</span>
+            <span class="n">pathway_id</span> <span class="o">=</span> <span class="n">pathway</span><span class="p">[</span><span class="s1">&#39;Pathway&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+
+            <span class="n">node_dict</span><span class="p">[</span><span class="n">current_node</span><span class="p">][</span><span class="s1">&#39;children&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pathway_id</span><span class="p">)</span>
+            <span class="n">recursive_pathway_tree</span><span class="p">(</span><span class="n">pathway_id</span><span class="p">,</span> <span class="n">current_node</span><span class="p">,</span> <span class="n">node_dict</span><span class="p">,</span> <span class="n">level</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+
+
+    <span class="k">return</span>
+
+
+<span class="k">def</span> <span class="nf">get_pathway_ith_level_parents</span><span class="p">(</span><span class="n">cur_pathway_idx</span><span class="p">,</span> <span class="n">pathway_matrix</span><span class="p">,</span> <span class="n">name_list</span><span class="p">,</span> <span class="n">level_vector</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">parent_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+    <span class="k">if</span> <span class="n">parent_dict</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parent_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">cur_pathway_level</span> <span class="o">=</span> <span class="n">level_vector</span><span class="p">[</span><span class="n">cur_pathway_idx</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">cur_pathway_level</span> <span class="o">==</span> <span class="n">level</span><span class="p">:</span>
+        <span class="n">parent_dict</span><span class="p">[</span><span class="n">name_list</span><span class="p">[</span><span class="n">cur_pathway_idx</span><span class="p">]]</span> <span class="o">=</span> <span class="n">cur_pathway_level</span>
+
+    <span class="n">parent_slice</span> <span class="o">=</span> <span class="n">pathway_matrix</span><span class="p">[:,</span> <span class="n">cur_pathway_idx</span><span class="p">]</span>
+    <span class="n">parent_idxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">parent_slice</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">parent_idxs</span><span class="p">:</span>
+
+        <span class="n">_</span> <span class="o">=</span> <span class="n">get_pathway_ith_level_parents</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">pathway_matrix</span><span class="p">,</span> <span class="n">name_list</span><span class="p">,</span> <span class="n">level_vector</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">parent_dict</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">parent_dict</span>
+<br/><br/></pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="s1">&#39;Pathways&#39;</span>
+
+<span class="n">fn</span> <span class="o">=</span> <span class="s1">&#39;get-class-direct-subs&#39;</span>
+<span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/apixml?fn=</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s1">&amp;id=ECOLI:</span><span class="si">{</span><span class="n">entity</span><span class="si">}</span><span class="s1">&amp;detail=none&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+<span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Pathway&#39;</span><span class="p">]</span>
+<span class="n">top_level_pathways</span> <span class="o">=</span> <span class="p">[</span><span class="n">pathway</span><span class="p">[</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">pathway</span> <span class="ow">in</span> <span class="n">o</span><span class="p">]</span>
+
+<span class="n">pathway_node_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="k">for</span> <span class="n">top_node</span> <span class="ow">in</span> <span class="n">top_level_pathways</span><span class="p">:</span>
+
+    <span class="n">recursive_pathway_tree</span><span class="p">(</span><span class="n">top_node</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pathway_node_dict</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+ARG+POLYAMINE-SYN 404
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">pathway_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">pathway_node_dict</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">names</span><span class="o">=</span><span class="s1">&#39;id&#39;</span><span class="p">)</span>
+<span class="n">pathway_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>parents</th>
+      <th>children</th>
+      <th>level</th>
+      <th>common_name</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Transport-Pathways</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>1</td>
+      <td>Transport</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Metabolic-Clusters</td>
+      <td>[]</td>
+      <td>[OANTIGEN-PWY, PWY-7206, PWY-7184, PWY-7801, P...</td>
+      <td>1</td>
+      <td>Metabolic Clusters</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>OANTIGEN-PWY</td>
+      <td>[Metabolic-Clusters, SUGAR-NUCLEOTIDES, Super-...</td>
+      <td>[]</td>
+      <td>2</td>
+      <td>&lt;i&gt;O&lt;/i&gt;-antigen building blocks biosynthesis ...</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>PWY-7206</td>
+      <td>[Metabolic-Clusters, Pyrimidine-Deoxyribonucle...</td>
+      <td>[]</td>
+      <td>2</td>
+      <td>pyrimidine deoxyribonucleotides dephosphorylation</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>PWY-7184</td>
+      <td>[Metabolic-Clusters, Pyrimid-Deoxyribonucleot-...</td>
+      <td>[]</td>
+      <td>2</td>
+      <td>pyrimidine deoxyribonucleotides &lt;i&gt;de novo&lt;/i&gt;...</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>1168</th>
+      <td>PWY0-1299</td>
+      <td>[Acid-Resistance]</td>
+      <td>[]</td>
+      <td>3</td>
+      <td>arginine dependent acid resistance</td>
+    </tr>
+    <tr>
+      <th>1169</th>
+      <td>Mercury-Detoxification</td>
+      <td>[Detoxification]</td>
+      <td>[]</td>
+      <td>2</td>
+      <td>Mercury Detoxification</td>
+    </tr>
+    <tr>
+      <th>1170</th>
+      <td>Antibiotic-Resistance</td>
+      <td>[Detoxification]</td>
+      <td>[Vancomycin-Resistnace, PWY0-1338]</td>
+      <td>2</td>
+      <td>Antibiotic Resistance</td>
+    </tr>
+    <tr>
+      <th>1171</th>
+      <td>Vancomycin-Resistnace</td>
+      <td>[Antibiotic-Resistance]</td>
+      <td>[]</td>
+      <td>3</td>
+      <td>Vancomycin Resistance</td>
+    </tr>
+    <tr>
+      <th>1172</th>
+      <td>Bioluminescence</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>1</td>
+      <td>Bioluminescence</td>
+    </tr>
+  </tbody>
+</table>
+<p>1173 rows × 5 columns</p>
+</div></div>
+</div>
+</section>
+<section id="Fetch-protein-monomer-annotations">
+<h2>Fetch protein monomer annotations<a class="headerlink" href="#Fetch-protein-monomer-annotations" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># get a set of all monomers with an associated uniprot id</span>
+<span class="n">proteins_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;reconstruction/ecoli/flat/proteins.tsv&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;#&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;common_name&quot;</span><span class="p">,</span> <span class="s2">&quot;seq&quot;</span><span class="p">]]</span>
+
+<span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;enzyme_reaction&quot;</span><span class="p">,</span> <span class="s2">&quot;cofactors&quot;</span><span class="p">,</span> <span class="s2">&quot;metal_features&quot;</span><span class="p">,</span> <span class="s2">&quot;other_features&quot;</span><span class="p">,</span> <span class="s2">&quot;direct_annotations&quot;</span><span class="p">,</span> <span class="s2">&quot;go_annotations&quot;</span><span class="p">]:</span>
+    <span class="n">proteins_df</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">proteins_df</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="n">proteins_df</span><span class="p">[</span><span class="n">column</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+
+<span class="n">proteins_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>seq</th>
+      <th>enzyme_reaction</th>
+      <th>cofactors</th>
+      <th>metal_features</th>
+      <th>other_features</th>
+      <th>direct_annotations</th>
+      <th>go_annotations</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>
+      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>
+      <td>MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1-PFK-MONOMER</td>
+      <td>1-phosphofructokinase</td>
+      <td>MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>
+      <td>2-dehydropantoate 2-reductase</td>
+      <td>MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2-ISOPROPYLMALATESYN-MONOMER</td>
+      <td>2-isopropylmalate synthase</td>
+      <td>MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>
+      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>
+      <td>MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>4429</th>
+      <td>YTFR-MONOMER</td>
+      <td>galactofuranose ABC transporter putative ATP b...</td>
+      <td>MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4430</th>
+      <td>YTFT-MONOMER</td>
+      <td>galactofuranose ABC transporter putative membr...</td>
+      <td>MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4431</th>
+      <td>ZNUA-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>
+      <td>MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4432</th>
+      <td>ZNUB-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>
+      <td>MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4433</th>
+      <td>ZNUC-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>
+      <td>MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+<p>4434 rows × 9 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">proteins_df</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="n">protein</span> <span class="o">=</span> <span class="n">proteins_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;other_features&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;metal_features&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;enzyme_reaction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;cofactors&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;direct_annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;go_annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">protein</span><span class="si">}</span><span class="s1">&amp;detail=high&#39;</span>
+
+
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">protein</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="k">continue</span>
+
+    <span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">]</span>
+
+    <span class="n">metal_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">other_feature_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">if</span> <span class="s1">&#39;Protein&#39;</span> <span class="ow">in</span> <span class="n">o</span> <span class="ow">and</span> <span class="s1">&#39;has-feature&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">]:</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;has-feature&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">features</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="n">features</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;parent&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+
+            <span class="n">category</span> <span class="o">=</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;parent&#39;</span><span class="p">][</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s1">&#39;Metal-Binding-Sites&#39;</span> <span class="ow">and</span> <span class="s1">&#39;comment&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">]:</span>
+
+                <span class="c1"># Detect match to any of the allowed metal names and allowed cofactor names and add to list</span>
+                <span class="n">comment</span> <span class="o">=</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]</span>
+                <span class="n">metal_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+
+                <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;metal_features&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">metal_set</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s1">&#39;Nucleotide-Phosphate-Binding-Regions&#39;</span> <span class="ow">and</span> <span class="s1">&#39;attached-group&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="s1">&#39;Compound&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;attached-group&#39;</span><span class="p">]:</span>
+                <span class="n">attached_group</span> <span class="o">=</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;attached-group&#39;</span><span class="p">][</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+                <span class="n">other_feature_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">attached_group</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s1">&#39;N6-pyridoxal-phosphate-Lys-Modifications&#39;</span><span class="p">:</span>
+                <span class="n">other_feature_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;PYRIDOXAL_PHOSPHATE&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s1">&#39;Conserved-Regions&#39;</span> <span class="ow">and</span> <span class="s1">&#39;comment&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="s1">&#39;Lipoyl&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]:</span>
+                <span class="n">other_feature_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;LIPOIC-ACID&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s1">&#39;Conserved-Regions&#39;</span> <span class="ow">and</span> <span class="s1">&#39;comment&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="s1">&#39;Biotinyl&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]:</span>
+                <span class="n">other_feature_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;BIOTIN&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s1">&#39;Protein-Segments&#39;</span> <span class="ow">and</span> <span class="s1">&#39;comment&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="s1">&#39;Thiamine&#39;</span> <span class="ow">in</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;Feature&#39;</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]:</span>
+                <span class="n">other_feature_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;THIAMINE-PYROPHOSPHATE&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s1">&#39;Selenocysteine-sites&#39;</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;found selenocysteine&#39;</span><span class="p">)</span>
+                <span class="n">metal_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;Selenocysteine.&#39;</span><span class="p">)</span>
+
+            <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;metal_features&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">metal_set</span><span class="p">)</span>
+            <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;other_features&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">other_feature_set</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;catalyzes&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">]:</span>
+            <span class="n">oc</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;catalyzes&#39;</span><span class="p">][</span><span class="s1">&#39;Enzymatic-Reaction&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">oc</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                <span class="n">oc</span> <span class="o">=</span> <span class="p">[</span><span class="n">oc</span><span class="p">]</span>
+
+            <span class="n">cofactor_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="n">enz_rxn_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+            <span class="k">for</span> <span class="n">enzrxn</span> <span class="ow">in</span> <span class="n">oc</span><span class="p">:</span>
+                <span class="n">enz_id</span> <span class="o">=</span> <span class="n">enzrxn</span><span class="p">[</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+
+                <span class="n">enz_rxn_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">enz_id</span><span class="p">)</span>
+
+                <span class="n">enz_req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">enz_id</span><span class="si">}</span><span class="s1">&amp;detail=high&#39;</span>
+
+                <span class="n">rz</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">enz_req_str</span><span class="p">)</span>
+                <span class="n">oe</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">rz</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Enzymatic-Reaction&#39;</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="s2">&quot;cofactor&quot;</span> <span class="ow">in</span> <span class="n">oe</span><span class="p">:</span>
+                    <span class="n">oe</span> <span class="o">=</span> <span class="n">oe</span><span class="p">[</span><span class="s1">&#39;cofactor&#39;</span><span class="p">]</span>
+
+                    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">oe</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                        <span class="n">oe</span> <span class="o">=</span> <span class="p">[</span><span class="n">oe</span><span class="p">]</span>
+
+                    <span class="k">for</span> <span class="n">cofactor</span> <span class="ow">in</span> <span class="n">oe</span><span class="p">:</span>
+                        <span class="n">cof</span> <span class="o">=</span> <span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+                        <span class="n">cofactor_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cof</span><span class="p">)</span>
+
+            <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;enzyme_reaction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">enz_rxn_set</span>
+            <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;cofactors&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cofactor_set</span>
+
+    <span class="c1"># save uniprot ID</span>
+    <span class="k">if</span> <span class="s1">&#39;Protein&#39;</span> <span class="ow">in</span> <span class="n">o</span> <span class="ow">and</span> <span class="s1">&#39;dblink&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">]:</span>
+        <span class="n">db_links</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;dblink&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">db_links</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">db_links</span> <span class="o">=</span> <span class="p">[</span><span class="n">db_links</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">db_link</span> <span class="ow">in</span> <span class="n">db_links</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;dblink-db&#39;</span> <span class="ow">in</span> <span class="n">db_link</span> <span class="ow">and</span> <span class="n">db_link</span><span class="p">[</span><span class="s1">&#39;dblink-db&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;UNIPROT&#39;</span><span class="p">:</span>
+                <span class="n">uniprot_id</span> <span class="o">=</span> <span class="n">db_link</span><span class="p">[</span><span class="s1">&#39;dblink-oid&#39;</span><span class="p">]</span>
+                <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">uniprot_id</span>
+
+    <span class="c1"># get gene pathway annotation</span>
+    <span class="k">if</span> <span class="s1">&#39;Protein&#39;</span> <span class="ow">in</span> <span class="n">o</span> <span class="ow">and</span> <span class="s1">&#39;gene&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">]:</span>
+
+        <span class="n">gene</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;gene&#39;</span><span class="p">][</span><span class="s1">&#39;Gene&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+        <span class="n">gene_req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/apixml?fn=pathways-of-gene&amp;id=ECOLI:</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s1">&amp;detail=none&#39;</span>
+
+        <span class="n">rg</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">gene_req_str</span><span class="p">)</span>
+        <span class="n">og</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">rg</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="s1">&#39;Pathway&#39;</span> <span class="ow">in</span> <span class="n">og</span><span class="p">:</span>
+            <span class="n">pathways</span> <span class="o">=</span> <span class="n">og</span><span class="p">[</span><span class="s1">&#39;Pathway&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">pathways</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                <span class="n">pathways</span> <span class="o">=</span> <span class="p">[</span><span class="n">pathways</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">pathway</span> <span class="ow">in</span> <span class="n">pathways</span><span class="p">:</span>
+                <span class="n">pathway_id</span> <span class="o">=</span> <span class="n">pathway</span><span class="p">[</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+                <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;direct_annotations&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pathway_id</span><span class="p">)</span>
+
+
+    <span class="k">if</span> <span class="s1">&#39;Protein&#39;</span> <span class="ow">in</span> <span class="n">o</span> <span class="ow">and</span> <span class="s1">&#39;has-go-term&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">]:</span>
+        <span class="n">go_terms</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;has-go-term&#39;</span><span class="p">]</span>
+
+        <span class="n">annotation_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">go_terms</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">go_terms</span> <span class="o">=</span> <span class="p">[</span><span class="n">go_terms</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">go_term</span> <span class="ow">in</span> <span class="n">go_terms</span><span class="p">:</span>
+
+            <span class="n">annotation_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">go_term</span><span class="p">[</span><span class="s1">&#39;GO-Term&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">])</span>
+
+
+
+        <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;go_annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">annotation_set</span>
+<br/><br/><br/></pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0
+100
+200
+300
+400
+500
+600
+700
+800
+900
+1000
+1100
+1200
+1300
+1400
+1500
+1600
+1700
+found selenocysteine
+found selenocysteine
+found selenocysteine
+1800
+1900
+2000
+2100
+2200
+2300
+2400
+2500
+2600
+2700
+2800
+2900
+3000
+3100
+3200
+3300
+3400
+3500
+3600
+3700
+3800
+3900
+4000
+4100
+4200
+4300
+4400
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">proteins_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>seq</th>
+      <th>enzyme_reaction</th>
+      <th>cofactors</th>
+      <th>metal_features</th>
+      <th>other_features</th>
+      <th>direct_annotations</th>
+      <th>go_annotations</th>
+      <th>uniprot_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>
+      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>
+      <td>MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...</td>
+      <td>{ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{PWY0-1319, PWY-5667}</td>
+      <td>{GO:0005886, GO:0016020, GO:0016740, GO:001602...</td>
+      <td>P26647</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1-PFK-MONOMER</td>
+      <td>1-phosphofructokinase</td>
+      <td>MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{PWY0-1314}</td>
+      <td>{GO:0000166, GO:0016301, GO:0008443, GO:001631...</td>
+      <td>P0AEW9</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>
+      <td>2-dehydropantoate 2-reductase</td>
+      <td>MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...</td>
+      <td>{2-DEHYDROPANTOATE-REDUCT-ENZRXN}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[NADP]</td>
+      <td>{PANTO-PWY}</td>
+      <td>{GO:0015940, GO:0005737, GO:0008677, GO:001661...</td>
+      <td>P0A9J4</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2-ISOPROPYLMALATESYN-MONOMER</td>
+      <td>2-isopropylmalate synthase</td>
+      <td>MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...</td>
+      <td>{ENZRXN0-6250}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{LEUSYN-PWY}</td>
+      <td>{GO:0009082, GO:0046912, GO:0005737, GO:000398...</td>
+      <td>P09151</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>
+      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>
+      <td>MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...</td>
+      <td>{2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{PWY-6708, MENAQUINONESYN-PWY}</td>
+      <td>{GO:0102027, GO:0030580, GO:0008168, GO:000674...</td>
+      <td>P0A887</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>4429</th>
+      <td>YTFR-MONOMER</td>
+      <td>galactofuranose ABC transporter putative ATP b...</td>
+      <td>MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{}</td>
+      <td>{GO:0000166, GO:0005886, GO:0016020, GO:001688...</td>
+      <td>Q6BEX0</td>
+    </tr>
+    <tr>
+      <th>4430</th>
+      <td>YTFT-MONOMER</td>
+      <td>galactofuranose ABC transporter putative membr...</td>
+      <td>MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{GO:0005886, GO:0016020, GO:0140271, GO:005505...</td>
+      <td>P39328</td>
+    </tr>
+    <tr>
+      <th>4431</th>
+      <td>ZNUA-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>
+      <td>MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[zinc-coordinating residues, implicated in a s...</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{GO:0006811, GO:0042597, GO:0030001, GO:001602...</td>
+      <td>P39172</td>
+    </tr>
+    <tr>
+      <th>4432</th>
+      <td>ZNUB-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>
+      <td>MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{GO:0006811, GO:0005886, GO:0016020, GO:005508...</td>
+      <td>P39832</td>
+    </tr>
+    <tr>
+      <th>4433</th>
+      <td>ZNUC-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>
+      <td>MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{}</td>
+      <td>{GO:0005886, GO:0006811, GO:0000166, GO:001602...</td>
+      <td>P0A9X1</td>
+    </tr>
+  </tbody>
+</table>
+<p>4434 rows × 10 columns</p>
+</div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># use uniprot ID to fetch uniprot entry for each protein</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">proteins_df</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">20</span><span class="p">:</span>
+        <span class="k">break</span>
+
+
+    <span class="n">protein</span> <span class="o">=</span> <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">uniprot_id</span> <span class="o">=</span> <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;uniprot_id&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">uniprot_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">continue</span>
+
+    <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://rest.uniprot.org/uniprotkb/</span><span class="si">{</span><span class="n">uniprot_id</span><span class="si">}</span><span class="s1">.xml&#39;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">protein</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="k">continue</span>
+
+    <span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;uniprot&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="s1">&#39;entry&#39;</span> <span class="ow">in</span> <span class="n">o</span> <span class="ow">and</span> <span class="s1">&#39;comment&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;entry&#39;</span><span class="p">]:</span>
+
+        <span class="n">comments</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;entry&#39;</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">comments</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">comments</span> <span class="o">=</span> <span class="p">[</span><span class="n">comments</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">comment</span> <span class="ow">in</span> <span class="n">comments</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;text&#39;</span> <span class="ow">in</span> <span class="n">comment</span> <span class="ow">and</span> <span class="s1">&#39;Metal binding&#39;</span> <span class="ow">in</span> <span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">protein</span><span class="p">,</span> <span class="n">comment</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">])</span>
+                <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;metal_features&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;METAL-BINDING&#39;</span><span class="p">]</span>
+                <span class="k">break</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Reload-protein-feature-table">
+<h2>Reload protein feature table<a class="headerlink" href="#Reload-protein-feature-table" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># proteins_df = pd.read_parquet(&#39;notebooks/fbagd/data/raw_protein_features.parquet&#39;)</span>
+<span class="c1"># proteins_df[&#39;metal_features&#39;] = proteins_df[&#39;metal_features&#39;].apply(ast.literal_eval)</span>
+<span class="c1"># # for rows of proteins with where other_features is set, convert from string to set with literal_eval</span>
+<span class="c1"># proteins_df.loc[proteins_df[&#39;other_features&#39;].str.startswith(&#39;[&#39;), &#39;other_features&#39;] = \</span>
+<span class="c1">#     proteins_df.loc[proteins_df[&#39;other_features&#39;].str.startswith(&#39;[&#39;), &#39;other_features&#39;].apply(ast.literal_eval)</span>
+
+<span class="n">filter_protein_df</span> <span class="o">=</span> <span class="n">proteins_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;common_name&#39;</span><span class="p">,</span> <span class="s1">&#39;metal_features&#39;</span><span class="p">,</span> <span class="s1">&#39;other_features&#39;</span><span class="p">,</span> <span class="s1">&#39;enzyme_reaction&#39;</span><span class="p">,</span> <span class="s1">&#39;cofactors&#39;</span><span class="p">,</span> <span class="s1">&#39;direct_annotations&#39;</span><span class="p">,</span> <span class="s1">&#39;go_annotations&#39;</span><span class="p">]]</span>
+<span class="n">filter_protein_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>metal_features</th>
+      <th>other_features</th>
+      <th>enzyme_reaction</th>
+      <th>cofactors</th>
+      <th>direct_annotations</th>
+      <th>go_annotations</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>
+      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...</td>
+      <td>{}</td>
+      <td>{PWY0-1319, PWY-5667}</td>
+      <td>{GO:0005886, GO:0016020, GO:0016740, GO:001602...</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1-PFK-MONOMER</td>
+      <td>1-phosphofructokinase</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{PWY0-1314}</td>
+      <td>{GO:0000166, GO:0016301, GO:0008443, GO:001631...</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>
+      <td>2-dehydropantoate 2-reductase</td>
+      <td>[]</td>
+      <td>[NADP]</td>
+      <td>{2-DEHYDROPANTOATE-REDUCT-ENZRXN}</td>
+      <td>{}</td>
+      <td>{PANTO-PWY}</td>
+      <td>{GO:0015940, GO:0005737, GO:0008677, GO:001661...</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2-ISOPROPYLMALATESYN-MONOMER</td>
+      <td>2-isopropylmalate synthase</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{ENZRXN0-6250}</td>
+      <td>{}</td>
+      <td>{LEUSYN-PWY}</td>
+      <td>{GO:0009082, GO:0046912, GO:0005737, GO:000398...</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>
+      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...</td>
+      <td>{}</td>
+      <td>{PWY-6708, MENAQUINONESYN-PWY}</td>
+      <td>{GO:0102027, GO:0030580, GO:0008168, GO:000674...</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>4429</th>
+      <td>YTFR-MONOMER</td>
+      <td>galactofuranose ABC transporter putative ATP b...</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{GO:0000166, GO:0005886, GO:0016020, GO:001688...</td>
+    </tr>
+    <tr>
+      <th>4430</th>
+      <td>YTFT-MONOMER</td>
+      <td>galactofuranose ABC transporter putative membr...</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{GO:0005886, GO:0016020, GO:0140271, GO:005505...</td>
+    </tr>
+    <tr>
+      <th>4431</th>
+      <td>ZNUA-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>
+      <td>[zinc-coordinating residues, implicated in a s...</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{GO:0006811, GO:0042597, GO:0030001, GO:001602...</td>
+    </tr>
+    <tr>
+      <th>4432</th>
+      <td>ZNUB-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{GO:0006811, GO:0005886, GO:0016020, GO:005508...</td>
+    </tr>
+    <tr>
+      <th>4433</th>
+      <td>ZNUC-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>{GO:0005886, GO:0006811, GO:0000166, GO:001602...</td>
+    </tr>
+  </tbody>
+</table>
+<p>4434 rows × 8 columns</p>
+</div></div>
+</div>
+</section>
+<section id="Annotate-complexation-with-EcoCyc-data">
+<h2>Annotate complexation with EcoCyc data<a class="headerlink" href="#Annotate-complexation-with-EcoCyc-data" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">complex_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;reconstruction/ecoli/flat/complexation_reactions.tsv&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;#&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">,</span><span class="s1">&#39;common_name&#39;</span><span class="p">,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">]]</span>
+
+
+<span class="n">removed_complexes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;reconstruction/ecoli/flat/complexation_reactions_removed.tsv&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;#&#39;</span><span class="p">)</span>
+<span class="n">removed_complex_ids</span> <span class="o">=</span> <span class="n">removed_complexes</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="c1"># add ribosome back in to complex_df</span>
+<span class="n">removed_complex_ids</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;CPLX0-3964_RXN&#39;</span><span class="p">)</span>
+
+<span class="c1"># remove rows where id starts with &#39;#&#39;</span>
+<span class="n">complex_df</span> <span class="o">=</span> <span class="n">complex_df</span><span class="p">[</span><span class="o">~</span><span class="n">complex_df</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># remove rows of complex_df where id matches an id in removed_complexes</span>
+<span class="n">complex_df</span> <span class="o">=</span> <span class="n">complex_df</span><span class="p">[</span><span class="o">~</span><span class="n">complex_df</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">removed_complex_ids</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">complex_df</span><span class="o">.</span><span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">complex_df</span><span class="o">.</span><span class="n">stoichiometry</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">stoich</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">complex_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">]):</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">stoich</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span> <span class="ow">and</span> <span class="n">stoich</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;{&#39;</span><span class="p">:</span>
+        <span class="n">stoich</span> <span class="o">=</span> <span class="n">stoich</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;null&#39;</span><span class="p">,</span> <span class="s1">&#39;-1&#39;</span><span class="p">)</span>
+        <span class="n">stoich</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">stoich</span><span class="p">)</span>
+
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stoich</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<span class="c1"># for each row, find dict entry with positive value</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complex_df</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+
+    <span class="n">stoich</span> <span class="o">=</span> <span class="n">complex_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;stoichiometry&#39;</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">stoich</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">k</span>
+
+<span class="n">complex_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>stoichiometry</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-PFK</td>
+      <td>NaN</td>
+      <td>{'1-PFK': 1, '1-PFK-MONOMER': -2}</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>2OXOGLUTARATEDEH-CPLX</td>
+      <td>2-oxoglutarate dehydrogenase complex</td>
+      <td>{'2OXOGLUTARATEDEH-CPLX': 1, 'E1O': -1, 'E2O':...</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>3-ISOPROPYLMALDEHYDROG-CPLX</td>
+      <td>NaN</td>
+      <td>{'3-ISOPROPYLMALDEHYDROG-CPLX': 1, '3-ISOPROPY...</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>3-ISOPROPYLMALISOM-CPLX</td>
+      <td>3-isopropylmalate dehydratase</td>
+      <td>{'3-ISOPROPYLMALISOM-CPLX': 1, 'LEUC-MONOMER':...</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>3-METHYL-2-OXOBUT-OHCH3XFER-CPLX</td>
+      <td>NaN</td>
+      <td>{'3-METHYL-2-OXOBUT-OHCH3XFER-CPLX': 1, '3-CH3...</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>1088</th>
+      <td>CPLX0-3964</td>
+      <td>ribosome</td>
+      <td>{'CPLX0-3964': 1, 'CPLX0-3953': -1, 'CPLX0-396...</td>
+    </tr>
+    <tr>
+      <th>1089</th>
+      <td>CPLX0-8028</td>
+      <td>CsrA complex with McaS RNA</td>
+      <td>{'CPLX0-8028': 1, 'IS061-RNA': -1, 'CPLX0-7956...</td>
+    </tr>
+    <tr>
+      <th>1090</th>
+      <td>CPLX0-8053</td>
+      <td>SelB-L-selenocysteinyl-tRNA&lt;sup&gt;sec&lt;/sup&gt;</td>
+      <td>{'CPLX0-8053': 1, 'EG10942-MONOMER': -1}</td>
+    </tr>
+    <tr>
+      <th>1091</th>
+      <td>CPLX0-8253</td>
+      <td>CsrA complex with CsrC RNA</td>
+      <td>{'CPLX0-8253': 1, 'CSRC-RNA': -1, 'EG11447-MON...</td>
+    </tr>
+    <tr>
+      <th>1092</th>
+      <td>SRP-CPLX</td>
+      <td>Signal Recognition Particle</td>
+      <td>{'SRP-CPLX': 1, 'EG10300-MONOMER': -1, 'FFS-RN...</td>
+    </tr>
+  </tbody>
+</table>
+<p>1093 rows × 3 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">complex_df</span><span class="p">[</span><span class="s2">&quot;cofactors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">complex_df</span><span class="p">[</span><span class="s2">&quot;cofactors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">complex_df</span><span class="p">[</span><span class="s2">&quot;cofactors&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+
+<span class="n">complex_df</span><span class="p">[</span><span class="s2">&quot;enzyme_reaction&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">complex_df</span><span class="p">[</span><span class="s2">&quot;enzyme_reaction&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">complex_df</span><span class="p">[</span><span class="s2">&quot;enzyme_reaction&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">complex_df</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+    <span class="nb">complex</span> <span class="o">=</span> <span class="n">complex_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
+    <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="nb">complex</span><span class="si">}</span><span class="s1">&amp;detail=low&#39;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="nb">complex</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;enzyme_reaction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;cofactors&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">continue</span>
+
+    <span class="n">oo</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Protein&#39;</span><span class="p">]</span>
+
+
+    <span class="c1"># if enzyme</span>
+    <span class="k">if</span> <span class="s1">&#39;catalyzes&#39;</span> <span class="ow">in</span> <span class="n">oo</span><span class="p">:</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">oo</span><span class="p">[</span><span class="s1">&#39;catalyzes&#39;</span><span class="p">][</span><span class="s1">&#39;Enzymatic-Reaction&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">o</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span><span class="p">]</span>
+
+        <span class="n">cofactor_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">enz_rxn_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">enzrxn</span> <span class="ow">in</span> <span class="n">o</span><span class="p">:</span>
+
+            <span class="c1"># i assume common names will be the same, if no existing replace it</span>
+            <span class="k">if</span> <span class="s1">&#39;common-name&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">oo</span><span class="p">:</span>
+                <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;common_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">enzrxn</span><span class="p">[</span><span class="s1">&#39;common-name&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]</span>
+
+            <span class="n">enz_id</span> <span class="o">=</span> <span class="n">enzrxn</span><span class="p">[</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+
+            <span class="n">enz_rxn_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">enz_id</span><span class="p">)</span>
+
+            <span class="n">enz_req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">enz_id</span><span class="si">}</span><span class="s1">&amp;detail=high&#39;</span>
+
+            <span class="n">rz</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">enz_req_str</span><span class="p">)</span>
+            <span class="n">oe</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">rz</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Enzymatic-Reaction&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="s2">&quot;cofactor&quot;</span> <span class="ow">in</span> <span class="n">oe</span><span class="p">:</span>
+                <span class="n">oe</span> <span class="o">=</span> <span class="n">oe</span><span class="p">[</span><span class="s1">&#39;cofactor&#39;</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">oe</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                    <span class="n">oe</span> <span class="o">=</span> <span class="p">[</span><span class="n">oe</span><span class="p">]</span>
+
+                <span class="k">for</span> <span class="n">cofactor</span> <span class="ow">in</span> <span class="n">oe</span><span class="p">:</span>
+                    <span class="n">cof</span> <span class="o">=</span> <span class="n">cofactor</span><span class="p">[</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+                    <span class="n">cofactor_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">cof</span><span class="p">)</span>
+
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;enzyme_reaction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">enz_rxn_set</span>
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;cofactors&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cofactor_set</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;enzyme_reaction&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">complex_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;cofactors&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0
+100
+200
+300
+CPLX0-7450 404
+400
+500
+600
+700
+800
+900
+1000
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">complex_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>stoichiometry</th>
+      <th>cofactors</th>
+      <th>enzyme_reaction</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-PFK</td>
+      <td>1-phosphofructokinase</td>
+      <td>{'1-PFK': 1, '1-PFK-MONOMER': -2}</td>
+      <td>{MG+2}</td>
+      <td>{1PFRUCTPHOSPHN-ENZRXN}</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>2OXOGLUTARATEDEH-CPLX</td>
+      <td>2-oxoglutarate dehydrogenase complex</td>
+      <td>{'2OXOGLUTARATEDEH-CPLX': 1, 'E1O': -1, 'E2O':...</td>
+      <td>{THIAMINE-PYROPHOSPHATE, FAD, LIPOIC-ACID, MG+2}</td>
+      <td>{2OXOGLUTARATEDEH-ENZRXN}</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>3-ISOPROPYLMALDEHYDROG-CPLX</td>
+      <td>3-isopropylmalate dehydrogenase</td>
+      <td>{'3-ISOPROPYLMALDEHYDROG-CPLX': 1, '3-ISOPROPY...</td>
+      <td>{MN+2, MG+2}</td>
+      <td>{3-ISOPROPYLMALDEHYDROG-ENZRXN}</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>3-ISOPROPYLMALISOM-CPLX</td>
+      <td>3-isopropylmalate dehydratase</td>
+      <td>{'3-ISOPROPYLMALISOM-CPLX': 1, 'LEUC-MONOMER':...</td>
+      <td>{CPD-7}</td>
+      <td>{3-ISOPROPYLMALISOM-ENZRXN}</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>3-METHYL-2-OXOBUT-OHCH3XFER-CPLX</td>
+      <td>3-methyl-2-oxobutanoate hydroxymethyltransferase</td>
+      <td>{'3-METHYL-2-OXOBUT-OHCH3XFER-CPLX': 1, '3-CH3...</td>
+      <td>{MG+2}</td>
+      <td>{3-METHYL-2-OXOBUT-OHCH3XFER-ENZRXN}</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>1088</th>
+      <td>CPLX0-3964</td>
+      <td>ribosome</td>
+      <td>{'CPLX0-3964': 1, 'CPLX0-3953': -1, 'CPLX0-396...</td>
+      <td>{}</td>
+      <td>{}</td>
+    </tr>
+    <tr>
+      <th>1089</th>
+      <td>CPLX0-8028</td>
+      <td>CsrA complex with McaS RNA</td>
+      <td>{'CPLX0-8028': 1, 'IS061-RNA': -1, 'CPLX0-7956...</td>
+      <td>{}</td>
+      <td>{}</td>
+    </tr>
+    <tr>
+      <th>1090</th>
+      <td>CPLX0-8053</td>
+      <td>SelB-L-selenocysteinyl-tRNA&lt;sup&gt;sec&lt;/sup&gt;</td>
+      <td>{'CPLX0-8053': 1, 'EG10942-MONOMER': -1}</td>
+      <td>{}</td>
+      <td>{}</td>
+    </tr>
+    <tr>
+      <th>1091</th>
+      <td>CPLX0-8253</td>
+      <td>CsrA complex with CsrC RNA</td>
+      <td>{'CPLX0-8253': 1, 'CSRC-RNA': -1, 'EG11447-MON...</td>
+      <td>{}</td>
+      <td>{}</td>
+    </tr>
+    <tr>
+      <th>1092</th>
+      <td>SRP-CPLX</td>
+      <td>Signal Recognition Particle</td>
+      <td>{'SRP-CPLX': 1, 'EG10300-MONOMER': -1, 'FFS-RN...</td>
+      <td>{}</td>
+      <td>{}</td>
+    </tr>
+  </tbody>
+</table>
+<p>1093 rows × 5 columns</p>
+</div></div>
+</div>
+</section>
+<section id="Get-cofactor-elemental-composition-and-more">
+<h2>Get cofactor elemental composition and more<a class="headerlink" href="#Get-cofactor-elemental-composition-and-more" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># get set of all cofactors</span>
+<span class="n">all_metal_cofactors</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">ALLOWED_METAL_NAMES</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+<span class="n">all_other_cofactors</span> <span class="o">=</span> <span class="n">ACCEPTED_OTHER_FEATURES</span>
+
+<span class="n">filter_cofactor_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="s1">&#39;common_name&#39;</span><span class="p">,</span> <span class="s1">&#39;elemental_composition&#39;</span><span class="p">])</span>
+<span class="n">filter_cofactor_df</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">all_metal_cofactors</span> <span class="o">|</span> <span class="n">all_other_cofactors</span><span class="p">)</span>
+
+<span class="n">filter_cofactor_df</span><span class="p">[</span><span class="s1">&#39;elemental_composition&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">filter_cofactor_df</span><span class="p">[</span><span class="s1">&#39;elemental_composition&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">filter_cofactor_df</span><span class="p">[</span><span class="s1">&#39;elemental_composition&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span>
+
+<span class="c1"># for each cofactor, get elemental composition</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">filter_cofactor_df</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+
+    <span class="n">compound</span> <span class="o">=</span> <span class="n">filter_cofactor_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">atom_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">url_name</span> <span class="o">=</span> <span class="n">compound</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="s1">&#39;%2b&#39;</span><span class="p">)</span>
+
+    <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://websvc.biocyc.org/getxml?id=ECOLI:</span><span class="si">{</span><span class="n">url_name</span><span class="si">}</span><span class="s1">&amp;detail=full&#39;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">compound</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+        <span class="n">filter_cofactor_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;elemental_composition&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">continue</span>
+
+    <span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">]</span>
+
+    <span class="n">filter_cofactor_df</span><span class="p">[</span><span class="s1">&#39;common_name&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;common-name&#39;</span><span class="p">][</span><span class="s1">&#39;#text&#39;</span><span class="p">]</span>
+
+    <span class="n">atoms</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Compound&#39;</span><span class="p">][</span><span class="s1">&#39;cml&#39;</span><span class="p">][</span><span class="s1">&#39;molecule&#39;</span><span class="p">][</span><span class="s1">&#39;atomArray&#39;</span><span class="p">][</span><span class="s1">&#39;atom&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">atoms</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">atoms</span><span class="p">:</span>
+        <span class="n">element</span> <span class="o">=</span> <span class="n">atom</span><span class="p">[</span><span class="s1">&#39;@elementType&#39;</span><span class="p">]</span>
+
+        <span class="c1"># either add new element or add to existing element</span>
+        <span class="k">if</span> <span class="n">element</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">atom_dict</span><span class="p">:</span>
+            <span class="n">atom_dict</span><span class="p">[</span><span class="n">element</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">atom_dict</span><span class="p">[</span><span class="n">element</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="n">filter_cofactor_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;elemental_composition&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">atom_dict</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Any+2 404
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">filter_cofactor_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>elemental_composition</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>PYRIDOXAL_PHOSPHATE</td>
+      <td>pyridoxal 5'-phosphate</td>
+      <td>{'C': 8, 'N': 1, 'O': 6, 'P': 1}</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>LIPOIC-ACID</td>
+      <td>(&lt;i&gt;R&lt;/i&gt;)-lipoate</td>
+      <td>{'C': 8, 'O': 2, 'S': 2}</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>3FE-4S</td>
+      <td>a [3Fe-4S] iron-sulfur cluster</td>
+      <td>{'FE': 3, 'S': 4}</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>ZN+2</td>
+      <td>Zn&lt;SUP&gt;2+&lt;/SUP&gt;</td>
+      <td>{'ZN': 1}</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>THIAMINE-PYROPHOSPHATE</td>
+      <td>thiamine diphosphate</td>
+      <td>{'C': 12, 'N': 4, 'O': 7, 'P': 2, 'S': 1}</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>FMN</td>
+      <td>FMN</td>
+      <td>{'C': 17, 'N': 4, 'O': 9, 'P': 1}</td>
+    </tr>
+    <tr>
+      <th>6</th>
+      <td>Any+2</td>
+      <td>NaN</td>
+      <td>{}</td>
+    </tr>
+    <tr>
+      <th>7</th>
+      <td>NA+</td>
+      <td>Na&lt;SUP&gt;+&lt;/SUP&gt;</td>
+      <td>{'NA': 1}</td>
+    </tr>
+    <tr>
+      <th>8</th>
+      <td>MG+2</td>
+      <td>Mg&lt;SUP&gt;2+&lt;/SUP&gt;</td>
+      <td>{'MG': 1}</td>
+    </tr>
+    <tr>
+      <th>9</th>
+      <td>FE+2</td>
+      <td>Fe&lt;sup&gt;2+&lt;/sup&gt;</td>
+      <td>{'FE': 1}</td>
+    </tr>
+    <tr>
+      <th>10</th>
+      <td>MN+2</td>
+      <td>Mn&lt;SUP&gt;2+&lt;/SUP&gt;</td>
+      <td>{'MN': 1}</td>
+    </tr>
+    <tr>
+      <th>11</th>
+      <td>Heme-b</td>
+      <td>heme &lt;i&gt;b&lt;/i&gt;</td>
+      <td>{'C': 34, 'N': 4, 'O': 4, 'FE': 1}</td>
+    </tr>
+    <tr>
+      <th>12</th>
+      <td>CPD-8123</td>
+      <td>MoO&lt;sub&gt;2&lt;/sub&gt;-molybdopterin cofactor</td>
+      <td>{'C': 10, 'N': 5, 'O': 8, 'P': 1, 'S': 2, 'MO'...</td>
+    </tr>
+    <tr>
+      <th>13</th>
+      <td>BIOTIN</td>
+      <td>biotin</td>
+      <td>{'C': 10, 'N': 2, 'O': 3, 'S': 1, 'H': 3}</td>
+    </tr>
+    <tr>
+      <th>14</th>
+      <td>CA+2</td>
+      <td>Ca&lt;SUP&gt;2+&lt;/SUP&gt;</td>
+      <td>{'CA': 1}</td>
+    </tr>
+    <tr>
+      <th>15</th>
+      <td>COB-I-ALAMIN</td>
+      <td>cob(I)alamin</td>
+      <td>{'C': 62, 'N': 13, 'O': 14, 'P': 1, 'CO': 1, '...</td>
+    </tr>
+    <tr>
+      <th>16</th>
+      <td>CPD-7</td>
+      <td>a [4Fe-4S] iron-sulfur cluster</td>
+      <td>{'FE': 4, 'S': 4}</td>
+    </tr>
+    <tr>
+      <th>17</th>
+      <td>CPD-6</td>
+      <td>a [2Fe-2S] iron-sulfur cluster</td>
+      <td>{'FE': 2, 'S': 6, 'R': 4}</td>
+    </tr>
+    <tr>
+      <th>18</th>
+      <td>CPD-3</td>
+      <td>molybdate</td>
+      <td>{'MO': 1, 'O': 4}</td>
+    </tr>
+    <tr>
+      <th>19</th>
+      <td>L-SELENOCYSTEINE</td>
+      <td>L-selenocysteine</td>
+      <td>{'C': 3, 'N': 1, 'O': 2, 'SE': 1}</td>
+    </tr>
+    <tr>
+      <th>20</th>
+      <td>NI+2</td>
+      <td>Ni&lt;sup&gt;2+&lt;/sup&gt;</td>
+      <td>{'NI': 1}</td>
+    </tr>
+    <tr>
+      <th>21</th>
+      <td>K+</td>
+      <td>K&lt;SUP&gt;+&lt;/SUP&gt;</td>
+      <td>{'K': 1}</td>
+    </tr>
+    <tr>
+      <th>22</th>
+      <td>CO+2</td>
+      <td>Co&lt;SUP&gt;2+&lt;/SUP&gt;</td>
+      <td>{'CO': 1}</td>
+    </tr>
+    <tr>
+      <th>23</th>
+      <td>CU+2</td>
+      <td>Cu&lt;SUP&gt;2+&lt;/SUP&gt;</td>
+      <td>{'CU': 1}</td>
+    </tr>
+    <tr>
+      <th>24</th>
+      <td>FAD</td>
+      <td>FAD</td>
+      <td>{'C': 27, 'N': 9, 'O': 15, 'P': 2}</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+</section>
+<section id="Save-tables-to-avoid-having-to-re-download">
+<h2>Save tables to avoid having to re-download<a class="headerlink" href="#Save-tables-to-avoid-having-to-re-download" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># save complex_df to csv in a way that preserves dicts</span>
+<span class="n">complex_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;notebooks/cofactors/data/raw_complexes.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">proteins_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;notebooks/cofactors/data/raw_proteins.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">filter_cofactor_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;notebooks/cofactors/data/raw_cofactors.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">pathway_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;notebooks/cofactors/data/raw_pathways.csv&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="n">proteins_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>id</th>
+      <th>common_name</th>
+      <th>seq</th>
+      <th>enzyme_reaction</th>
+      <th>cofactors</th>
+      <th>metal_features</th>
+      <th>other_features</th>
+      <th>direct_annotations</th>
+      <th>go_annotations</th>
+      <th>uniprot_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>
+      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>
+      <td>MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...</td>
+      <td>{ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{PWY0-1319, PWY-5667}</td>
+      <td>{GO:0005886, GO:0016020, GO:0016740, GO:001602...</td>
+      <td>P26647</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1-PFK-MONOMER</td>
+      <td>1-phosphofructokinase</td>
+      <td>MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{PWY0-1314}</td>
+      <td>{GO:0000166, GO:0016301, GO:0008443, GO:001631...</td>
+      <td>P0AEW9</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>
+      <td>2-dehydropantoate 2-reductase</td>
+      <td>MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...</td>
+      <td>{2-DEHYDROPANTOATE-REDUCT-ENZRXN}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[NADP]</td>
+      <td>{PANTO-PWY}</td>
+      <td>{GO:0015940, GO:0005737, GO:0008677, GO:001661...</td>
+      <td>P0A9J4</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>2-ISOPROPYLMALATESYN-MONOMER</td>
+      <td>2-isopropylmalate synthase</td>
+      <td>MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...</td>
+      <td>{ENZRXN0-6250}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{LEUSYN-PWY}</td>
+      <td>{GO:0009082, GO:0046912, GO:0005737, GO:000398...</td>
+      <td>P09151</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>
+      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>
+      <td>MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...</td>
+      <td>{2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{PWY-6708, MENAQUINONESYN-PWY}</td>
+      <td>{GO:0102027, GO:0030580, GO:0008168, GO:000674...</td>
+      <td>P0A887</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>4429</th>
+      <td>YTFR-MONOMER</td>
+      <td>galactofuranose ABC transporter putative ATP b...</td>
+      <td>MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{}</td>
+      <td>{GO:0000166, GO:0005886, GO:0016020, GO:001688...</td>
+      <td>Q6BEX0</td>
+    </tr>
+    <tr>
+      <th>4430</th>
+      <td>YTFT-MONOMER</td>
+      <td>galactofuranose ABC transporter putative membr...</td>
+      <td>MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{GO:0005886, GO:0016020, GO:0140271, GO:005505...</td>
+      <td>P39328</td>
+    </tr>
+    <tr>
+      <th>4431</th>
+      <td>ZNUA-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>
+      <td>MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[zinc-coordinating residues, implicated in a s...</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{GO:0006811, GO:0042597, GO:0030001, GO:001602...</td>
+      <td>P39172</td>
+    </tr>
+    <tr>
+      <th>4432</th>
+      <td>ZNUB-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>
+      <td>MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[]</td>
+      <td>{}</td>
+      <td>{GO:0006811, GO:0005886, GO:0016020, GO:005508...</td>
+      <td>P39832</td>
+    </tr>
+    <tr>
+      <th>4433</th>
+      <td>ZNUC-MONOMER</td>
+      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>
+      <td>MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...</td>
+      <td>{}</td>
+      <td>{}</td>
+      <td>[]</td>
+      <td>[ATP]</td>
+      <td>{}</td>
+      <td>{GO:0005886, GO:0006811, GO:0000166, GO:001602...</td>
+      <td>P0A9X1</td>
+    </tr>
+  </tbody>
+</table>
+<p>4434 rows × 10 columns</p>
+</div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><br/><span></span><span class="k">if</span> <span class="s1">&#39;Protein&#39;</span> <span class="ow">in</span> <span class="n">o</span> <span class="ow">and</span> <span class="s1">&#39;has-go-term&#39;</span> <span class="ow">in</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">]:</span>
+    <span class="n">go_terms</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;has-go-term&#39;</span><span class="p">]</span>
+
+    <span class="n">annotation_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">go_terms</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="n">go_terms</span> <span class="o">=</span> <span class="p">[</span><span class="n">go_terms</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">go_term</span> <span class="ow">in</span> <span class="n">go_terms</span><span class="p">:</span>
+        <span class="c1"># example entry</span>
+        <span class="n">entity</span> <span class="o">=</span> <span class="n">go_term</span><span class="p">[</span><span class="s1">&#39;GO-Term&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+        <span class="n">entity</span> <span class="o">=</span> <span class="n">entity</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;%3A&#39;</span><span class="p">)</span>
+        <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://www.ebi.ac.uk/QuickGO/services/ontology/go/terms/</span><span class="si">{</span><span class="n">entity</span><span class="si">}</span><span class="s1">&#39;</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+
+        <span class="n">o</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">]))</span>
+            <span class="k">continue</span>
+        <span class="k">elif</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;aspect&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;biological_process&#39;</span><span class="p">:</span>
+            <span class="n">annotation_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+
+            <span class="n">o</span><span class="p">[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Protein&#39;</span><span class="p">][</span><span class="s1">&#39;gene&#39;</span><span class="p">][</span><span class="s1">&#39;Gene&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+
+    <span class="n">proteins_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">&#39;direct_annotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">annotation_set</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython2 notranslate"><div class="highlight"><pre><span></span><span class="c1"># example entry</span>
+<span class="n">entity</span> <span class="o">=</span> <span class="n">go_term</span><span class="p">[</span><span class="s1">&#39;GO-Term&#39;</span><span class="p">][</span><span class="s1">&#39;@frameid&#39;</span><span class="p">]</span>
+<span class="n">entity</span> <span class="o">=</span> <span class="n">entity</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;%3A&#39;</span><span class="p">)</span>
+<span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;https://www.ebi.ac.uk/QuickGO/services/ontology/go/terms/</span><span class="si">{</span><span class="n">entity</span><span class="si">}</span><span class="s1">&#39;</span>
+
+<span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span>
+
+<span class="n">o</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">]))</span>
+    <span class="k">continue</span>
+<span class="k">elif</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;aspect&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;biological_process&#39;</span><span class="p">:</span>
+    <span class="n">annotation_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.polymerize &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.polymerize</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.polymerize</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">polymerize.py</span>
+
+<span class="sd">Polymerizes sequences based on monomer and energy limitations.</span>
+
+<span class="sd">Run `kernprof -lv wholecell/tests/utils/profile_polymerize.py` to get a line</span>
+<span class="sd">profile. It @profile-decorates polymerize().</span>
+
+<span class="sd">TODO:</span>
+<span class="sd">- document algorithm/corner cases (should already exist somewhere...)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">._build_sequences</span> <span class="kn">import</span> <span class="n">buildSequences</span><span class="p">,</span> <span class="n">computeMassIncrease</span>
+<span class="kn">from</span> <span class="nn">._fastsums</span> <span class="kn">import</span> <span class="n">sum_monomers</span><span class="p">,</span> <span class="n">sum_monomers_reference_implementation</span>
+
+<span class="c1"># Reexport these Cython functions. Declaring them avoids</span>
+<span class="c1"># &quot;unused import statement&quot; warnings.</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;polymerize&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;buildSequences&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;computeMassIncrease&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sum_monomers_reference_implementation&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">sample_array</span><span class="p">(</span><span class="n">array</span><span class="p">):</span>
+    <span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">array</span> <span class="o">&gt;</span> <span class="n">samples</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">choices</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="n">indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">indexes</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">indexes</span><span class="p">[:</span><span class="n">n</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">DimensionException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="polymerize">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize">[docs]</a>
+<span class="k">class</span> <span class="nc">polymerize</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>  <span class="c1"># Class name is lowercase because interface is function-like</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Polymerize the given DNA/RNA/protein sequences as far as possible within</span>
+<span class="sd">    the given limits.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">            sequences: ndarray of integer, shape (num_sequences, num_steps),</span>
+<span class="sd">                    the sequences of needed monomer types, containing PAD_VALUE for all</span>
+<span class="sd">                    steps after sequence completion.</span>
+<span class="sd">            monomerLimits: ndarray of integer, shape (num_monomers,), the available</span>
+<span class="sd">                    number of each monomer type.</span>
+<span class="sd">            reactionLimit: max number of reactions (monomers to use); the energy</span>
+<span class="sd">                    limit.</span>
+<span class="sd">            randomState: random number generator to pick winners in shortages.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            sequenceElongation: ndarray of integer, shape (num_sequences,)</span>
+<span class="sd">                    indicating how far the sequences proceeded,</span>
+<span class="sd">            monomerUsages: ndarray of integer, shape (num_monomers,) counting how</span>
+<span class="sd">                    many monomers of each type got used,</span>
+<span class="sd">            nReactions: total number of reactions (monomers used),</span>
+<span class="sd">            sequences_limited_elongation: ndarray of bool, shape (num_sequences,),</span>
+<span class="sd">                    mask indicating whether the sequences were actually elongated to the</span>
+<span class="sd">                    max lengths expected from the current step.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">PAD_VALUE</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sequences</span><span class="p">,</span>
+        <span class="n">monomerLimits</span><span class="p">,</span>
+        <span class="n">reactionLimit</span><span class="p">,</span>
+        <span class="n">randomState</span><span class="p">,</span>
+        <span class="n">elongation_rates</span><span class="p">,</span>
+        <span class="n">variable_elongation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Check dimensions</span>
+        <span class="k">if</span> <span class="n">sequences</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">elongation_rates</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">DimensionException</span><span class="p">(</span>
+                <span class="s2">&quot;Dimensions of input sequences and elongation rates do not match.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Gather inputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span> <span class="o">=</span> <span class="n">sequences</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span> <span class="o">=</span> <span class="n">monomerLimits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span> <span class="o">=</span> <span class="n">reactionLimit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_randomState</span> <span class="o">=</span> <span class="n">randomState</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_elongation_rates</span> <span class="o">=</span> <span class="n">elongation_rates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">=</span> <span class="n">elongation_rates</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">elongation_rates</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span> <span class="o">=</span> <span class="n">variable_elongation</span>
+
+        <span class="c1"># Prepare for iteration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
+
+        <span class="c1"># Elongate sequences as much as possible</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_elongate</span><span class="p">()</span>
+
+        <span class="c1"># Clean up</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_finalize</span><span class="p">()</span>
+
+    <span class="c1"># __init__ subroutines</span>
+    <span class="c1"># Several of these assign new attributes outside of __init__&#39;s immediate</span>
+    <span class="c1"># context; however, they should only ever be called by __init__.</span>
+
+    <span class="c1"># Setup subroutines</span>
+
+<div class="viewcode-block" id="polymerize._setup">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._setup">[docs]</a>
+    <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extended initialization procedures.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sanitize_inputs</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_gather_input_dimensions</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_gather_sequence_data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_running_values</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_outputs</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="polymerize._sanitize_inputs">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._sanitize_inputs">[docs]</a>
+    <span class="k">def</span> <span class="nf">_sanitize_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enforce array typing, and copy input arrays to prevent side-effects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="polymerize._gather_input_dimensions">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._gather_input_dimensions">[docs]</a>
+    <span class="k">def</span> <span class="nf">_gather_input_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collect information about the size of the inputs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nSequences</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceLength</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span><span class="o">.</span><span class="n">shape</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nMonomers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span><span class="o">.</span><span class="n">size</span></div>
+
+
+<div class="viewcode-block" id="polymerize._gather_sequence_data">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._gather_sequence_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">_gather_sequence_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collect static data about the input sequences.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># sequenceMonomers: ndarray of bool, shape</span>
+        <span class="c1">#     (num_monomers, num_sequences, num_steps), a bitmask of monomer usage.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceMonomers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nMonomers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nSequences</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceLength</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">monomerIndex</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nMonomers</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceMonomers</span><span class="p">[</span><span class="n">monomerIndex</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span> <span class="o">==</span> <span class="n">monomerIndex</span>
+
+        <span class="c1"># sequenceReactions: ndarray of bool, shape (num_sequences, num_steps), of</span>
+        <span class="c1">#     sequence continuation.</span>
+        <span class="c1"># sequenceLength: ndarray of integer, shape (num_sequences).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceReactions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PAD_VALUE</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceLengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceReactions</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="polymerize._prepare_running_values">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._prepare_running_values">[docs]</a>
+    <span class="k">def</span> <span class="nf">_prepare_running_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets up the variables that will change throughout iteration, including</span>
+<span class="sd">        both intermediate calculations and outputs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># activeSequencesIndexes: 1D ndarray of integer, the indexes of the</span>
+        <span class="c1">#     currently active sequences.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nSequences</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_currentStep</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_progress</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nSequences</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceReactions</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_currentStep</span><span class="p">]</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceReactions</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_currentStep</span><span class="p">]</span>
+        <span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_elongation_resource_demands</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_maxElongation</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nMonomers</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Empty placeholders - will be filled in during trivial elongation,</span>
+        <span class="c1"># then inspected during nontrivial (resource-limited) elongation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monomerIsLimiting</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nMonomers</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reactionIsLimiting</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="polymerize._prepare_outputs">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._prepare_outputs">[docs]</a>
+    <span class="k">def</span> <span class="nf">_prepare_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Running values that ultimately compose the output of the &#39;polymerize&#39;</span>
+<span class="sd">        operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequenceElongation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nSequences</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monomerUsages</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nMonomers</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nReactions</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequences_limited_elongation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nSequences</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
+
+
+    <span class="c1"># Iteration subroutines</span>
+
+<div class="viewcode-block" id="polymerize._elongate">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._elongate">[docs]</a>
+    <span class="k">def</span> <span class="nf">_elongate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Iteratively elongates sequences up to resource limits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># Perform trivial elongations</span>
+            <span class="n">fully_elongated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_elongate_to_limit</span><span class="p">()</span>
+
+            <span class="n">monomer_limited</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="n">reaction_limited</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span> <span class="o">==</span> <span class="mi">0</span>
+
+            <span class="c1"># Quit if finished or out of resources</span>
+            <span class="k">if</span> <span class="n">fully_elongated</span> <span class="ow">or</span> <span class="n">monomer_limited</span> <span class="ow">or</span> <span class="n">reaction_limited</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="c1"># Perform nontrivial (resource-limited) elongations, and cull</span>
+            <span class="c1"># sequences that can no longer be elongated</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_finalize_resource_limited_elongations</span><span class="p">()</span>
+
+            <span class="c1"># Quit if there are no more sequences</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="c1"># Otherwise, update running values</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_elongation_resource_demands</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="polymerize._elongate_to_limit">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._elongate_to_limit">[docs]</a>
+    <span class="k">def</span> <span class="nf">_elongate_to_limit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Elongate as far as possible without hitting any resource limitations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">projectionIndex</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">notLimited</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">advancementIndex</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nSequences</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">monomerProjection</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_nMonomers</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+        <span class="c1"># advance one step at a time until a sequence is limited</span>
+        <span class="k">while</span> <span class="n">notLimited</span> <span class="ow">and</span> <span class="n">projectionIndex</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_maxElongation</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span><span class="p">:</span>
+                <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_currentStep</span> <span class="o">+</span> <span class="n">projectionIndex</span>
+                <span class="n">level</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">*</span> <span class="p">(</span><span class="n">step</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">last_unit</span> <span class="o">=</span> <span class="n">level</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">level</span><span class="p">)</span>
+                <span class="n">active</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">&gt;</span> <span class="n">last_unit</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">active</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span>
+
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_progress</span> <span class="o">+</span> <span class="n">advancementIndex</span>
+
+            <span class="n">monomerStep</span> <span class="o">=</span> <span class="n">sum_monomers</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceMonomers</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">index</span><span class="p">[</span><span class="n">active</span><span class="p">],</span> <span class="n">active</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span><span class="p">[</span><span class="n">projectionIndex</span><span class="p">]</span> <span class="o">=</span> <span class="n">monomerProjection</span> <span class="o">+</span> <span class="n">monomerStep</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monomerIsLimiting</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span><span class="p">[</span><span class="n">projectionIndex</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span>
+            <span class="p">)</span>
+
+            <span class="n">total_reactions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span><span class="p">[</span><span class="n">projectionIndex</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerIsLimiting</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">notLimited</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">total_reactions</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_reactionIsLimiting</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">notLimited</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="n">excess</span> <span class="o">=</span> <span class="n">total_reactions</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span>
+                    <span class="n">active</span> <span class="o">=</span> <span class="n">choices</span><span class="p">(</span><span class="n">active</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">active</span><span class="p">)</span> <span class="o">-</span> <span class="n">excess</span><span class="p">)</span>
+                    <span class="n">monomerStep</span> <span class="o">=</span> <span class="n">sum_monomers</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceMonomers</span><span class="p">[:,</span> <span class="p">:],</span> <span class="n">index</span><span class="p">[</span><span class="n">active</span><span class="p">],</span> <span class="n">active</span>
+                    <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span><span class="p">[</span><span class="n">projectionIndex</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">monomerProjection</span> <span class="o">+</span> <span class="n">monomerStep</span>
+                    <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_monomerIsLimiting</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span><span class="p">[</span><span class="n">projectionIndex</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span>
+                    <span class="p">)</span>
+
+                <span class="n">monomerProjection</span> <span class="o">+=</span> <span class="n">monomerStep</span>
+                <span class="n">projectionIndex</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">advancementIndex</span><span class="p">[</span><span class="n">active</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">limitingExtent</span> <span class="o">=</span> <span class="n">projectionIndex</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_currentStep</span> <span class="o">+=</span> <span class="n">limitingExtent</span>
+
+        <span class="c1"># Use resources</span>
+        <span class="k">if</span> <span class="n">limitingExtent</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">deltaMonomers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span><span class="p">[</span><span class="n">limitingExtent</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">deltaReactions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monomerHistory</span><span class="p">[</span><span class="n">limitingExtent</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span> <span class="o">-=</span> <span class="n">deltaMonomers</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span> <span class="o">-=</span> <span class="n">deltaReactions</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">monomerUsages</span> <span class="o">+=</span> <span class="n">deltaMonomers</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nReactions</span> <span class="o">+=</span> <span class="n">deltaReactions</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_progress</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">]</span> <span class="o">+=</span> <span class="n">advancementIndex</span><span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span>
+            <span class="p">]</span>
+
+        <span class="c1"># Update lengths</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">]</span> <span class="o">+=</span> <span class="n">advancementIndex</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Determine whether we are finished elongating</span>
+        <span class="c1"># TODO (John): see if we can determine this outside this context,</span>
+        <span class="c1"># consequently removing the need to &quot;return&quot; anything</span>
+        <span class="n">fully_elongated</span> <span class="o">=</span> <span class="n">limitingExtent</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_maxElongation</span>
+
+        <span class="k">return</span> <span class="n">fully_elongated</span></div>
+
+
+<div class="viewcode-block" id="polymerize._finalize_resource_limited_elongations">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._finalize_resource_limited_elongations">[docs]</a>
+    <span class="k">def</span> <span class="nf">_finalize_resource_limited_elongations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Find fully elongated sequences</span>
+
+        <span class="c1"># sequencesToCull: ndarray of bool, shape (num_active_sequences,),</span>
+        <span class="c1"># selecting active sequences to cull, initially the ones that finished</span>
+        <span class="c1"># by currentStep.</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">variable_elongation</span><span class="p">:</span>
+            <span class="n">active_elongation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">active_elongation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_currentStep</span>
+
+        <span class="n">sequencesToCull</span> <span class="o">=</span> <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">_sequenceReactions</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">,</span> <span class="n">active_elongation</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Find and finalize monomer-limiting sequences</span>
+        <span class="k">for</span> <span class="n">monomerIndex</span><span class="p">,</span> <span class="n">monomerLimit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_monomerLimits</span><span class="p">):</span>
+            <span class="k">if</span> <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">_monomerIsLimiting</span><span class="p">[</span><span class="n">monomerIndex</span><span class="p">]:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># sequencesWithMonomer: ndarray of integer, shape (integer,), the</span>
+            <span class="c1"># active sequence indexes that use this monomer in currentStep.</span>
+            <span class="n">sequencesWithMonomer</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceMonomers</span><span class="p">[</span>
+                    <span class="n">monomerIndex</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">,</span> <span class="n">active_elongation</span>
+                <span class="p">]</span>
+            <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">nToCull</span> <span class="o">=</span> <span class="n">sequencesWithMonomer</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="n">monomerLimit</span>
+
+            <span class="k">if</span> <span class="n">nToCull</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># assert nToCull &gt; 0</span>
+
+                <span class="c1"># culledIndexes: ndarray of integer, shape (integer,), randomly</span>
+                <span class="c1"># chosen sequences to cull due to the monomer&#39;s limit.</span>
+                <span class="n">culledIndexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_randomState</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+                    <span class="n">sequencesWithMonomer</span><span class="p">,</span> <span class="n">nToCull</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+
+                <span class="n">sequencesToCull</span><span class="p">[</span><span class="n">culledIndexes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Find and finalize reaction-limiting sequences</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reactionIsLimiting</span><span class="p">:</span>
+            <span class="c1"># sequencesWithReaction: ndarray of integer, shape (integer,), the</span>
+            <span class="c1"># active sequence indexes not yet ruled out.</span>
+            <span class="n">sequencesWithReaction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="o">~</span><span class="n">sequencesToCull</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">nToCull</span> <span class="o">=</span> <span class="n">sequencesWithReaction</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reactionLimit</span>
+
+            <span class="k">if</span> <span class="n">nToCull</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># culledIndexes: ndarray of integer, shape (integer,), randomly</span>
+                <span class="c1"># chosen sequences to cull to uphold reactionLimit.</span>
+                <span class="n">culledIndexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_randomState</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+                    <span class="n">sequencesWithReaction</span><span class="p">,</span> <span class="n">nToCull</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+
+                <span class="n">sequencesToCull</span><span class="p">[</span><span class="n">culledIndexes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Cull sequences</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_activeSequencesIndexes</span><span class="p">[</span><span class="o">~</span><span class="n">sequencesToCull</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elongation_rates</span><span class="p">[</span><span class="o">~</span><span class="n">sequencesToCull</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="polymerize._update_elongation_resource_demands">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._update_elongation_resource_demands">[docs]</a>
+    <span class="k">def</span> <span class="nf">_update_elongation_resource_demands</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        After updating the active sequences (initialization and culling),</span>
+<span class="sd">        recalculate resource demands for the remaining steps given what</span>
+<span class="sd">        sequences remain.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_maxElongation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceLength</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_currentStep</span></div>
+
+
+    <span class="c1"># Finalization subroutines</span>
+
+<div class="viewcode-block" id="polymerize._finalize">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._finalize">[docs]</a>
+    <span class="k">def</span> <span class="nf">_finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Clean up iteration results.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clamp_elongation_to_sequence_length</span><span class="p">()</span>
+        <span class="c1"># sequences_limited_elongation: ndarray of bool, shape (num_sequences,),</span>
+        <span class="c1"># mask indicating whether the sequences were actually elongated to the</span>
+        <span class="c1"># max lengths expected from the current step</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequences_limited_elongation</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_raw_elongation_rates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceLength</span><span class="p">)</span>
+            <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequenceElongation</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="polymerize._clamp_elongation_to_sequence_length">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.polymerize.html#wholecell.utils.polymerize.polymerize._clamp_elongation_to_sequence_length">[docs]</a>
+    <span class="k">def</span> <span class="nf">_clamp_elongation_to_sequence_length</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A post-iteration clean-up operation.  Restricts the elongation of a</span>
+<span class="sd">        sequence to at most its total (unpadded) length.</span>
+
+<span class="sd">        TODO: explain why we do this here instead of during each iteration</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequenceElongation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fmin</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sequenceElongation</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequenceLengths</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

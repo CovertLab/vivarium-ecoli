@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Extracts protein half-lives from Supplementary Table S2 of Nagar et. al.,</span>
+<span class="sd">&quot;Harnessing Machine Learning to Unravel Protein Degradation in Escherichia coli&quot;</span>
+<span class="sd">(2021).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.io</span> <span class="kn">import</span> <span class="n">tsv</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.filepath</span> <span class="kn">import</span> <span class="n">ROOT_PATH</span>
+
+<span class="c1"># Arbitrarily-determined higher half-life time cutoff in minutes. Proteins with</span>
+<span class="c1"># half-lives above MAX_HALF_LIFE are all given a half-life of MAX_HALF_LIFE.</span>
+<span class="n">MAX_HALF_LIFE</span> <span class="o">=</span> <span class="mf">5000.0</span>
+
+<span class="c1"># Number of decimals when rounding half-life values (in units of min)</span>
+<span class="n">ROUND_N_DECIMALS</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="c1"># Directories</span>
+<span class="n">FILE_LOCATION</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+
+<span class="c1"># Files</span>
+<span class="n">INPUT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;msystems.csv&quot;</span><span class="p">)</span>
+<span class="n">RNAS_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ROOT_PATH</span><span class="p">,</span> <span class="s2">&quot;reconstruction&quot;</span><span class="p">,</span> <span class="s2">&quot;ecoli&quot;</span><span class="p">,</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span> <span class="s2">&quot;rnas.tsv&quot;</span><span class="p">)</span>
+<span class="n">OUTPUT_FLAT_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+    <span class="n">ROOT_PATH</span><span class="p">,</span> <span class="s2">&quot;reconstruction&quot;</span><span class="p">,</span> <span class="s2">&quot;ecoli&quot;</span><span class="p">,</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span> <span class="s2">&quot;protein_half_lives_pulsed_silac.tsv&quot;</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_symbols_to_monomer_ids">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat.get_symbols_to_monomer_ids">[docs]</a>
+<span class="k">def</span> <span class="nf">get_symbols_to_monomer_ids</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Builds a mapping from gene symbols to the protein monomer IDs, used in later</span>
+<span class="sd">    data import functions.</span>
+
+<span class="sd">    Returns: symbols_to_monomer_ids: Dictionary from gene symbol to first</span>
+<span class="sd">    associated protein monomer ID.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">symbols_to_monomer_ids</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Map gene/protein symbols to protein monomer IDs</span>
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">RNAS_FILE</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">headers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+
+        <span class="n">gene_symbol_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;common_name&quot;</span><span class="p">)</span>
+        <span class="n">protein_id_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;monomer_ids&quot;</span><span class="p">)</span>
+
+        <span class="c1"># TODO(ahzhang): Handle cistrons with two or more associated proteins</span>
+        <span class="c1"># Currently, each gene symbol in data is associated with the first</span>
+        <span class="c1"># associated protein id, which is given a half-life in translation.py.</span>
+        <span class="c1"># Translation.py also only accounts for first associated protein id when</span>
+        <span class="c1"># assigning half-lives.</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">gene_symbol</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">gene_symbol_index</span><span class="p">]</span>
+            <span class="n">protein_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">protein_id_index</span><span class="p">][</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;&quot;, &quot;&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">symbols_to_monomer_ids</span><span class="p">[</span><span class="n">gene_symbol</span><span class="p">]</span> <span class="o">=</span> <span class="n">protein_id</span>
+
+        <span class="k">return</span> <span class="n">symbols_to_monomer_ids</span></div>
+
+
+
+<div class="viewcode-block" id="get_half_lives">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat.get_half_lives">[docs]</a>
+<span class="k">def</span> <span class="nf">get_half_lives</span><span class="p">(</span><span class="n">symbols_to_monomer_ids</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads protein half-lives from Nagar et. al. (2021) and stores them in a</span>
+<span class="sd">    dictionary. Any protein listed that does not exist in the model is skipped.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        symbols_to_monomer_ids: Dictionary that maps gene symbols to protein</span>
+<span class="sd">        monomer ID&#39;s used by the model.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        id_to_half_life: Dictionary that maps protein monomer ids to their</span>
+<span class="sd">        half-lives as reported in Nagar et. al. (2021).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">id_to_half_life</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">INPUT</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+        <span class="n">headers</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span>
+        <span class="c1"># TODO(ahzhang): change to something of the form</span>
+        <span class="c1">#  headers.index(&#39;Gene names&#39;). Right now this doesn&#39;t work because</span>
+        <span class="c1">#  the raw csv file is encoded in utf-8-sig, which can&#39;t be decoded</span>
+        <span class="c1">#  correctly by binary reading, and gives a \ufeff character at the</span>
+        <span class="c1">#  beginning of the file.</span>
+        <span class="n">gene_symbol_index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">half_life_index</span> <span class="o">=</span> <span class="n">headers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;half_life&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="n">gene_symbol</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="n">gene_symbol_index</span><span class="p">]</span>
+            <span class="n">half_life</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="n">half_life_index</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">gene_symbol</span> <span class="ow">in</span> <span class="n">symbols_to_monomer_ids</span><span class="p">:</span>
+                <span class="n">id_to_half_life</span><span class="p">[</span><span class="n">symbols_to_monomer_ids</span><span class="p">[</span><span class="n">gene_symbol</span><span class="p">]]</span> <span class="o">=</span> <span class="n">half_life</span>
+
+    <span class="k">return</span> <span class="n">id_to_half_life</span></div>
+
+
+
+<div class="viewcode-block" id="build_half_life_table">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat.html#reconstruction.ecoli.scripts.protein_half_lives.convert_to_flat.build_half_life_table">[docs]</a>
+<span class="k">def</span> <span class="nf">build_half_life_table</span><span class="p">(</span><span class="n">raw_half_lives</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Builds the protein half-life flat file that is used as raw data for</span>
+<span class="sd">    simulations using them. Assigns all proteins with half-lives greater than</span>
+<span class="sd">    the arbitrarily chosen MAX_HALF_LIFE as having a half-life of MAX_HALF-LIFE.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        raw_half_lives: Dictionary that maps monomer ID&#39;s to their half-lives</span>
+<span class="sd">        as reported in Nagar et. al. (2021).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Builds list of tuples that stores half-life data</span>
+    <span class="n">half_life_data</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="n">monomer_id</span><span class="p">,</span> <span class="nb">round</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">half_life</span><span class="p">,</span> <span class="n">MAX_HALF_LIFE</span><span class="p">),</span> <span class="n">ROUND_N_DECIMALS</span><span class="p">))</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">monomer_id</span><span class="p">,</span> <span class="n">half_life</span><span class="p">)</span> <span class="ow">in</span> <span class="n">raw_half_lives</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Sort by monomer ID</span>
+    <span class="n">half_life_data</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># Write to flat file</span>
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">OUTPUT_FLAT_FILE</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Writing to </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">quotechar</span><span class="o">=</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="n">lineterminator</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s2">&quot;# Generated by </span><span class="si">{}</span><span class="s2"> on </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">())])</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;&quot;id&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;half_life (units.min)&quot;&#39;</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">half_life_data</span><span class="p">:</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">])</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">symbols_to_monomer_ids</span> <span class="o">=</span> <span class="n">get_symbols_to_monomer_ids</span><span class="p">()</span>
+    <span class="n">raw_half_lives</span> <span class="o">=</span> <span class="n">get_half_lives</span><span class="p">(</span><span class="n">symbols_to_monomer_ids</span><span class="p">)</span>
+
+    <span class="n">build_half_life_table</span><span class="p">(</span><span class="n">raw_half_lives</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

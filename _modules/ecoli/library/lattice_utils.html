@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.library.lattice_utils &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.library.lattice_utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.library.lattice_utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">==================================</span>
+<span class="sd">Utilities for Lattice Environments</span>
+<span class="sd">==================================</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.process</span> <span class="kn">import</span> <span class="n">Process</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">remove_units</span>
+<span class="kn">from</span> <span class="nn">vivarium.library.topology</span> <span class="kn">import</span> <span class="n">get_in</span><span class="p">,</span> <span class="n">assoc_path</span>
+
+<span class="kn">from</span> <span class="nn">vivarium.library.units</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="n">AVOGADRO</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">N_A</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span>
+<span class="c1"># Cache units to save time</span>
+<span class="n">UNITS_UM</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span>
+<span class="n">UNITS_MM</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">mM</span>
+
+
+<div class="viewcode-block" id="get_bin_site">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.get_bin_site">[docs]</a>
+<span class="k">def</span> <span class="nf">get_bin_site</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">,</span> <span class="n">bounds</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a bin&#39;s indices in the lattice</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        location (list): A list of 2 floats that specify the x and y</span>
+<span class="sd">            coordinates of a point inside the desired bin.</span>
+<span class="sd">        n_bins (list): A list of 2 ints that specify the number of bins</span>
+<span class="sd">            along the x and y axes, respectively.</span>
+<span class="sd">        bounds (list): A list of 2 floats that define the dimensions of</span>
+<span class="sd">            the lattice environment along the x and y axes,</span>
+<span class="sd">            respectively.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: A 2-tuple of the x and y indices of the bin in the</span>
+<span class="sd">        lattice.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">location</span> <span class="o">=</span> <span class="p">[</span><span class="n">coordinate</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">UNITS_UM</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span> <span class="k">for</span> <span class="n">coordinate</span> <span class="ow">in</span> <span class="n">location</span><span class="p">]</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="p">[</span><span class="n">bound</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">UNITS_UM</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span> <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">]</span>
+    <span class="n">bin_site_no_rounding</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">location</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">location</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="p">)</span>
+    <span class="n">bin_site</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">bin_site_no_rounding</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="o">%</span> <span class="n">n_bins</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">bin_site</span></div>
+
+
+
+<div class="viewcode-block" id="get_bin_volume">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.get_bin_volume">[docs]</a>
+<span class="k">def</span> <span class="nf">get_bin_volume</span><span class="p">(</span><span class="n">n_bins</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">depth</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a bin&#39;s volume</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        n_bins (list): A list of 2 ints that specify the number of bins</span>
+<span class="sd">            along the x and y axes, respectively.</span>
+<span class="sd">        bounds (list): A list of 2 floats that specify the lengths of</span>
+<span class="sd">            the environment&#39;s sides in the x and y directions,</span>
+<span class="sd">            respectively. In units of microns.</span>
+<span class="sd">        depth (float): The depth of the environment, in microns.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        float: The volume of each bin in the lattice, in Liters.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">total_volume</span> <span class="o">=</span> <span class="n">depth</span> <span class="o">*</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">total_volume</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="count_to_concentration">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.count_to_concentration">[docs]</a>
+<span class="k">def</span> <span class="nf">count_to_concentration</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="n">bin_volume</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a molecule count into a concentration.</span>
+
+<span class="sd">    Parameters should all have units. Returned value will have units.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        count (int): The number of molecules in the bin.</span>
+<span class="sd">        bin_volume (float): The volume of the bin.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        float: The concentration of molecule in the bin.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">count</span> <span class="o">/</span> <span class="p">(</span><span class="n">bin_volume</span> <span class="o">*</span> <span class="n">AVOGADRO</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="make_gradient">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.make_gradient">[docs]</a>
+<span class="k">def</span> <span class="nf">make_gradient</span><span class="p">(</span><span class="n">gradient</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a gradient from a configuration</span>
+
+<span class="sd">    **Random**</span>
+<span class="sd">    A random gradient fills the field randomly with each molecule,</span>
+<span class="sd">    with values between 0 and the concentrations specified.</span>
+
+<span class="sd">    Example configuration:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        &#39;gradient&#39;: {</span>
+<span class="sd">            &#39;type&#39;: &#39;random&#39;,</span>
+<span class="sd">            &#39;molecules&#39;: {</span>
+<span class="sd">                &#39;mol_id1&#39;: 1.0,</span>
+<span class="sd">                &#39;mol_id2&#39;: 2.0</span>
+<span class="sd">            }},</span>
+
+<span class="sd">    **Uniform**</span>
+
+<span class="sd">    A uniform gradient fills the field evenly with each molecule, at</span>
+<span class="sd">    the concentrations specified.</span>
+
+<span class="sd">    Example configuration:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        &#39;gradient&#39;: {</span>
+<span class="sd">            &#39;type&#39;: &#39;uniform&#39;,</span>
+<span class="sd">            &#39;molecules&#39;: {</span>
+<span class="sd">                &#39;mol_id1&#39;: 1.0,</span>
+<span class="sd">                &#39;mol_id2&#39;: 2.0</span>
+<span class="sd">            }},</span>
+
+<span class="sd">    **Gaussian**</span>
+
+<span class="sd">    A gaussian gradient multiplies the base concentration of the given</span>
+<span class="sd">    molecule by a gaussian function of distance from center and</span>
+<span class="sd">    deviation. Distance is scaled by 1/1000 from microns to millimeters.</span>
+
+<span class="sd">    Example configuration:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        &#39;gradient&#39;: {</span>
+<span class="sd">            &#39;type&#39;: &#39;gaussian&#39;,</span>
+<span class="sd">            &#39;molecules&#39;: {</span>
+<span class="sd">                &#39;mol_id1&#39;:{</span>
+<span class="sd">                    &#39;center&#39;: [0.25, 0.5],</span>
+<span class="sd">                    &#39;deviation&#39;: 30},</span>
+<span class="sd">                &#39;mol_id2&#39;: {</span>
+<span class="sd">                    &#39;center&#39;: [0.75, 0.5],</span>
+<span class="sd">                    &#39;deviation&#39;: 30}</span>
+<span class="sd">            }},</span>
+
+<span class="sd">    **Linear**</span>
+
+<span class="sd">    A linear gradient sets a site&#39;s concentration (c) of the given</span>
+<span class="sd">    molecule as a function of distance (d) from center and slope (b),</span>
+<span class="sd">    and base concentration (a). Distance is scaled by 1/1000 from</span>
+<span class="sd">    microns to millimeters.</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        c = a + b * d</span>
+
+<span class="sd">    Example configuration:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        &#39;gradient&#39;: {</span>
+<span class="sd">            &#39;type&#39;: &#39;linear&#39;,</span>
+<span class="sd">            &#39;molecules&#39;: {</span>
+<span class="sd">                &#39;mol_id1&#39;:{</span>
+<span class="sd">                    &#39;center&#39;: [0.0, 0.0],</span>
+<span class="sd">                    &#39;base&#39;: 0.1,</span>
+<span class="sd">                    &#39;slope&#39;: -10},</span>
+<span class="sd">                &#39;mol_id2&#39;: {</span>
+<span class="sd">                    &#39;center&#39;: [1.0, 1.0],</span>
+<span class="sd">                    &#39;base&#39;: 0.1,</span>
+<span class="sd">                    &#39;slope&#39;: -5}</span>
+<span class="sd">            }},</span>
+
+<span class="sd">    **Exponential**</span>
+
+<span class="sd">    An exponential gradient sets a site&#39;s concentration (c) of the given</span>
+<span class="sd">    molecule as a function of distance (d) from center, with parameters</span>
+<span class="sd">    base (b) and scale (a). Distance is scaled by 1/1000 from microns to</span>
+<span class="sd">    millimeters. Note: base &gt; 1 makes concentrations increase from the</span>
+<span class="sd">    center.</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        c=a*b^d.</span>
+
+<span class="sd">    Example configuration:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        &#39;gradient&#39;: {</span>
+<span class="sd">            &#39;type&#39;: &#39;exponential&#39;,</span>
+<span class="sd">            &#39;molecules&#39;: {</span>
+<span class="sd">                &#39;mol_id1&#39;:{</span>
+<span class="sd">                    &#39;center&#39;: [0.0, 0.0],</span>
+<span class="sd">                    &#39;base&#39;: 1+2e-4,</span>
+<span class="sd">                    &#39;scale&#39;: 1.0},</span>
+<span class="sd">                &#39;mol_id2&#39;: {</span>
+<span class="sd">                    &#39;center&#39;: [1.0, 1.0],</span>
+<span class="sd">                    &#39;base&#39;: 1+2e-4,</span>
+<span class="sd">                    &#39;scale&#39; : 0.1}</span>
+<span class="sd">            }},</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        gradient: Configuration dictionary that includes the ``type``</span>
+<span class="sd">            key to specify the type of gradient to make.</span>
+<span class="sd">        n_bins: A list of two elements that specify the number of bins</span>
+<span class="sd">            to have along each axis.</span>
+<span class="sd">        size: A list of two elements that specifies the size of the</span>
+<span class="sd">            environment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bins_x</span> <span class="o">=</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">bins_y</span> <span class="o">=</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">length_x</span> <span class="o">=</span> <span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">length_y</span> <span class="o">=</span> <span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">if</span> <span class="n">gradient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;random&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">molecule_id</span><span class="p">,</span> <span class="n">fill_value</span> <span class="ow">in</span> <span class="n">gradient</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="n">fill_value</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">bins_x</span><span class="p">,</span> <span class="n">bins_y</span><span class="p">)</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">molecule_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+    <span class="k">if</span> <span class="n">gradient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;gaussian&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">molecule_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">gradient</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">bins_x</span><span class="p">,</span> <span class="n">bins_y</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">[</span><span class="n">specs</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">length_x</span><span class="p">,</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">length_y</span><span class="p">]</span>
+            <span class="n">deviation</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;deviation&quot;</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">x_bin</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins_x</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">y_bin</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins_y</span><span class="p">):</span>
+                    <span class="c1"># distance from middle of bin to center coordinates</span>
+                    <span class="n">dx</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_bin</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">length_x</span> <span class="o">/</span> <span class="n">bins_x</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">dy</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_bin</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">length_y</span> <span class="o">/</span> <span class="n">bins_y</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dy</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                    <span class="n">scale</span> <span class="o">=</span> <span class="n">gaussian</span><span class="p">(</span><span class="n">deviation</span><span class="p">,</span> <span class="p">(</span><span class="n">distance</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">))</span>
+                    <span class="c1"># multiply gradient by scale</span>
+                    <span class="n">field</span><span class="p">[</span><span class="n">x_bin</span><span class="p">][</span><span class="n">y_bin</span><span class="p">]</span> <span class="o">*=</span> <span class="n">scale</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">molecule_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+    <span class="k">elif</span> <span class="n">gradient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;linear&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">molecule_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">gradient</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">bins_x</span><span class="p">,</span> <span class="n">bins_y</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">[</span><span class="n">specs</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">length_x</span><span class="p">,</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">length_y</span><span class="p">]</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="n">specs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;base&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">slope</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;slope&quot;</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">x_bin</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins_x</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">y_bin</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins_y</span><span class="p">):</span>
+                    <span class="n">dx</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_bin</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">length_x</span> <span class="o">/</span> <span class="n">bins_x</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">dy</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_bin</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">length_y</span> <span class="o">/</span> <span class="n">bins_y</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dy</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                    <span class="n">field</span><span class="p">[</span><span class="n">x_bin</span><span class="p">][</span><span class="n">y_bin</span><span class="p">]</span> <span class="o">+=</span> <span class="n">base</span> <span class="o">+</span> <span class="n">slope</span> <span class="o">*</span> <span class="p">(</span><span class="n">distance</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">molecule_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+    <span class="k">elif</span> <span class="n">gradient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;exponential&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">molecule_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">gradient</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">bins_x</span><span class="p">,</span> <span class="n">bins_y</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">center</span> <span class="o">=</span> <span class="p">[</span><span class="n">specs</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">length_x</span><span class="p">,</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">length_y</span><span class="p">]</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;base&quot;</span><span class="p">]</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">specs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scale&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">x_bin</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins_x</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">y_bin</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bins_y</span><span class="p">):</span>
+                    <span class="n">dx</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_bin</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">length_x</span> <span class="o">/</span> <span class="n">bins_x</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">dy</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_bin</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">length_y</span> <span class="o">/</span> <span class="n">bins_y</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dx</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">dy</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+                    <span class="n">field</span><span class="p">[</span><span class="n">x_bin</span><span class="p">][</span><span class="n">y_bin</span><span class="p">]</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">base</span> <span class="o">**</span> <span class="p">(</span><span class="n">distance</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">molecule_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+    <span class="k">elif</span> <span class="n">gradient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;uniform&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">molecule_id</span><span class="p">,</span> <span class="n">fill_value</span> <span class="ow">in</span> <span class="n">gradient</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">molecule_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">bins_x</span><span class="p">,</span> <span class="n">bins_y</span><span class="p">),</span> <span class="n">remove_units</span><span class="p">(</span><span class="n">fill_value</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fields</span></div>
+
+
+
+<div class="viewcode-block" id="gaussian">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.gaussian">[docs]</a>
+<span class="k">def</span> <span class="nf">gaussian</span><span class="p">(</span><span class="n">deviation</span><span class="p">,</span> <span class="n">distance</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">deviation</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">)))</span></div>
+
+
+
+<div class="viewcode-block" id="apply_exchanges">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.apply_exchanges">[docs]</a>
+<span class="k">def</span> <span class="nf">apply_exchanges</span><span class="p">(</span>
+    <span class="n">agents</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">exchanges_path</span><span class="p">,</span> <span class="n">location_path</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">bin_volume</span>
+<span class="p">):</span>
+    <span class="c1"># apply exchanges from each agent</span>
+    <span class="n">agent_updates</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">agent_state</span> <span class="ow">in</span> <span class="n">agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">exchanges</span> <span class="o">=</span> <span class="n">get_in</span><span class="p">(</span><span class="n">agent_state</span><span class="p">,</span> <span class="n">exchanges_path</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">exchanges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">get_in</span><span class="p">(</span><span class="n">agent_state</span><span class="p">,</span> <span class="n">location_path</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">location</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">bin_site</span> <span class="o">=</span> <span class="n">get_bin_site</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">n_bins</span><span class="p">,</span> <span class="n">bounds</span><span class="p">)</span>
+
+        <span class="n">reset_exchanges</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">exchanges</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># delta concentration</span>
+            <span class="n">exchange</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="n">concentration</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">count_to_concentration</span><span class="p">(</span><span class="n">exchange</span><span class="p">,</span> <span class="n">bin_volume</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">UNITS_MM</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+            <span class="p">)</span>
+
+            <span class="n">delta_field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_bins</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">n_bins</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">delta_field</span><span class="p">[</span><span class="n">bin_site</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bin_site</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">concentration</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">+=</span> <span class="n">delta_field</span>
+
+            <span class="c1"># reset the exchange value</span>
+            <span class="n">reset_exchanges</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;_value&quot;</span><span class="p">:</span> <span class="o">-</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;_updater&quot;</span><span class="p">:</span> <span class="s2">&quot;accumulate&quot;</span><span class="p">}</span>
+
+        <span class="n">assoc_path</span><span class="p">(</span><span class="n">agent_updates</span><span class="p">,</span> <span class="p">(</span><span class="n">agent_id</span><span class="p">,)</span> <span class="o">+</span> <span class="n">exchanges_path</span><span class="p">,</span> <span class="n">reset_exchanges</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fields</span><span class="p">,</span> <span class="n">agent_updates</span></div>
+
+
+
+<div class="viewcode-block" id="ExchangeAgent">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.ExchangeAgent">[docs]</a>
+<span class="k">class</span> <span class="nc">ExchangeAgent</span><span class="p">(</span><span class="n">Process</span><span class="p">):</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;mol_ids&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="s2">&quot;default_exchange&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+        <span class="s2">&quot;max_move&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ExchangeAgent.ports_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.ExchangeAgent.ports_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">ports_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">mol_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;mol_ids&quot;</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">accumulate_location</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">update</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span>
+                <span class="nb">max</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">update</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">),</span>
+                <span class="nb">max</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">update</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">),</span>
+            <span class="p">]</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;boundary&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;external&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">mol_id</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span> <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">mol_ids</span><span class="p">},</span>
+                <span class="s2">&quot;exchanges&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="n">mol_id</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;default_exchange&quot;</span><span class="p">]}</span>
+                    <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">mol_ids</span>
+                <span class="p">},</span>
+                <span class="s2">&quot;location&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                    <span class="s2">&quot;_updater&quot;</span><span class="p">:</span> <span class="n">accumulate_location</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">}</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ExchangeAgent.next_update">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.ExchangeAgent.next_update">[docs]</a>
+    <span class="k">def</span> <span class="nf">next_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">states</span><span class="p">):</span>
+        <span class="n">max_move</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;max_move&quot;</span><span class="p">]</span>
+        <span class="n">mol_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;mol_ids&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;boundary&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;exchanges&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="n">mol_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;default_exchange&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">mol_ids</span>
+                <span class="p">},</span>
+                <span class="s2">&quot;location&quot;</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">max_move</span><span class="p">,</span> <span class="n">max_move</span><span class="p">)</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">max_move</span><span class="p">,</span> <span class="n">max_move</span><span class="p">)</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">,</span>
+                <span class="p">],</span>
+            <span class="p">}</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="make_diffusion_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.lattice_utils.html#ecoli.library.lattice_utils.make_diffusion_schema">[docs]</a>
+<span class="k">def</span> <span class="nf">make_diffusion_schema</span><span class="p">(</span>
+    <span class="n">exchanges_path</span><span class="p">,</span>
+    <span class="n">external_path</span><span class="p">,</span>
+    <span class="n">location_path</span><span class="p">,</span>
+    <span class="n">bounds</span><span class="p">,</span>
+    <span class="n">n_bins</span><span class="p">,</span>
+    <span class="n">depth</span><span class="p">,</span>
+    <span class="n">molecule_ids</span><span class="p">,</span>
+    <span class="n">default_field</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="c1"># Place schemas at configured paths.</span>
+    <span class="n">agent_schema</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">location_schema</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">bound</span> <span class="k">for</span> <span class="n">bound</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">],</span>
+        <span class="s2">&quot;_emit&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">assoc_path</span><span class="p">(</span><span class="n">agent_schema</span><span class="p">,</span> <span class="n">location_path</span><span class="p">,</span> <span class="n">location_schema</span><span class="p">)</span>
+    <span class="n">external_schema</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">molecule</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="mf">0.0</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">mM</span><span class="p">}</span> <span class="k">for</span> <span class="n">molecule</span> <span class="ow">in</span> <span class="n">molecule_ids</span>
+    <span class="p">}</span>
+    <span class="n">assoc_path</span><span class="p">(</span><span class="n">agent_schema</span><span class="p">,</span> <span class="n">external_path</span><span class="p">,</span> <span class="n">external_schema</span><span class="p">)</span>
+    <span class="n">exchanges_schema</span> <span class="o">=</span> <span class="p">{</span><span class="n">molecule</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span> <span class="k">for</span> <span class="n">molecule</span> <span class="ow">in</span> <span class="n">molecule_ids</span><span class="p">}</span>
+    <span class="n">assoc_path</span><span class="p">(</span><span class="n">agent_schema</span><span class="p">,</span> <span class="n">exchanges_path</span><span class="p">,</span> <span class="n">exchanges_schema</span><span class="p">)</span>
+
+    <span class="c1"># make the full schema</span>
+    <span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;agents&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;*&quot;</span><span class="p">:</span> <span class="n">agent_schema</span><span class="p">},</span>
+        <span class="s2">&quot;fields&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="n">field</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="n">default_field</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
+                <span class="s2">&quot;_updater&quot;</span><span class="p">:</span> <span class="s2">&quot;nonnegative_accumulate&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;_emit&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">molecule_ids</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;dimensions&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="n">bounds</span><span class="p">,</span>
+                <span class="s2">&quot;_updater&quot;</span><span class="p">:</span> <span class="s2">&quot;set&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;_emit&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;n_bins&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="n">n_bins</span><span class="p">,</span>
+                <span class="s2">&quot;_updater&quot;</span><span class="p">:</span> <span class="s2">&quot;set&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;_emit&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;depth&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="n">depth</span><span class="p">,</span>
+                <span class="s2">&quot;_updater&quot;</span><span class="p">:</span> <span class="s2">&quot;set&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;_emit&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">schema</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

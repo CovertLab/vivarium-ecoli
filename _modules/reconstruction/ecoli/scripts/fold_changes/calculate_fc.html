@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.scripts.fold_changes.calculate_fc &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.scripts.fold_changes.calculate_fc</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.scripts.fold_changes.calculate_fc</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Aggregate data from Javi&#39;s repo to compare to fold_changes.tsv included in wcm.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">reconstruction.spreadsheets</span> <span class="kn">import</span> <span class="n">tsv_writer</span>
+<span class="kn">from</span> <span class="nn">wholecell.io</span> <span class="kn">import</span> <span class="n">tsv</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Iterable</span>
+
+
+<span class="n">FILE_LOCATION</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+<span class="n">SRC_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;kb.tsv&quot;</span><span class="p">)</span>
+<span class="n">WCM_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;fold_changes.tsv&quot;</span><span class="p">)</span>
+<span class="n">SHIFTS_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;shifts.tsv&quot;</span><span class="p">)</span>
+<span class="n">GENES_FILES</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;gene_names.tsv&quot;</span><span class="p">)</span>
+<span class="n">OUTPUT_FILE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">FILE_LOCATION</span><span class="p">,</span> <span class="s2">&quot;updated_fold_changes.tsv&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="load_file">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.fold_changes.calculate_fc.html#reconstruction.ecoli.scripts.fold_changes.calculate_fc.load_file">[docs]</a>
+<span class="k">def</span> <span class="nf">load_file</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a tsv file.&quot;&quot;&quot;</span>
+
+    <span class="k">with</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">reader</span><span class="p">:</span> <span class="n">Iterable</span> <span class="o">=</span> <span class="n">tsv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">reader</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="load_src">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.fold_changes.calculate_fc.html#reconstruction.ecoli.scripts.fold_changes.calculate_fc.load_src">[docs]</a>
+<span class="k">def</span> <span class="nf">load_src</span><span class="p">(</span><span class="n">attempt_match</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Loads and extracts gene regulation data from the source data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            attempt_match: if True, handles data in way that was most likely the</span>
+<span class="sd">                    original processing, otherwise uses expected directionality</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            data: mean and standard deviation for each regulatory pair</span>
+<span class="sd">                    {TF gene name: {regulated gene: {&#39;mean&#39;: mean, &#39;std&#39;: std}}}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">raw_data</span> <span class="o">=</span> <span class="n">load_file</span><span class="p">(</span><span class="n">SRC_FILE</span><span class="p">)</span>
+    <span class="n">shifts</span> <span class="o">=</span> <span class="n">load_shifts</span><span class="p">()</span>
+
+    <span class="c1"># Extract fold changes from data</span>
+    <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="p">:</span>
+        <span class="c1"># Columns of interest</span>
+        <span class="n">condition</span> <span class="o">=</span> <span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">line</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+        <span class="n">tf</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span>
+        <span class="n">regulated_gene</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span>
+        <span class="n">magnitude</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">10</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">tf</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">direction</span> <span class="o">=</span> <span class="n">shifts</span><span class="p">[</span><span class="n">condition</span><span class="p">][</span><span class="n">tf</span><span class="p">]</span>
+
+        <span class="n">data</span><span class="p">[</span><span class="n">tf</span><span class="p">][</span><span class="n">regulated_gene</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">regulated_gene</span><span class="p">,</span> <span class="p">[])</span> <span class="o">+</span> <span class="p">[</span>
+            <span class="n">direction</span> <span class="o">*</span> <span class="n">magnitude</span>
+        <span class="p">]</span>
+
+    <span class="c1"># Calculate mean and std from data</span>
+    <span class="n">processed_data</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">tf</span><span class="p">,</span> <span class="n">regulated</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">tf_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">gene</span><span class="p">,</span> <span class="n">fcs</span> <span class="ow">in</span> <span class="n">regulated</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">attempt_match</span><span class="p">:</span>
+                <span class="n">fcs1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span>
+                    <span class="n">fcs</span>
+                <span class="p">)</span>  <span class="c1"># Bad!! - ignores annotated condition comparison regulation direction</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fcs1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fcs</span><span class="p">)</span>
+            <span class="n">tf_data</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;mean&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">fcs1</span><span class="p">)),</span>
+                <span class="s2">&quot;std&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">fcs1</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)),</span>
+            <span class="p">}</span>
+        <span class="n">processed_data</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf_data</span>
+
+    <span class="k">return</span> <span class="n">processed_data</span></div>
+
+
+
+<div class="viewcode-block" id="load_wcm">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.fold_changes.calculate_fc.html#reconstruction.ecoli.scripts.fold_changes.calculate_fc.load_wcm">[docs]</a>
+<span class="k">def</span> <span class="nf">load_wcm</span><span class="p">(</span><span class="n">attempt_match</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Loads and extracts gene regulation data from the whole-cell model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            attempt_match: if True, handles data in way that was most likely the</span>
+<span class="sd">                    original processing, otherwise uses expected directionality</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            data: mean and standard deviation for each regulatory pair</span>
+<span class="sd">                    {TF gene name: {regulated gene: {&#39;mean&#39;: mean, &#39;std&#39;: std}}}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">raw_data</span> <span class="o">=</span> <span class="n">load_file</span><span class="p">(</span><span class="n">WCM_FILE</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span>
+
+    <span class="c1"># Extract mean and std from data</span>
+    <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Columns of interest</span>
+        <span class="n">tf</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">regulated_gene</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">std</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">attempt_match</span><span class="p">:</span>
+            <span class="n">sign</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sign</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">5</span><span class="p">])))</span>
+
+        <span class="n">uncertain</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">2</span>
+
+        <span class="k">if</span> <span class="n">tf</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">data</span><span class="p">[</span><span class="n">tf</span><span class="p">][</span><span class="n">regulated_gene</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;mean&quot;</span><span class="p">:</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">mean</span><span class="p">,</span>
+            <span class="s2">&quot;std&quot;</span><span class="p">:</span> <span class="n">std</span><span class="p">,</span>
+            <span class="s2">&quot;uncertain&quot;</span><span class="p">:</span> <span class="n">uncertain</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+
+<div class="viewcode-block" id="load_shifts">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.fold_changes.calculate_fc.html#reconstruction.ecoli.scripts.fold_changes.calculate_fc.load_shifts">[docs]</a>
+<span class="k">def</span> <span class="nf">load_shifts</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load TF regulation information for each shift.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            shifts: gene regulation direction for each condition</span>
+<span class="sd">                    1 for active TF in condition1 vs condition2</span>
+<span class="sd">                    -1 for active TF in condition2 vs condition1</span>
+<span class="sd">                    {(condition1, condition2): {TF1: 1, TF2: -1, ...}}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">genes</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span> <span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">load_file</span><span class="p">(</span><span class="n">GENES_FILES</span><span class="p">)}</span>
+    <span class="n">shifts</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">load_file</span><span class="p">(</span><span class="n">SHIFTS_FILE</span><span class="p">):</span>
+        <span class="n">condition</span> <span class="o">=</span> <span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="n">gene_dir</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">genes</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">))]:</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">line</span><span class="p">[</span><span class="mi">12</span><span class="p">:</span><span class="mi">26</span><span class="p">]</span> <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="s2">&quot;0&quot;</span>
+        <span class="p">}</span>
+        <span class="n">shifts</span><span class="p">[</span><span class="n">condition</span><span class="p">]</span> <span class="o">=</span> <span class="n">gene_dir</span>
+
+    <span class="k">return</span> <span class="n">shifts</span></div>
+
+
+
+<div class="viewcode-block" id="compare_data">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.fold_changes.calculate_fc.html#reconstruction.ecoli.scripts.fold_changes.calculate_fc.compare_data">[docs]</a>
+<span class="k">def</span> <span class="nf">compare_data</span><span class="p">(</span>
+    <span class="n">data1</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]],</span>
+    <span class="n">data2</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]],</span>
+    <span class="n">desc</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compares regulation from source data to wcm data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            data1: mean and standard deviation for each regulatory pair</span>
+<span class="sd">            data2: mean and standard deviation for each regulatory pair</span>
+<span class="sd">            desc: description for comparison</span>
+<span class="sd">            verbose: if True, prints additional regulation information</span>
+
+<span class="sd">    Notes:</span>
+<span class="sd">            dictionary structure for both inputs:</span>
+<span class="sd">                    {TF gene name: {regulated gene: {&#39;mean&#39;: mean, &#39;std&#39;: std}}}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Track statistics</span>
+    <span class="n">total_regulation</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">discrepancies</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">direction_discrepancies</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">no_match</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">*** </span><span class="si">{}</span><span class="s2"> ***&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">desc</span><span class="p">))</span>
+
+    <span class="c1"># Print regulation that is different in the datasets</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;TF -&gt; regulated gene: data1 vs data2&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">tf</span><span class="p">,</span> <span class="n">regulation</span> <span class="ow">in</span> <span class="n">data1</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">total_regulation</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">regulation</span><span class="p">)</span>
+        <span class="n">discrepancies</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">direction_discrepancies</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">no_match</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">gene</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">regulation</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">mean1</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span>
+            <span class="n">mean2</span> <span class="o">=</span> <span class="n">data2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tf</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">gene</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mean1</span> <span class="o">-</span> <span class="n">mean2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.01</span> <span class="ow">and</span> <span class="n">mean2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">mean1</span><span class="p">)</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">mean2</span><span class="p">):</span>
+                    <span class="n">direction_discrepancies</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">discrepancies</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="n">uncertain</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">uncertain&quot;</span>
+                        <span class="k">if</span> <span class="n">data2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tf</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">gene</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;uncertain&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                        <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+                    <span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> -&gt; </span><span class="si">{}</span><span class="s2">: </span><span class="si">{:.2f}</span><span class="s2"> vs </span><span class="si">{:.2f}{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">tf</span><span class="p">,</span> <span class="n">gene</span><span class="p">,</span> <span class="n">mean1</span><span class="p">,</span> <span class="n">mean2</span><span class="p">,</span> <span class="n">uncertain</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mean2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">no_match</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">()</span>
+
+    <span class="c1"># Print summary statistics for each TF</span>
+    <span class="n">total_direction_discrepancies</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_discrepancies</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_no_match</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">total_interactions</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;TF: opposite direction, different mean, not in second dataset, total&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">tf</span><span class="p">,</span> <span class="n">total</span> <span class="ow">in</span> <span class="n">total_regulation</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">tf_dir_disc</span> <span class="o">=</span> <span class="n">direction_discrepancies</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span>
+        <span class="n">tf_disc</span> <span class="o">=</span> <span class="n">discrepancies</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span>
+        <span class="n">tf_no_match</span> <span class="o">=</span> <span class="n">no_match</span><span class="p">[</span><span class="n">tf</span><span class="p">]</span>
+
+        <span class="n">total_direction_discrepancies</span> <span class="o">+=</span> <span class="n">tf_dir_disc</span>
+        <span class="n">total_discrepancies</span> <span class="o">+=</span> <span class="n">tf_disc</span>
+        <span class="n">total_no_match</span> <span class="o">+=</span> <span class="n">tf_no_match</span>
+        <span class="n">total_interactions</span> <span class="o">+=</span> <span class="n">total</span>
+
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">{:5s}</span><span class="s2">: </span><span class="si">{:3}</span><span class="s2"> </span><span class="si">{:3}</span><span class="s2"> </span><span class="si">{:3}</span><span class="s2"> </span><span class="si">{:3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">tf</span><span class="p">,</span> <span class="n">tf_dir_disc</span><span class="p">,</span> <span class="n">tf_disc</span><span class="p">,</span> <span class="n">tf_no_match</span><span class="p">,</span> <span class="n">total</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span>
+        <span class="s2">&quot;Total: </span><span class="si">{:3}</span><span class="s2"> </span><span class="si">{:3}</span><span class="s2"> </span><span class="si">{:3}</span><span class="s2"> </span><span class="si">{:3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">total_direction_discrepancies</span><span class="p">,</span>
+            <span class="n">total_discrepancies</span><span class="p">,</span>
+            <span class="n">total_no_match</span><span class="p">,</span>
+            <span class="n">total_interactions</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="replace_uncertain_entries">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.fold_changes.calculate_fc.html#reconstruction.ecoli.scripts.fold_changes.calculate_fc.replace_uncertain_entries">[docs]</a>
+<span class="k">def</span> <span class="nf">replace_uncertain_entries</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Replaces entries that were marked as uncertain in fold changes</span>
+<span class="sd">    (Regulation_direct 3 or 4) if the mean fold change is the opposite sign</span>
+<span class="sd">    when correcting for the regulation direction.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            data: mean and standard deviation for each regulatory pair</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">raw_data</span> <span class="o">=</span> <span class="n">load_file</span><span class="p">(</span><span class="n">WCM_FILE</span><span class="p">)</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="n">raw_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">with</span> <span class="n">tsv_writer</span><span class="p">(</span><span class="n">OUTPUT_FILE</span><span class="p">,</span> <span class="n">headers</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
+        <span class="c1"># Check each fold change and update if needed</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">tf</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;#&quot; &#39;</span><span class="p">)</span>
+            <span class="n">gene</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+
+            <span class="c1"># Update value if uncertain fold change and opposite direction as mean</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># uncertain if category 3 or 4</span>
+                <span class="n">entry</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tf</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">gene</span><span class="p">,</span> <span class="p">{})</span>
+                <span class="n">mean</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">std</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">new_direction</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">mean</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">new_direction</span> <span class="o">*</span> <span class="n">direction</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># both have opposite signs</span>
+                    <span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mean</span><span class="p">))</span>
+                    <span class="n">line</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">std</span><span class="p">)</span>
+                    <span class="n">line</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{:.0f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">new_direction</span><span class="p">)</span>
+
+            <span class="c1"># Write updated lines to file</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">tf</span><span class="p">,</span>
+                <span class="n">gene</span><span class="p">,</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">4</span><span class="p">]),</span>
+                <span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">5</span><span class="p">]),</span>
+                <span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">6</span><span class="p">]),</span>
+                <span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">7</span><span class="p">]),</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">8</span><span class="p">]),</span>
+            <span class="p">]</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">header</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">header</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">headers</span><span class="p">,</span> <span class="n">row</span><span class="p">)}</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="parse_args">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.scripts.fold_changes.calculate_fc.html#reconstruction.ecoli.scripts.fold_changes.calculate_fc.parse_args">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_args</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parses arguments from the command line.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            values of variables parsed from the command line</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-m&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;--match&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;If set, processes source data to best match wcm.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-v&quot;</span><span class="p">,</span> <span class="s2">&quot;--verbose&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;If set, prints more information.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;--replace&quot;</span><span class="p">,</span>
+        <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Replace uncertain fold changes if new direction is different.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="n">src_data</span> <span class="o">=</span> <span class="n">load_src</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">match</span><span class="p">)</span>
+    <span class="n">wcm_data</span> <span class="o">=</span> <span class="n">load_wcm</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">match</span><span class="p">)</span>
+
+    <span class="n">compare_data</span><span class="p">(</span><span class="n">src_data</span><span class="p">,</span> <span class="n">wcm_data</span><span class="p">,</span> <span class="s2">&quot;Javi repo vs wcm&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">replace</span><span class="p">:</span>
+        <span class="n">replace_uncertain_entries</span><span class="p">(</span><span class="n">src_data</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.plotting_tools &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.plotting_tools</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.plotting_tools</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Reusable plotting functions and tools</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">LinearSegmentedColormap</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">filepath</span>
+
+<span class="n">DEFAULT_MATPLOTLIB_COLORS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;#1f77b4&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#ff7f0e&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#2ca02c&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#d62728&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#9467bd&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8c564b&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#e377c2&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#7f7f7f&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#bcbd22&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#17becf&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">COLORS_LARGE</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;#000000&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FFFF00&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#1CE6FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF34FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF4A46&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#008941&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#006FA6&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A30059&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FFDBE5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#7A4900&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#0000A6&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#63FFAC&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#B79762&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#004D43&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8FB0FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#997D87&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#5A0007&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#809693&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FEFFE6&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#1B4400&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#4FC601&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#3B5DFF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#4A3B53&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF2F80&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#61615A&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#BA0900&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#6B7900&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00C2A0&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FFAA92&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF90C9&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#B903AA&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#D16100&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#DDEFFF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#000035&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#7B4F4B&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A1C299&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#300018&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#0AA6D8&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#013349&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00846F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#372101&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FFB500&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#C2FFED&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A079BF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#CC0744&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#C0B9B2&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#C2FF99&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#001E09&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00489C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#6F0062&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#0CBD66&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#EEC3FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#456D75&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#B77B68&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#7A87A1&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#788D66&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#885578&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FAD09F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF8A9A&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#D157A0&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#BEC459&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#456648&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#0086ED&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#886F4C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#34362D&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#B4A8BD&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00A6AA&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#452C2C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#636375&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A3C8C9&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF913F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#938A81&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#575329&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00FECF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#B05B6F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8CD0FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#3B9700&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#04F757&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#C8A1A1&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#1E6E00&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#7900D7&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A77500&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#6367A9&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A05837&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#6B002C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#772600&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#D790FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#9B9700&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#549E79&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FFF69F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#201625&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#72418F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#BC23FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#99ADC0&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#3A2465&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#922329&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#5B4534&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FDE8DC&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#404E55&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#0089A3&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#CB7E98&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A4E804&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#324E72&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#6A3A4C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#83AB58&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#001C1E&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#D1F7CE&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#004B28&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#C8D0F6&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#A3A489&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#806C66&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#222800&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#BF5650&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#E83000&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#66796D&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#DA007C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF1A59&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8ADBB4&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#1E0200&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#5B4E51&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#C895C5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#320033&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF6832&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#66E1D3&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#CFCDAC&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#D0AC94&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#7ED379&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#012C58&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">COLORS_SMALL</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;#FF0000&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00FF00&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#0000FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF00FF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00FFFF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#000000&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#007FFF&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#236B8E&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#70DB93&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#B5A642&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#5F9F9F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#B87333&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#2F4F2F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#9932CD&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#871F78&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#855E42&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#545454&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8E2323&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#238E23&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#CD7F32&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#527F76&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#9F9F5F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8E236B&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#2F2F4F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#CFB53B&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#FF7F00&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#DB70DB&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#5959AB&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8C1717&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#238E68&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#6B4226&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#8E6B23&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#00FF7F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#38B0DE&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#DB9370&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#5C4033&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#4F2F4F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#CC3299&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;#99CC32&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">CMAP_COLORS_255</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">[</span><span class="mi">247</span><span class="p">,</span> <span class="mi">247</span><span class="p">,</span> <span class="mi">247</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">209</span><span class="p">,</span> <span class="mi">229</span><span class="p">,</span> <span class="mi">240</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">146</span><span class="p">,</span> <span class="mi">197</span><span class="p">,</span> <span class="mi">222</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">67</span><span class="p">,</span> <span class="mi">147</span><span class="p">,</span> <span class="mi">195</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">33</span><span class="p">,</span> <span class="mi">102</span><span class="p">,</span> <span class="mi">172</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">48</span><span class="p">,</span> <span class="mi">97</span><span class="p">],</span>
+<span class="p">]</span>
+
+<span class="n">COLORS_256</span> <span class="o">=</span> <span class="p">[</span>  <span class="c1"># From colorbrewer2.org, qualitative 8-class set 1</span>
+    <span class="p">[</span><span class="mi">228</span><span class="p">,</span> <span class="mi">26</span><span class="p">,</span> <span class="mi">28</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">55</span><span class="p">,</span> <span class="mi">126</span><span class="p">,</span> <span class="mi">184</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">77</span><span class="p">,</span> <span class="mi">175</span><span class="p">,</span> <span class="mi">74</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">152</span><span class="p">,</span> <span class="mi">78</span><span class="p">,</span> <span class="mi">163</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">255</span><span class="p">,</span> <span class="mi">127</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">51</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">166</span><span class="p">,</span> <span class="mi">86</span><span class="p">,</span> <span class="mi">40</span><span class="p">],</span>
+    <span class="p">[</span><span class="mi">247</span><span class="p">,</span> <span class="mi">129</span><span class="p">,</span> <span class="mi">191</span><span class="p">],</span>
+<span class="p">]</span>
+
+<span class="k">with</span> <span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="s2">&quot;seaborn-v0_8-colorblind&quot;</span><span class="p">):</span>
+    <span class="n">COLORS_COLORBLIND</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s2">&quot;axes.prop_cycle&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">by_key</span><span class="p">()[</span><span class="s2">&quot;color&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="remove_border">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.plotting_tools.html#wholecell.utils.plotting_tools.remove_border">[docs]</a>
+<span class="k">def</span> <span class="nf">remove_border</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;top&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">bottom</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;bottom&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([])</span></div>
+
+
+
+<span class="n">LOW_RES_DIR</span> <span class="o">=</span> <span class="s2">&quot;low_res_plots&quot;</span>
+<span class="n">SVG_DIR</span> <span class="o">=</span> <span class="s2">&quot;svg_plots&quot;</span>
+<span class="n">HTML_DIR</span> <span class="o">=</span> <span class="s2">&quot;html_plots&quot;</span>
+<span class="n">LOW_RES_DPI</span> <span class="o">=</span> <span class="mi">120</span>
+
+
+<div class="viewcode-block" id="export_figure">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.plotting_tools.html#wholecell.utils.plotting_tools.export_figure">[docs]</a>
+<span class="k">def</span> <span class="nf">export_figure</span><span class="p">(</span>
+    <span class="n">plt</span><span class="p">,</span>
+    <span class="n">plotOutDir</span><span class="p">,</span>
+    <span class="n">plotOutFileName</span><span class="p">,</span>
+    <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">transparent</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">dpi</span><span class="o">=</span><span class="n">LOW_RES_DPI</span><span class="p">,</span>
+    <span class="n">extension</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s2">&quot;analysis_type&quot;</span> <span class="ow">in</span> <span class="n">metadata</span><span class="p">:</span>
+        <span class="n">analysis_type</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;analysis_type&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">analysis_type</span> <span class="o">==</span> <span class="s2">&quot;single&quot;</span><span class="p">:</span>
+            <span class="c1"># Format metadata signature for single gen figure</span>
+            <span class="n">metadata_signature</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;variant_function&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;variant_index&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;Seed&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;Gen&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;gen&quot;</span><span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;total_gens&quot;</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                    <span class="s2">&quot;Githash&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;git_hash&quot;</span><span class="p">])[:</span><span class="mi">10</span><span class="p">],</span>
+                    <span class="s2">&quot;Desc&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">analysis_type</span> <span class="o">==</span> <span class="s2">&quot;multigeneration&quot;</span><span class="p">:</span>
+            <span class="c1"># Format metadata signature for multi gen figure</span>
+            <span class="n">metadata_signature</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;variant_function&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;variant_index&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;Seed&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;total_gens&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;gens&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;Githash&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;git_hash&quot;</span><span class="p">])[:</span><span class="mi">10</span><span class="p">],</span>
+                    <span class="s2">&quot;Desc&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">analysis_type</span> <span class="o">==</span> <span class="s2">&quot;multiseed&quot;</span><span class="p">:</span>
+            <span class="c1"># Format metadata signature for multiseed figure</span>
+            <span class="n">metadata_signature</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;variant_function&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;variant_index&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;total_gens&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;gens&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;Githash&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;git_hash&quot;</span><span class="p">])[:</span><span class="mi">10</span><span class="p">],</span>
+                    <span class="s2">&quot;Desc&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">analysis_type</span> <span class="o">==</span> <span class="s2">&quot;multivariant&quot;</span><span class="p">:</span>
+            <span class="c1"># Format metadata signature for multivariant figure</span>
+            <span class="n">metadata_signature</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;total_variants&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;variants&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;total_gens&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;gens&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;Githash&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;git_hash&quot;</span><span class="p">])[:</span><span class="mi">10</span><span class="p">],</span>
+                    <span class="s2">&quot;Desc&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">analysis_type</span> <span class="o">==</span> <span class="s2">&quot;parca&quot;</span><span class="p">:</span>
+            <span class="c1"># Format metadata signature for parca figure</span>
+            <span class="n">metadata_signature</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;Githash&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;git_hash&quot;</span><span class="p">])[:</span><span class="mi">10</span><span class="p">],</span>
+                    <span class="s2">&quot;Desc&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">analysis_type</span> <span class="o">==</span> <span class="s2">&quot;multiexperiment&quot;</span><span class="p">:</span>
+            <span class="c1"># Format metadata signature for a multiexperiment figure</span>
+            <span class="n">metadata_signature</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">]),</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;total_variants&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;variants&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;total_gens&quot;</span><span class="p">]),</span>
+                    <span class="s2">&quot;gens&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;Githash&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;git_hash&quot;</span><span class="p">])[:</span><span class="mi">10</span><span class="p">],</span>
+                    <span class="s2">&quot;Desc&quot;</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown analysis_type </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">analysis_type</span><span class="p">))</span>
+
+        <span class="c1"># Add metadata signature to the bottom of the plot</span>
+        <span class="c1"># Don&#39;t accidentally trigger $TeX formatting$.</span>
+        <span class="n">metadata_signature</span> <span class="o">=</span> <span class="n">metadata_signature</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;$&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">figtext</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">metadata_signature</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+
+    <span class="c1"># Make folders for holding alternate types of images</span>
+    <span class="n">filepath</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">plotOutDir</span><span class="p">,</span> <span class="n">LOW_RES_DIR</span><span class="p">)</span>
+    <span class="n">filepath</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">plotOutDir</span><span class="p">,</span> <span class="n">SVG_DIR</span><span class="p">)</span>
+
+    <span class="c1"># Save images</span>
+    <span class="k">if</span> <span class="n">extension</span><span class="p">:</span>
+        <span class="c1"># Only save one type in main analysis directory if extension is given</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plotOutDir</span><span class="p">,</span> <span class="n">plotOutFileName</span> <span class="o">+</span> <span class="n">extension</span><span class="p">),</span>
+            <span class="n">dpi</span><span class="o">=</span><span class="n">dpi</span><span class="p">,</span>
+            <span class="n">transparent</span><span class="o">=</span><span class="n">transparent</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Save all image types</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plotOutDir</span><span class="p">,</span> <span class="n">plotOutFileName</span> <span class="o">+</span> <span class="s2">&quot;.pdf&quot;</span><span class="p">),</span> <span class="n">transparent</span><span class="o">=</span><span class="n">transparent</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plotOutDir</span><span class="p">,</span> <span class="n">SVG_DIR</span><span class="p">,</span> <span class="n">plotOutFileName</span> <span class="o">+</span> <span class="s2">&quot;.svg&quot;</span><span class="p">),</span>
+            <span class="n">transparent</span><span class="o">=</span><span class="n">transparent</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plotOutDir</span><span class="p">,</span> <span class="n">LOW_RES_DIR</span><span class="p">,</span> <span class="n">plotOutFileName</span> <span class="o">+</span> <span class="s2">&quot;.png&quot;</span><span class="p">),</span>
+            <span class="n">dpi</span><span class="o">=</span><span class="n">dpi</span><span class="p">,</span>
+            <span class="n">transparent</span><span class="o">=</span><span class="n">transparent</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="plot_splom">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.plotting_tools.html#wholecell.utils.plotting_tools.plot_splom">[docs]</a>
+<span class="k">def</span> <span class="nf">plot_splom</span><span class="p">(</span>
+    <span class="n">arrayOfdataArrays</span><span class="p">,</span>
+    <span class="n">nameArray</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">stdArrays</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">fig</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">plotCorrCoef</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">formatString</span><span class="o">=</span><span class="s2">&quot;o&quot;</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot a scatterplot matrix (Splom) of data contained in arrayOfdataArrays,</span>
+<span class="sd">    with labels in the same order held within nameArray.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrayOfdataArrays</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nameArray</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span>
+            <span class="s2">&quot;Your array of data arrays and the array of names must be the same length.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">stdArrays</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stdArrays</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrayOfdataArrays</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">stdArrays</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrayOfdataArrays</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span>
+            <span class="s2">&quot;If you provide an array of standard deviations, there must be one entry per input data array. Entries can be None.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">fig</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+
+    <span class="n">num_entries</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrayOfdataArrays</span><span class="p">)</span>
+    <span class="n">plottingIndex</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">rowNum</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_entries</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">colNum</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_entries</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">colNum</span> <span class="o">&lt;</span> <span class="n">plottingIndex</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">num_entries</span><span class="p">,</span> <span class="n">num_entries</span><span class="p">,</span> <span class="n">num_entries</span> <span class="o">*</span> <span class="p">(</span><span class="n">rowNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">colNum</span><span class="p">))</span>
+
+            <span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span>
+                <span class="n">arrayOfdataArrays</span><span class="p">[</span><span class="n">colNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="n">arrayOfdataArrays</span><span class="p">[</span><span class="n">rowNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="n">xerr</span><span class="o">=</span><span class="n">stdArrays</span><span class="p">[</span><span class="n">colNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="n">yerr</span><span class="o">=</span><span class="n">stdArrays</span><span class="p">[</span><span class="n">rowNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="n">fmt</span><span class="o">=</span><span class="n">formatString</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">nameArray</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="n">nameArray</span><span class="p">[</span><span class="n">colNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="n">nameArray</span><span class="p">[</span><span class="n">rowNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">plotCorrCoef</span><span class="p">:</span>
+                <span class="n">corr_coef</span><span class="p">,</span> <span class="n">pValue</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">pearsonr</span><span class="p">(</span>
+                    <span class="n">arrayOfdataArrays</span><span class="p">[</span><span class="n">colNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">arrayOfdataArrays</span><span class="p">[</span><span class="n">rowNum</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;R = </span><span class="si">%.4f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">corr_coef</span><span class="p">,))</span>
+        <span class="n">plottingIndex</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">fig</span></div>
+
+
+
+<div class="viewcode-block" id="labeled_indexable_hist">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.plotting_tools.html#wholecell.utils.plotting_tools.labeled_indexable_hist">[docs]</a>
+<span class="k">def</span> <span class="nf">labeled_indexable_hist</span><span class="p">(</span>
+    <span class="n">ax</span><span class="p">,</span>
+    <span class="n">data</span><span class="p">,</span>
+    <span class="n">gen_data</span><span class="p">,</span>
+    <span class="n">gen_start</span><span class="p">,</span>
+    <span class="n">gen_end</span><span class="p">,</span>
+    <span class="n">colors</span><span class="p">,</span>
+    <span class="n">xlabel</span><span class="p">,</span>
+    <span class="n">bin_width</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">xlim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">sf</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">font_size</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a histogram of (subset of) data, with label for mean and standard</span>
+<span class="sd">    deviation of data for each variant</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ax: Axes object</span>
+<span class="sd">        data: data to plot</span>
+<span class="sd">        gen_data: generation index corresponding to each data point</span>
+<span class="sd">        gen_start: index of generation to start from (inclusive)</span>
+<span class="sd">        gen_end: index of generation to end at (exclusive)</span>
+<span class="sd">        colors: list of colors to use for each variant</span>
+<span class="sd">        xlabel: x-axis label for plot</span>
+<span class="sd">        bin_width: used in conjunction with xlim to determine number of bins</span>
+<span class="sd">        xlim: specify x-axis plotting region</span>
+<span class="sd">        sf: scale factor</span>
+<span class="sd">        font_size: font size for labeling axes</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        histogram of data, colored by variant, for data corresponding to</span>
+<span class="sd">            generation indexes in [gen_start:gen_end]</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+        <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span>
+            <span class="nb">range</span><span class="p">(</span><span class="n">xlim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">xlim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">bins</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">xlim</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">xlim</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">bin_width</span><span class="p">)),</span>
+        <span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">variant</span><span class="p">,</span> <span class="n">variant_data</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">variant_gen_data</span> <span class="o">=</span> <span class="n">gen_data</span><span class="p">[</span><span class="n">variant</span><span class="p">]</span>
+        <span class="n">variant_data</span> <span class="o">=</span> <span class="n">variant_data</span><span class="p">[</span>
+            <span class="p">(</span><span class="n">variant_gen_data</span> <span class="o">&gt;=</span> <span class="n">gen_start</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">variant_gen_data</span> <span class="o">&lt;</span> <span class="n">gen_end</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">variant_data</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">continue</span>
+
+        <span class="n">color</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="n">variant</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">colors</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">xlim</span><span class="p">:</span>
+            <span class="n">bins</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                <span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">variant_data</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">variant_data</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">/</span> <span class="n">bin_width</span><span class="p">))</span>
+            <span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">variant_data</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">std</span> <span class="o">=</span> <span class="n">variant_data</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span>
+            <span class="n">variant_data</span><span class="p">,</span>
+            <span class="n">bins</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Var </span><span class="si">{</span><span class="n">variant</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">mean</span><span class="si">:</span><span class="s2">.</span><span class="si">{</span><span class="n">sf</span><span class="si">}</span><span class="s2">f</span><span class="si">}</span><span class="s2"> +/- </span><span class="si">{</span><span class="n">std</span><span class="si">:</span><span class="s2">.</span><span class="si">{</span><span class="n">sf</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">mean</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xlim</span><span class="p">)</span>
+    <span class="n">remove_border</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">font_size</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelsize</span><span class="o">=</span><span class="n">font_size</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="labeled_indexable_scatter">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.plotting_tools.html#wholecell.utils.plotting_tools.labeled_indexable_scatter">[docs]</a>
+<span class="k">def</span> <span class="nf">labeled_indexable_scatter</span><span class="p">(</span>
+    <span class="n">ax</span><span class="p">,</span>
+    <span class="n">xdata</span><span class="p">,</span>
+    <span class="n">ydata</span><span class="p">,</span>
+    <span class="n">gen_data</span><span class="p">,</span>
+    <span class="n">gen_start</span><span class="p">,</span>
+    <span class="n">gen_end</span><span class="p">,</span>
+    <span class="n">colors</span><span class="p">,</span>
+    <span class="n">xlabel</span><span class="p">,</span>
+    <span class="n">ylabel</span><span class="p">,</span>
+    <span class="n">xlim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ylim</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">sf</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">font_size</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a scatterplot of (subset of) data, with label for mean and</span>
+<span class="sd">    standard deviation of data for each variant</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        ax: Axes object</span>
+<span class="sd">        xdata: data to plot on x axes</span>
+<span class="sd">        ydata: data to plot on y axes</span>
+<span class="sd">        gen_data: generation index corresponding to each data point</span>
+<span class="sd">        gen_start: index of generation to start from (inclusive)</span>
+<span class="sd">        gen_end: index of generation to end at (exclusive)</span>
+<span class="sd">        colors: list of colors to use for each variant</span>
+<span class="sd">        xlabel: x-axis label for plot</span>
+<span class="sd">        ylabel: y-axis label for plot</span>
+<span class="sd">        xlim: specify x-axis plotting region</span>
+<span class="sd">        ylim: specify y-axis plotting region</span>
+<span class="sd">        sf: scale factor</span>
+<span class="sd">        font_size: font size for labeling axes</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        scatterplot of data, colored by variant, for data corresponding</span>
+<span class="sd">             to generation indexes in [gen_start:gen_end]</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">variant</span><span class="p">,</span> <span class="n">variant_data</span> <span class="ow">in</span> <span class="n">xdata</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">variant_gen_data</span> <span class="o">=</span> <span class="n">gen_data</span><span class="p">[</span><span class="n">variant</span><span class="p">]</span>
+        <span class="n">variant_xdata</span> <span class="o">=</span> <span class="n">variant_data</span><span class="p">[</span>
+            <span class="p">(</span><span class="n">variant_gen_data</span> <span class="o">&gt;=</span> <span class="n">gen_start</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">variant_gen_data</span> <span class="o">&lt;</span> <span class="n">gen_end</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="n">variant_ydata</span> <span class="o">=</span> <span class="n">ydata</span><span class="p">[</span><span class="n">variant</span><span class="p">][</span>
+            <span class="p">(</span><span class="n">variant_gen_data</span> <span class="o">&gt;=</span> <span class="n">gen_start</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">variant_gen_data</span> <span class="o">&lt;</span> <span class="n">gen_end</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">variant_xdata</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="ow">or</span> <span class="n">variant_ydata</span><span class="o">.</span><span class="n">any</span><span class="p">()):</span>
+            <span class="k">continue</span>
+
+        <span class="n">color</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="n">variant</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">colors</span><span class="p">)]</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">variant_ydata</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">std</span> <span class="o">=</span> <span class="n">variant_ydata</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+        <span class="n">mean_new_gene</span> <span class="o">=</span> <span class="n">variant_xdata</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+            <span class="n">variant_xdata</span><span class="p">,</span>
+            <span class="n">variant_ydata</span><span class="p">,</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Var </span><span class="si">{</span><span class="n">variant</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">mean</span><span class="si">:</span><span class="s2">.</span><span class="si">{</span><span class="n">sf</span><span class="si">}</span><span class="s2">f</span><span class="si">}</span><span class="s2"> +/- </span><span class="si">{</span><span class="n">std</span><span class="si">:</span><span class="s2">.</span><span class="si">{</span><span class="n">sf</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">mean_new_gene</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xlim</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">ylim</span><span class="p">)</span>
+    <span class="n">remove_border</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">font_size</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">font_size</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">labelsize</span><span class="o">=</span><span class="n">font_size</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="heatmap">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.plotting_tools.html#wholecell.utils.plotting_tools.heatmap">[docs]</a>
+<span class="k">def</span> <span class="nf">heatmap</span><span class="p">(</span>
+    <span class="n">ax</span><span class="p">,</span>
+    <span class="n">mask</span><span class="p">,</span>
+    <span class="n">data</span><span class="p">,</span>
+    <span class="n">completion_data</span><span class="p">,</span>
+    <span class="n">xticklabels</span><span class="p">,</span>
+    <span class="n">yticklabels</span><span class="p">,</span>
+    <span class="n">xlabel</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">ylabel</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">box_text_size</span><span class="o">=</span><span class="s2">&quot;medium&quot;</span><span class="p">,</span>
+    <span class="n">ax_font_size</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
+    <span class="n">title_font_size</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
+    <span class="n">percent_completion_threshold</span><span class="o">=</span><span class="mf">0.88</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Args:</span>
+<span class="sd">        ax: Axes object</span>
+<span class="sd">        mask: Only plot values where mask is true, must match dimensions of</span>
+<span class="sd">        data</span>
+<span class="sd">        data: 2-dimensional numpy array of data to plot</span>
+<span class="sd">        completion_data: Percent of seeds that successfully completed all</span>
+<span class="sd">        generations that contributed to this value, must match dimensions of</span>
+<span class="sd">        data</span>
+<span class="sd">        xticklabels: tick values for x-axis</span>
+<span class="sd">        yticklabels: tick values for y-axis</span>
+<span class="sd">        xlabel: x-axis label for plot</span>
+<span class="sd">        ylabel: y-axis label for plot</span>
+<span class="sd">        title: plot title</span>
+<span class="sd">        box_text_size: size of text value to be printed in box</span>
+<span class="sd">        ax_font_size: font size for labeling axes</span>
+<span class="sd">        title_font_size: font size for title</span>
+<span class="sd">        percent_completion_threshold: If the percent completion for this</span>
+<span class="sd">        parameter combination is lower than the threshold, the number in the</span>
+<span class="sd">        box will be colored red. If the threshold is 0, no numbers will be</span>
+<span class="sd">        colored red.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        heatmap of data, where squares are colored by value and numbers</span>
+<span class="sd">        are colored by the percent of simulations that successfuly completed,</span>
+<span class="sd">        for data corresponding to different parameter values in 2 dimensions</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="n">mask</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">completion_data</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="n">grid_colors</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">255</span> <span class="o">/</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span> <span class="o">/</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span> <span class="o">/</span> <span class="mi">255</span><span class="p">),</span> <span class="p">(</span><span class="mi">22</span> <span class="o">/</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">110</span> <span class="o">/</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">164</span> <span class="o">/</span> <span class="mi">255</span><span class="p">)]</span>
+    <span class="n">cmap_name</span> <span class="o">=</span> <span class="s2">&quot;blue_cmap&quot;</span>
+    <span class="n">blue_cmap</span> <span class="o">=</span> <span class="n">LinearSegmentedColormap</span><span class="o">.</span><span class="n">from_list</span><span class="p">(</span><span class="n">cmap_name</span><span class="p">,</span> <span class="n">grid_colors</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+    <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">blue_cmap</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">xticklabels</span><span class="p">)))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">xticklabels</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">yticklabels</span><span class="p">)))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">yticklabels</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">ax</span><span class="o">.</span><span class="n">get_xticklabels</span><span class="p">(),</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">rotation_mode</span><span class="o">=</span><span class="s2">&quot;anchor&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">yticklabels</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">xticklabels</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]:</span>
+                <span class="n">col</span> <span class="o">=</span> <span class="s2">&quot;k&quot;</span>
+                <span class="k">if</span> <span class="n">completion_data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">completion_data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">percent_completion_threshold</span><span class="p">:</span>
+                    <span class="n">col</span> <span class="o">=</span> <span class="s2">&quot;r&quot;</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
+                    <span class="n">j</span><span class="p">,</span>
+                    <span class="n">i</span><span class="p">,</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span>
+                    <span class="n">va</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span>
+                    <span class="n">color</span><span class="o">=</span><span class="n">col</span><span class="p">,</span>
+                    <span class="n">fontsize</span><span class="o">=</span><span class="n">box_text_size</span><span class="p">,</span>
+                <span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">ax_font_size</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">ax_font_size</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">title_font_size</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.dataclasses.getter_functions &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.dataclasses.getter_functions</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.dataclasses.getter_functions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SimulationData getter functions</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">Bio.Seq</span> <span class="kn">import</span> <span class="n">Seq</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numpy.typing</span> <span class="k">as</span> <span class="nn">npt</span>
+
+<span class="kn">from</span> <span class="nn">reconstruction.ecoli.dataclasses.molecule_groups</span> <span class="kn">import</span> <span class="n">POLYMERIZED_FRAGMENT_PREFIX</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+<span class="n">EXCLUDED_RNA_TYPES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;pseudo&quot;</span><span class="p">,</span> <span class="s2">&quot;phantom&quot;</span><span class="p">}</span>
+
+<span class="c1"># Mapping of compartment IDs to abbreviations for compartments undefined in</span>
+<span class="c1"># flat/compartments.tsv</span>
+<span class="n">UNDEFINED_COMPARTMENT_IDS_TO_ABBREVS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;CCI-PERI-BAC-GN&quot;</span><span class="p">:</span> <span class="s2">&quot;p&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCI-PM-BAC-NEG-GN&quot;</span><span class="p">:</span> <span class="s2">&quot;i&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCO-PM-BAC-ACT&quot;</span><span class="p">:</span> <span class="s2">&quot;i&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCO-OUT&quot;</span><span class="p">:</span> <span class="s2">&quot;e&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCO-IN&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;NIL&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCO-CW-BAC-NEG&quot;</span><span class="p">:</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCO-CE-BAC&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCO-BAC-NUCLEOID&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CCO-RIBOSOME&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">IGNORED_DNA_SITE_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;dna-binding-site&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;phage-attachment-site&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rep-element&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;repeat-region&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="TranscriptionDirectionError">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.TranscriptionDirectionError">[docs]</a>
+<span class="k">class</span> <span class="nc">TranscriptionDirectionError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="UnknownMolecularWeightError">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.UnknownMolecularWeightError">[docs]</a>
+<span class="k">class</span> <span class="nc">UnknownMolecularWeightError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="UnknownModifiedRnaError">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.UnknownModifiedRnaError">[docs]</a>
+<span class="k">class</span> <span class="nc">UnknownModifiedRnaError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="InvalidProteinComplexError">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.InvalidProteinComplexError">[docs]</a>
+<span class="k">class</span> <span class="nc">InvalidProteinComplexError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="GetterFunctions">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions">[docs]</a>
+<span class="k">class</span> <span class="nc">GetterFunctions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;getterFunctions&quot;&quot;&quot;</span>
+
+    <span class="n">_compartment_tag</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\[[a-z]]&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_submass_indexes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sim_data</span><span class="o">.</span><span class="n">submass_name_to_index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_submass_name_to_index</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">submass_name_to_index</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_sequences</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_all_masses</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_compartments</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_genomic_coordinates</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GetterFunctions.get_sequences">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_sequences">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_sequences</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a list of sequences of the molecules with the given IDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_mass">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_mass">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_mass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the total mass of the molecule with a given ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mol_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mass_units</span>
+            <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_total_masses</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_compartment_tag</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">)]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_ids</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return an array of total masses of the molecules with the given IDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mol_ids</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">))</span>
+        <span class="n">masses</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_all_total_masses</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_compartment_tag</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">mol_ids</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mass_units</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">masses</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_submass_array">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_submass_array">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_submass_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the submass array of the molecule with a given ID.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mol_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mass_units</span>
+            <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_compartment_tag</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">)]</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_compartment">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_compartment">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_compartment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the list of one-letter codes for the compartments that the</span>
+<span class="sd">        molecule with the given ID can exist in.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mol_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_compartments">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_compartments">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_compartments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of the list of one-letter codes for the compartments</span>
+<span class="sd">        that each of the molecules with the given IDs can exist in.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_compartment_tag">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_compartment_tag">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_compartment_tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">id_</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Look up a molecule id and return a compartment suffix tag like &#39;[c]&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="p">[</span><span class="n">id_</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">]&quot;</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.is_valid_molecule">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.is_valid_molecule">[docs]</a>
+    <span class="k">def</span> <span class="nf">is_valid_molecule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns True if the molecule with the given ID is a valid molecule (has</span>
+<span class="sd">        both a submass array and a compartment tag).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span> <span class="ow">and</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_all_valid_molecules">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_all_valid_molecules">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_all_valid_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of all molecule IDs with assigned submass arrays and</span>
+<span class="sd">        compartments.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">&amp;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_genomic_coordinates">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_genomic_coordinates">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_genomic_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">site_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the genomic coordinates of the left and right ends of a DNA site</span>
+<span class="sd">        given the ID of the site.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_genomic_coordinates</span><span class="p">[</span><span class="n">site_id</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_miscrnas_with_singleton_tus">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_miscrnas_with_singleton_tus">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_miscrnas_with_singleton_tus</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of all miscRNA IDs with corresponding single-gene</span>
+<span class="sd">        transcription units.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_miscrna_id_to_singleton_tu_id</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions.get_singleton_tu_id">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions.get_singleton_tu_id">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_singleton_tu_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rna_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the ID of the single-gene transcription unit corresponding to</span>
+<span class="sd">        the given miscRNA ID, if such a transcription unit exists. This is</span>
+<span class="sd">        necessary to replace some references to miscRNA IDs in complexation or</span>
+<span class="sd">        equilibrium reactions with their corresponding TU IDs, which are the</span>
+<span class="sd">        molecules that are actually transcribed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rna_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_miscrna_id_to_singleton_tu_id</span><span class="p">[</span><span class="n">rna_id</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_sequences">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_sequences">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_sequences</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds sequences of RNAs and proteins.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_rna_sequences</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_protein_sequences</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_rna_sequences">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_rna_sequences">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_rna_sequences</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds nucleotide sequences of each transcription unit using the genome</span>
+<span class="sd">        sequence and the left and right end positions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">genome_sequence</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genome_sequence</span>
+
+        <span class="k">def</span> <span class="nf">parse_sequence</span><span class="p">(</span><span class="n">tu_id</span><span class="p">,</span> <span class="n">left_end_pos</span><span class="p">,</span> <span class="n">right_end_pos</span><span class="p">,</span> <span class="n">direction</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Parses genome sequence to get transcription unit sequence, given</span>
+<span class="sd">            left and right end positions and transcription direction (Note:</span>
+<span class="sd">            the left and right end positions in the raw data files are given as</span>
+<span class="sd">            1-indexed coordinates)</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;+&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">genome_sequence</span><span class="p">[</span><span class="n">left_end_pos</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">right_end_pos</span><span class="p">]</span><span class="o">.</span><span class="n">transcribe</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">direction</span> <span class="o">==</span> <span class="s2">&quot;-&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span>
+                    <span class="n">genome_sequence</span><span class="p">[</span><span class="n">left_end_pos</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">right_end_pos</span><span class="p">]</span>
+                    <span class="o">.</span><span class="n">reverse_complement</span><span class="p">()</span>
+                    <span class="o">.</span><span class="n">transcribe</span><span class="p">()</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">TranscriptionDirectionError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unidentified transcription direction given for </span><span class="si">{</span><span class="n">tu_id</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Get set of valid gene IDs that have positions on the chromosome, and</span>
+        <span class="c1"># is not a pseudogene or a phantom gene</span>
+        <span class="n">gene_id_to_rna_type</span> <span class="o">=</span> <span class="p">{</span><span class="n">rna</span><span class="p">[</span><span class="s2">&quot;gene_id&quot;</span><span class="p">]:</span> <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">rnas</span><span class="p">}</span>
+        <span class="n">valid_gene_ids</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genes</span>
+            <span class="k">if</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">gene_id_to_rna_type</span><span class="p">[</span><span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">EXCLUDED_RNA_TYPES</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Set of gene IDs that are covered by listed transcription units</span>
+        <span class="n">covered_gene_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="c1"># Keep track of gene tuples of TUs to remove duplicate TUs that cover</span>
+        <span class="c1"># the same set of genes but have different left &amp; right end coordinates.</span>
+        <span class="c1"># The first TU in the list that covers the given set of genes is always</span>
+        <span class="c1"># selected over later TUs. Later TUs are discarded, but their evidence</span>
+        <span class="c1"># codes are added to the list of evidence codes of the first TU.</span>
+        <span class="n">gene_tuple_to_tu_index</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Add sequences from transcription_units file</span>
+        <span class="n">gene_id_to_left_end_pos</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genes</span>
+        <span class="p">}</span>
+        <span class="n">gene_id_to_right_end_pos</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genes</span>
+        <span class="p">}</span>
+        <span class="n">gene_id_to_rna_id</span> <span class="o">=</span> <span class="p">{</span><span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;rna_ids&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genes</span><span class="p">}</span>
+        <span class="n">gene_id_to_direction</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;direction&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genes</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_miscrna_id_to_singleton_tu_id</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">tu</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">raw_data</span><span class="o">.</span><span class="n">transcription_units</span><span class="p">):</span>
+            <span class="c1"># Get list of genes in TU after excluding invalid genes</span>
+            <span class="n">gene_tuple</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="nb">sorted</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">gene_id</span> <span class="k">for</span> <span class="n">gene_id</span> <span class="ow">in</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;genes&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">gene_id</span> <span class="ow">in</span> <span class="n">valid_gene_ids</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Skip TUs with only invalid genes</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gene_tuple</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Skip duplicate TUs but compile all evidence codes</span>
+            <span class="k">if</span> <span class="n">gene_tuple</span> <span class="ow">in</span> <span class="n">gene_tuple_to_tu_index</span><span class="p">:</span>
+                <span class="n">evidence_list</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">transcription_units</span><span class="p">[</span>
+                    <span class="n">gene_tuple_to_tu_index</span><span class="p">[</span><span class="n">gene_tuple</span><span class="p">]</span>
+                <span class="p">][</span><span class="s2">&quot;evidence&quot;</span><span class="p">]</span>
+                <span class="n">new_evidence</span> <span class="o">=</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;evidence&quot;</span><span class="p">]</span>
+
+                <span class="c1"># Add nonduplicate evidence codes to original list</span>
+                <span class="n">evidence_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">new_evidence</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">evidence_list</span><span class="p">)))</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">gene_tuple_to_tu_index</span><span class="p">[</span><span class="n">gene_tuple</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+
+            <span class="c1"># Use gene coordinates if left and right end positions are not given</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tu</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">],</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">gene_id_to_left_end_pos</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene_id</span> <span class="ow">in</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;genes&quot;</span><span class="p">]]</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tu</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">],</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">gene_id_to_right_end_pos</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene_id</span> <span class="ow">in</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;genes&quot;</span><span class="p">]]</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Keep track of genes that are covered</span>
+            <span class="n">covered_gene_ids</span> <span class="o">|=</span> <span class="nb">set</span><span class="p">(</span><span class="n">tu</span><span class="p">[</span><span class="s2">&quot;genes&quot;</span><span class="p">])</span>
+
+            <span class="c1"># Add mapping from miscRNA IDs to single-gene TU IDs</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gene_tuple</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">gene_id_to_rna_type</span><span class="p">[</span><span class="n">gene_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">==</span> <span class="s2">&quot;miscRNA&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_miscrna_id_to_singleton_tu_id</span><span class="p">[</span>
+                    <span class="n">gene_id_to_rna_id</span><span class="p">[</span><span class="n">gene_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="p">]</span> <span class="o">=</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span><span class="p">[</span><span class="n">tu</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">parse_sequence</span><span class="p">(</span>
+                <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">],</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">],</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;direction&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Add sequences of individual RNAs that are not part of any</span>
+        <span class="c1"># transcription unit (these genes are assumed to be transcribed as</span>
+        <span class="c1"># monocistronic transcription units)</span>
+        <span class="n">rna_id_to_gene_id</span> <span class="o">=</span> <span class="p">{</span><span class="n">gene</span><span class="p">[</span><span class="s2">&quot;rna_ids&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genes</span><span class="p">}</span>
+        <span class="n">all_rna_ids</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">rna</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">rnas</span><span class="p">]))</span>
+
+        <span class="k">for</span> <span class="n">rna_id</span> <span class="ow">in</span> <span class="n">all_rna_ids</span><span class="p">:</span>
+            <span class="c1"># Skip RNAs without associated genes</span>
+            <span class="k">if</span> <span class="n">rna_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rna_id_to_gene_id</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">gene_id</span> <span class="o">=</span> <span class="n">rna_id_to_gene_id</span><span class="p">[</span><span class="n">rna_id</span><span class="p">]</span>
+
+            <span class="c1"># Skip excluded genes</span>
+            <span class="k">if</span> <span class="n">gene_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_gene_ids</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Skip mRNAs that are already covered by transcription units</span>
+            <span class="k">if</span> <span class="n">gene_id</span> <span class="ow">in</span> <span class="n">covered_gene_ids</span> <span class="ow">and</span> <span class="n">gene_id_to_rna_type</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;mRNA&quot;</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">left_end_pos</span> <span class="o">=</span> <span class="n">gene_id_to_left_end_pos</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]</span>
+            <span class="n">right_end_pos</span> <span class="o">=</span> <span class="n">gene_id_to_right_end_pos</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span><span class="p">[</span><span class="n">rna_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">parse_sequence</span><span class="p">(</span>
+                <span class="n">rna_id</span><span class="p">,</span> <span class="n">left_end_pos</span><span class="p">,</span> <span class="n">right_end_pos</span><span class="p">,</span> <span class="n">gene_id_to_direction</span><span class="p">[</span><span class="n">gene_id</span><span class="p">]</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_protein_sequences">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_protein_sequences">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_protein_sequences</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds the amino acid sequences of each protein monomer using sequences</span>
+<span class="sd">        in raw_data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">protein</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">proteins</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">protein</span><span class="p">[</span><span class="s2">&quot;seq&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Remove internal stop codons</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span><span class="p">[</span><span class="n">protein</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Seq</span><span class="p">(</span><span class="n">protein</span><span class="p">[</span><span class="s2">&quot;seq&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_submass_array">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_submass_array">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_submass_array</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mw</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">submass_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts a scalar molecular weight value to an array of submasses,</span>
+<span class="sd">        given the name of the submass category that the molecule belongs to.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mw_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_submass_indexes</span><span class="p">)</span>
+        <span class="n">mw_array</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_submass_name_to_index</span><span class="p">[</span><span class="n">submass_name</span><span class="p">]]</span> <span class="o">=</span> <span class="n">mw</span>
+        <span class="k">return</span> <span class="n">mw_array</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_all_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_all_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_all_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of molecular weights keyed with the IDs of molecules.</span>
+<span class="sd">        Depending on the type of the molecule, weights are either pulled</span>
+<span class="sd">        directly from raw data, or dynamically calculated from the existing</span>
+<span class="sd">        data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">metabolites_with_masses</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">met</span> <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">metabolites</span> <span class="k">if</span> <span class="n">met</span><span class="p">[</span><span class="s2">&quot;mw&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Water is the only metabolite with a separate submass classification</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="n">met</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_build_submass_array</span><span class="p">(</span><span class="n">met</span><span class="p">[</span><span class="s2">&quot;mw&quot;</span><span class="p">],</span> <span class="s2">&quot;metabolite&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">met</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">water</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_submass_array</span><span class="p">(</span><span class="n">met</span><span class="p">[</span><span class="s2">&quot;mw&quot;</span><span class="p">],</span> <span class="s2">&quot;water&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">metabolites_with_masses</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+        <span class="c1"># These updates can be dependent on metabolite masses</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_polymerized_subunit_masses</span><span class="p">(</span><span class="n">sim_data</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_rna_masses</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_protein_masses</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_full_chromosome_mass</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># These updates can be dependent on the masses calculated above</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_modified_rna_masses</span><span class="p">(</span><span class="n">raw_data</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_protein_complex_masses</span><span class="p">(</span><span class="n">raw_data</span><span class="p">))</span>
+
+        <span class="c1"># This update can be dependent on the masses calculated above</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_modified_protein_masses</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mass_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span>
+
+        <span class="c1"># Build dictionary of total masses of each molecule</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_total_masses</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">mol_id</span><span class="p">:</span> <span class="n">mass_array</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">mol_id</span><span class="p">,</span> <span class="n">mass_array</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_polymerized_subunit_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_polymerized_subunit_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_polymerized_subunit_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of molecular weights of polymerized subunits (NTPs,</span>
+<span class="sd">        dNTPs, and amino acids) by subtracting the end weights from the weights</span>
+<span class="sd">        of original subunits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">polymerized_subunit_masses</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">def</span> <span class="nf">add_subunit_masses</span><span class="p">(</span><span class="n">subunit_ids</span><span class="p">,</span> <span class="n">end_group_id</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Add subunit masses to dictionary given the IDs of the original</span>
+<span class="sd">            subunits and the end group.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># Subtract mw of end group from each polymer subunit</span>
+            <span class="n">end_group_mw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">end_group_id</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">polymerized_subunit_mws</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">met_id</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">-</span> <span class="n">end_group_mw</span>
+                <span class="k">for</span> <span class="n">met_id</span> <span class="ow">in</span> <span class="n">subunit_ids</span>
+            <span class="p">]</span>
+
+            <span class="c1"># Add to dictionary with prefixed ID</span>
+            <span class="n">polymerized_subunit_masses</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="n">POLYMERIZED_FRAGMENT_PREFIX</span>
+                    <span class="o">+</span> <span class="n">subunit_id</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_submass_array</span><span class="p">(</span><span class="n">mw</span><span class="p">,</span> <span class="s2">&quot;metabolite&quot;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">subunit_id</span><span class="p">,</span> <span class="n">mw</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">subunit_ids</span><span class="p">,</span> <span class="n">polymerized_subunit_mws</span><span class="p">)</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+        <span class="n">add_subunit_masses</span><span class="p">(</span><span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">ntps</span><span class="p">,</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">ppi</span><span class="p">)</span>
+        <span class="n">add_subunit_masses</span><span class="p">(</span><span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">dntps</span><span class="p">,</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">ppi</span><span class="p">)</span>
+        <span class="n">add_subunit_masses</span><span class="p">(</span>
+            <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">amino_acids</span><span class="p">,</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">water</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">polymerized_subunit_masses</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_rna_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_rna_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_rna_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of molecular weights of RNAs keyed with the RNA IDs.</span>
+<span class="sd">        Molecular weights are calculated from the RNA sequence and the weights</span>
+<span class="sd">        of polymerized NTPs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rnas_with_seqs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">raw_data</span><span class="o">.</span><span class="n">rnas</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">transcription_units</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Get RNA nucleotide compositions</span>
+        <span class="n">rna_seqs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sequences</span><span class="p">(</span><span class="n">rnas_with_seqs</span><span class="p">)</span>
+        <span class="n">nt_counts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">rna_seqs</span><span class="p">:</span>
+            <span class="n">nt_counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">seq</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">letter</span><span class="p">)</span> <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">ntp_code_to_id_ordered</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+            <span class="p">)</span>
+        <span class="n">nt_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">nt_counts</span><span class="p">)</span>
+
+        <span class="c1"># Calculate molecular weights</span>
+        <span class="n">ppi_mw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">ppi</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">polymerized_ntp_mws</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">met_id</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">met_id</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">polymerized_ntps</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">mws</span> <span class="o">=</span> <span class="n">nt_counts</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">polymerized_ntp_mws</span><span class="p">)</span> <span class="o">+</span> <span class="n">ppi_mw</span>  <span class="c1"># Add end weight</span>
+
+        <span class="c1"># Map monocistronic RNA IDs to RNA types</span>
+        <span class="n">rna_id_to_type</span> <span class="o">=</span> <span class="p">{</span><span class="n">rna</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">rnas</span><span class="p">}</span>
+
+        <span class="c1"># Add polycistronic RNAs to mapping</span>
+        <span class="n">gene_id_to_rna_id</span> <span class="o">=</span> <span class="p">{</span><span class="n">gene</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">gene</span><span class="p">[</span><span class="s2">&quot;rna_ids&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genes</span><span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">tu</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">transcription_units</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">tu_rna_types</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">rna_id_to_type</span><span class="p">[</span><span class="n">gene_id_to_rna_id</span><span class="p">[</span><span class="n">gene</span><span class="p">]]</span>
+                <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">tu</span><span class="p">[</span><span class="s2">&quot;genes&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">rna_id_to_type</span><span class="p">[</span><span class="n">gene_id_to_rna_id</span><span class="p">[</span><span class="n">gene</span><span class="p">]]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">EXCLUDED_RNA_TYPES</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">tu_rna_types</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">set</span><span class="p">(</span><span class="n">tu_rna_types</span><span class="p">)</span> <span class="o">!=</span> <span class="p">{</span><span class="s2">&quot;rRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;tRNA&quot;</span><span class="p">}:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;Transcription unit </span><span class="si">{</span><span class="n">tu</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1"> includes genes&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; that encode for two or more different types of RNAs.&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; Such transcription units are not supported by this&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; version of the model with the exception of rRNA&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; transcription units with tRNA genes.&#39;</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tu_rna_types</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">rna_id_to_type</span><span class="p">[</span><span class="n">tu</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">tu_rna_types</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Hybrid RNAs are set to have nonspecific mass</span>
+                <span class="n">rna_id_to_type</span><span class="p">[</span><span class="n">tu</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="s2">&quot;nonspecific_RNA&quot;</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">rna_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_submass_array</span><span class="p">(</span><span class="n">mw</span><span class="p">,</span> <span class="n">rna_id_to_type</span><span class="p">[</span><span class="n">rna_id</span><span class="p">])</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">rna_id</span><span class="p">,</span> <span class="n">mw</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">rnas_with_seqs</span><span class="p">,</span> <span class="n">mws</span><span class="p">)</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_protein_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_protein_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_protein_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of molecular weights of protein monomers keyed with</span>
+<span class="sd">        the protein IDs. Molecular weights are calculated from the protein</span>
+<span class="sd">        sequence and the weights of polymerized amino acids.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">proteins_with_seqs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">protein</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">protein</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">proteins</span>
+            <span class="k">if</span> <span class="n">protein</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Get protein amino acid compositions</span>
+        <span class="n">protein_seqs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sequences</span><span class="p">(</span><span class="n">proteins_with_seqs</span><span class="p">)</span>
+        <span class="n">aa_counts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">protein_seqs</span><span class="p">:</span>
+            <span class="n">aa_counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">seq</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">letter</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">amino_acid_code_to_id_ordered</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="n">aa_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">aa_counts</span><span class="p">)</span>
+
+        <span class="c1"># Calculate molecular weights</span>
+        <span class="n">water_mw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">water</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">polymerized_aa_mws</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">met_id</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">met_id</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">polymerized_amino_acids</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">mws</span> <span class="o">=</span> <span class="n">aa_counts</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">polymerized_aa_mws</span><span class="p">)</span> <span class="o">+</span> <span class="n">water_mw</span>  <span class="c1"># Add end weight</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">protein_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_submass_array</span><span class="p">(</span><span class="n">mw</span><span class="p">,</span> <span class="s2">&quot;protein&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">protein_id</span><span class="p">,</span> <span class="n">mw</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">proteins_with_seqs</span><span class="p">,</span> <span class="n">mws</span><span class="p">)</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_full_chromosome_mass">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_full_chromosome_mass">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_full_chromosome_mass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the mass of the full chromosome from its sequence and the</span>
+<span class="sd">        weigths of polymerized dNTPs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get chromosome dNTP compositions</span>
+        <span class="n">chromosome_seq</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">genome_sequence</span>
+        <span class="n">forward_strand_nt_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">chromosome_seq</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">letter</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">dntp_code_to_id_ordered</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">reverse_strand_nt_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">chromosome_seq</span><span class="o">.</span><span class="n">reverse_complement</span><span class="p">()</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">letter</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">dntp_code_to_id_ordered</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Calculate molecular weight</span>
+        <span class="n">polymerized_dntp_mws</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">met_id</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">met_id</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">polymerized_dntps</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">mw</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+                <span class="n">forward_strand_nt_counts</span> <span class="o">+</span> <span class="n">reverse_strand_nt_counts</span><span class="p">,</span>
+                <span class="n">polymerized_dntp_mws</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">full_chromosome</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_submass_array</span><span class="p">(</span>
+                <span class="n">mw</span><span class="p">,</span> <span class="s2">&quot;DNA&quot;</span>
+            <span class="p">)</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_modified_rna_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_modified_rna_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_modified_rna_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of molecular weights of modified RNAs keyed with</span>
+<span class="sd">        the molecule IDs. Molecular weights are calculated from the</span>
+<span class="sd">        stoichiometries of the modification reactions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">modified_rna_masses</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Get all modified form IDs from RNA data</span>
+        <span class="n">all_modified_rna_ids</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">modified_rna_id</span>
+            <span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">rnas</span>
+            <span class="k">for</span> <span class="n">modified_rna_id</span> <span class="ow">in</span> <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;modified_forms&quot;</span><span class="p">]</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Loop through each charging reaction</span>
+        <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">trna_charging_reactions</span><span class="p">:</span>
+            <span class="c1"># Find molecule IDs whose masses are still unknown</span>
+            <span class="n">unknown_mol_ids</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">mol_id</span>
+                <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span>
+            <span class="p">]</span>
+            <span class="c1"># The only molecule whose mass is unknown should be the modified</span>
+            <span class="c1"># RNA molecule</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unknown_mol_ids</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">UnknownMolecularWeightError</span><span class="p">(</span>
+                    <span class="s2">&quot;RNA modification reaction </span><span class="si">%s</span><span class="s2"> has two or more reactants or products with unknown molecular weights: </span><span class="si">%s</span><span class="s2">&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">unknown_mol_ids</span><span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="c1"># All modified RNAs must be assigned to a specific RNA</span>
+            <span class="n">modified_rna_id</span> <span class="o">=</span> <span class="n">unknown_mol_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">modified_rna_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_modified_rna_ids</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">UnknownModifiedRnaError</span><span class="p">(</span>
+                    <span class="s2">&quot;The modified RNA molecule </span><span class="si">%s</span><span class="s2"> was not assigned to any RNAs.&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">modified_rna_id</span><span class="p">,)</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Calculate mw of the modified RNA from the stoichiometry</span>
+            <span class="n">mw_sum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_submass_indexes</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="o">==</span> <span class="n">modified_rna_id</span><span class="p">:</span>
+                    <span class="n">modified_rna_coeff</span> <span class="o">=</span> <span class="n">coeff</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">mw_sum</span> <span class="o">+=</span> <span class="n">coeff</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+
+            <span class="n">modified_rna_masses</span><span class="p">[</span><span class="n">modified_rna_id</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">mw_sum</span> <span class="o">/</span> <span class="n">modified_rna_coeff</span>
+
+        <span class="k">return</span> <span class="n">modified_rna_masses</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_protein_complex_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_protein_complex_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_protein_complex_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of molecular weights of protein complexes keyed with</span>
+<span class="sd">        the molecule IDs. Molecular weights are calculated from the</span>
+<span class="sd">        stoichiometries of the complexation/equilibrium reactions. For</span>
+<span class="sd">        complexes whose subunits are also complexes, the molecular weights are</span>
+<span class="sd">        calculated recursively.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">protein_complex_masses</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Build mapping from complex ID to its subunit stoichiometry</span>
+        <span class="n">complex_id_to_stoich</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">complexation_reactions</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">equilibrium_reactions</span>
+        <span class="p">):</span>
+            <span class="c1"># Get the ID of the complex and the stoichiometry of subunits</span>
+            <span class="n">complex_ids</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">subunit_stoich</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Replace miscRNA subunit IDs with TU IDs</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_miscrna_id_to_singleton_tu_id</span><span class="p">:</span>
+                    <span class="n">mol_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_singleton_tu_id</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)</span>
+
+                <span class="c1"># Assume coefficients given as &quot;null&quot; equate to -1</span>
+                <span class="k">if</span> <span class="n">coeff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">coeff</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+                <span class="k">if</span> <span class="n">coeff</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">complex_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">coeff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">subunit_stoich</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">mol_id</span><span class="p">:</span> <span class="o">-</span><span class="n">coeff</span><span class="p">})</span>
+
+                <span class="c1"># Each molecule should either be a complex with the coefficient</span>
+                <span class="c1"># 1 or a subunit with a negative coefficient</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">InvalidProteinComplexError</span><span class="p">(</span>
+                        <span class="s2">&quot;Reaction </span><span class="si">%s</span><span class="s2"> contains an invalid molecule </span><span class="si">%s</span><span class="s2"> with stoichiometric coefficient </span><span class="si">%.1f</span><span class="s2">.&quot;</span>
+                        <span class="o">%</span> <span class="p">(</span><span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">coeff</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># Each reaction should only produce a single protein complex</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">complex_ids</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">InvalidProteinComplexError</span><span class="p">(</span>
+                    <span class="s2">&quot;Reaction </span><span class="si">%s</span><span class="s2"> does not produce a single protein complex.&quot;</span>
+                    <span class="o">%</span> <span class="p">(</span><span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],)</span>
+                <span class="p">)</span>
+
+            <span class="n">complex_id_to_stoich</span><span class="p">[</span><span class="n">complex_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">subunit_stoich</span>
+
+        <span class="k">def</span> <span class="nf">get_mw</span><span class="p">(</span><span class="n">mol_id</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Recursive function that returns the molecular weight given a</span>
+<span class="sd">            molecule ID.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># Look for molecule ID in existing dictionaries, and return</span>
+            <span class="c1"># molecular weight array if found</span>
+            <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">protein_complex_masses</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">protein_complex_masses</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+
+            <span class="c1"># If molecule ID does not exist, recursively add up the molecular</span>
+            <span class="c1"># weights of the molecule&#39;s subunits</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Each complex molecule should have a corresponding subunit</span>
+                <span class="c1"># stoichiometry</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">complex_id_to_stoich</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">InvalidProteinComplexError</span><span class="p">(</span>
+                        <span class="s2">&quot;Complex </span><span class="si">%s</span><span class="s2"> is not being produced by any complexation or equilibrium reaction.&quot;</span>
+                        <span class="o">%</span> <span class="p">(</span><span class="n">mol_id</span><span class="p">,)</span>
+                    <span class="p">)</span>
+                <span class="n">mw_sum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_submass_indexes</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">subunit_id</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">complex_id_to_stoich</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">mw_sum</span> <span class="o">+=</span> <span class="n">coeff</span> <span class="o">*</span> <span class="n">get_mw</span><span class="p">(</span><span class="n">subunit_id</span><span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">mw_sum</span>
+
+        <span class="c1"># Get molecular weights of each protein complex</span>
+        <span class="k">for</span> <span class="n">complex_id</span> <span class="ow">in</span> <span class="n">complex_id_to_stoich</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">protein_complex_masses</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">complex_id</span><span class="p">:</span> <span class="n">get_mw</span><span class="p">(</span><span class="n">complex_id</span><span class="p">)})</span>
+
+        <span class="k">return</span> <span class="n">protein_complex_masses</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_modified_protein_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_modified_protein_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_modified_protein_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of molecular weights of modified proteins keyed with</span>
+<span class="sd">        the molecule IDs. Molecular weights are calculated from the</span>
+<span class="sd">        stoichiometries of the modification reactions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">modified_protein_masses</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># List IDs of all metabolites involved in 2CS</span>
+        <span class="n">ALL_2CS_METABOLITES</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ATP&quot;</span><span class="p">,</span> <span class="s2">&quot;ADP&quot;</span><span class="p">,</span> <span class="s2">&quot;Pi&quot;</span><span class="p">,</span> <span class="s2">&quot;WATER&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTON&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Map types of modified proteins to their phosphorylation reactions that</span>
+        <span class="c1"># can be used to calculate their molecular weights</span>
+        <span class="n">PROTEIN_TYPE_TO_PHOSPHORYLATION_RXN_ID</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;PHOSPHO-HK&quot;</span><span class="p">:</span> <span class="s2">&quot;POS-HK-PHOSPHORYLATION_RXN&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;PHOSPHO-HK-LIGAND&quot;</span><span class="p">:</span> <span class="s2">&quot;POS-LIGAND-BOUND-HK-PHOSPHORYLATION_RXN&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;PHOSPHO-RR&quot;</span><span class="p">:</span> <span class="s2">&quot;POS-RR-DEPHOSPHORYLATION_RXN&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Get stoichiometries of all 2CS reaction types</span>
+        <span class="n">all_2cs_reaction_stoichs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="p">{</span><span class="n">mol</span><span class="p">[</span><span class="s2">&quot;molecule&quot;</span><span class="p">]:</span> <span class="n">mol</span><span class="p">[</span><span class="s2">&quot;coeff&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]}</span>
+            <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">two_component_system_templates</span>
+        <span class="p">}</span>
+
+        <span class="n">all_2cs_systems</span> <span class="o">=</span> <span class="p">[</span><span class="n">sys</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">sys</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">two_component_systems</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">system</span> <span class="ow">in</span> <span class="n">all_2cs_systems</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">mol_type</span><span class="p">,</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">system</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Skip molecules that are not modified proteins</span>
+                <span class="k">if</span> <span class="n">mol_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">PROTEIN_TYPE_TO_PHOSPHORYLATION_RXN_ID</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Get reaction stoichiometry of phosphorylation reaction</span>
+                    <span class="n">phosphorylation_reaction</span> <span class="o">=</span> <span class="n">PROTEIN_TYPE_TO_PHOSPHORYLATION_RXN_ID</span><span class="p">[</span>
+                        <span class="n">mol_type</span>
+                    <span class="p">]</span>
+                    <span class="n">reaction_stoich</span> <span class="o">=</span> <span class="n">all_2cs_reaction_stoichs</span><span class="p">[</span><span class="n">phosphorylation_reaction</span><span class="p">]</span>
+
+                    <span class="c1"># Initialize submass array</span>
+                    <span class="n">mw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_n_submass_indexes</span><span class="p">)</span>
+                    <span class="n">coeff_modified_protein</span> <span class="o">=</span> <span class="kc">None</span>
+
+                    <span class="c1"># Calculate mass such that reaction is mass balanced</span>
+                    <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">reaction_stoich</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="n">mol</span> <span class="o">==</span> <span class="n">mol_type</span><span class="p">:</span>
+                            <span class="n">coeff_modified_protein</span> <span class="o">=</span> <span class="n">coeff</span>
+                            <span class="k">continue</span>
+                        <span class="k">elif</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">ALL_2CS_METABOLITES</span><span class="p">:</span>
+                            <span class="n">mw</span> <span class="o">+=</span> <span class="o">-</span><span class="n">coeff</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">mol</span><span class="p">]</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">mw</span> <span class="o">+=</span> <span class="o">-</span><span class="n">coeff</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span><span class="p">[</span><span class="n">system</span><span class="p">[</span><span class="n">mol</span><span class="p">]]</span>
+
+                    <span class="n">mw</span> <span class="o">=</span> <span class="n">mw</span> <span class="o">/</span> <span class="n">coeff_modified_protein</span>
+
+                    <span class="c1"># Remove water submass and add to metabolite submass</span>
+                    <span class="k">if</span> <span class="n">mw</span><span class="p">[</span><span class="n">sim_data</span><span class="o">.</span><span class="n">submass_name_to_index</span><span class="p">[</span><span class="s2">&quot;water&quot;</span><span class="p">]]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">mw</span><span class="p">[</span><span class="n">sim_data</span><span class="o">.</span><span class="n">submass_name_to_index</span><span class="p">[</span><span class="s2">&quot;metabolite&quot;</span><span class="p">]]</span> <span class="o">+=</span> <span class="n">mw</span><span class="p">[</span>
+                            <span class="n">sim_data</span><span class="o">.</span><span class="n">submass_name_to_index</span><span class="p">[</span><span class="s2">&quot;water&quot;</span><span class="p">]</span>
+                        <span class="p">]</span>
+                        <span class="n">mw</span><span class="p">[</span><span class="n">sim_data</span><span class="o">.</span><span class="n">submass_name_to_index</span><span class="p">[</span><span class="s2">&quot;water&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">0</span>
+
+                    <span class="n">modified_protein_masses</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">mw</span>
+
+        <span class="k">return</span> <span class="n">modified_protein_masses</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_compartments">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_compartments">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_compartments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">all_compartments</span> <span class="o">=</span> <span class="p">[</span><span class="n">comp</span><span class="p">[</span><span class="s2">&quot;abbrev&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">compartments</span><span class="p">]</span>
+
+        <span class="n">compartment_ids_to_abbreviations</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;abbrev&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">compartments</span>
+        <span class="p">}</span>
+        <span class="c1"># TODO (ggsun): Add some of these to list of compartments?</span>
+        <span class="n">compartment_ids_to_abbreviations</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">UNDEFINED_COMPARTMENT_IDS_TO_ABBREVS</span><span class="p">)</span>
+
+        <span class="c1"># RNAs, modified RNAs, and full chromosomes only localize to the</span>
+        <span class="c1"># cytosol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="p">[</span><span class="s2">&quot;c&quot;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="n">raw_data</span><span class="o">.</span><span class="n">rnas</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">transcription_units</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sequences</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="n">modified_rna_id</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;c&quot;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">rna</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">rnas</span>
+                <span class="k">for</span> <span class="n">modified_rna_id</span> <span class="ow">in</span> <span class="n">rna</span><span class="p">[</span><span class="s2">&quot;modified_forms&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">modified_rna_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_submass_arrays</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">full_chromosome</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]:</span> <span class="p">[</span><span class="s2">&quot;c&quot;</span><span class="p">]}</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Proteins are assumed to localize to a single compartment. If there is</span>
+        <span class="c1"># experimental evidence for the protein existing in the cytosol, the</span>
+        <span class="c1"># protein is assigned to the cytosol. If there are multiple</span>
+        <span class="c1"># experimentally determined localizations other than the cytosol, the</span>
+        <span class="c1"># first compartment given in the list is used. If an experimentally</span>
+        <span class="c1"># determined localization doesn&#39;t exist, the first compartment given in</span>
+        <span class="c1"># the list of computationally determined compartments is used. If no</span>
+        <span class="c1"># compartment information is given, the protein is assumed to localize</span>
+        <span class="c1"># to the cytosol.</span>
+        <span class="k">for</span> <span class="n">protein</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">proteins</span><span class="p">:</span>
+            <span class="n">exp_compartment</span> <span class="o">=</span> <span class="n">protein</span><span class="p">[</span><span class="s2">&quot;experimental_compartment&quot;</span><span class="p">]</span>
+            <span class="n">comp_compartment</span> <span class="o">=</span> <span class="n">protein</span><span class="p">[</span><span class="s2">&quot;computational_compartment&quot;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="s2">&quot;CCO-CYTOSOL&quot;</span> <span class="ow">in</span> <span class="n">exp_compartment</span>
+                <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">exp_compartment</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp_compartment</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+            <span class="p">):</span>
+                <span class="n">compartment</span> <span class="o">=</span> <span class="s2">&quot;CCO-CYTOSOL&quot;</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">exp_compartment</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">compartment</span> <span class="o">=</span> <span class="n">exp_compartment</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">compartment</span> <span class="o">=</span> <span class="n">comp_compartment</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="n">protein</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="p">[</span><span class="n">compartment_ids_to_abbreviations</span><span class="p">[</span><span class="n">compartment</span><span class="p">]]}</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Modified proteins localize to the single compartment specified in raw</span>
+        <span class="c1"># data for each protein</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="n">protein</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="p">[</span><span class="n">protein</span><span class="p">[</span><span class="s2">&quot;compartment&quot;</span><span class="p">]]</span>
+                <span class="k">for</span> <span class="n">protein</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">modified_proteins</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Metabolites localize to the cytosol plus any other compartment that</span>
+        <span class="c1"># is specified in the list of metabolic reactions, or the periplasm if</span>
+        <span class="c1"># the metabolite is a 2CS ligand</span>
+        <span class="n">metabolite_compartments</span> <span class="o">=</span> <span class="p">{</span><span class="n">met</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="p">[</span><span class="s2">&quot;c&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">metabolites</span><span class="p">}</span>
+
+        <span class="c1"># Loop through list of metabolic reactions and add missing compartments</span>
+        <span class="c1"># for each metabolite</span>
+        <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">metabolic_reactions</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">met_id</span><span class="p">,</span> <span class="n">compartment</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[\[\]]&quot;</span><span class="p">,</span> <span class="n">met</span><span class="p">)</span>
+                <span class="n">compartment_tag</span> <span class="o">=</span> <span class="n">compartment_ids_to_abbreviations</span><span class="p">[</span><span class="n">compartment</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="n">met_id</span> <span class="ow">in</span> <span class="n">metabolite_compartments</span>
+                    <span class="ow">and</span> <span class="n">compartment_tag</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metabolite_compartments</span><span class="p">[</span><span class="n">met_id</span><span class="p">]</span>
+                <span class="p">):</span>
+                    <span class="n">metabolite_compartments</span><span class="p">[</span><span class="n">met_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">compartment_tag</span><span class="p">)</span>
+
+        <span class="c1"># Add periplasm as valid compartment for 2CS ligands</span>
+        <span class="n">two_component_system_ligands</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">system</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">][</span><span class="s2">&quot;LIGAND&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">system</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">two_component_systems</span>
+        <span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">two_component_system_ligands</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;p&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metabolite_compartments</span><span class="p">[</span><span class="n">met</span><span class="p">]:</span>
+                <span class="n">metabolite_compartments</span><span class="p">[</span><span class="n">met</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">metabolite_compartments</span><span class="p">)</span>
+
+        <span class="c1"># Polymerized subunits can localize to all compartments being modeled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="n">subunit_id</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]:</span> <span class="n">all_compartments</span>
+                <span class="k">for</span> <span class="n">subunit_id</span> <span class="ow">in</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">polymerized_subunits</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Sort compartment abbreviations based on complexation priority: when</span>
+        <span class="c1"># a molecule in a compartment with a higher complexation priority</span>
+        <span class="c1"># forms a complex with a molecule in a compartment with low priority,</span>
+        <span class="c1"># the complex is assigned to the higher-priority compartment.</span>
+        <span class="n">complexation_priorities</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">comp</span><span class="p">[</span><span class="s2">&quot;complexation_priority&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">compartments</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">all_compartments_sorted</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">all_compartments</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">complexation_priorities</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Protein complexes are localized based on the compartments of their</span>
+        <span class="c1"># subunits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_build_protein_complex_compartments</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">all_compartments_sorted</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_protein_complex_compartments">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_protein_complex_compartments">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_protein_complex_compartments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">all_compartments_sorted</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds dictionary of compartment tags for protein complexes keyed with</span>
+<span class="sd">        the molecule IDs. Each complex is assigned to the compartment that</span>
+<span class="sd">        contains a subunit of the complex and has the highest complexation</span>
+<span class="sd">        priority. Compartment tags of subunits that are also protein complexes</span>
+<span class="sd">        are determined recursively. Compartments of metabolite subunits are not</span>
+<span class="sd">        considered since metabolites are assigned to all compartments that are</span>
+<span class="sd">        being modeled.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">protein_complex_compartments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">metabolite_ids</span> <span class="o">=</span> <span class="p">{</span><span class="n">met</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">metabolites</span><span class="p">}</span>
+
+        <span class="c1"># Build mapping from complex ID to its subunit IDs</span>
+        <span class="n">complex_id_to_subunit_ids</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">complexation_reactions</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">equilibrium_reactions</span>
+        <span class="p">):</span>
+            <span class="c1"># Get the ID of the complex and the stoichiometry of subunits</span>
+            <span class="n">complex_id</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">subunit_ids</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Replace miscRNA subunit IDs with TU IDs</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_miscrna_id_to_singleton_tu_id</span><span class="p">:</span>
+                    <span class="n">mol_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_singleton_tu_id</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">coeff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">coeff</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+                <span class="k">if</span> <span class="n">coeff</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">complex_id</span> <span class="o">=</span> <span class="n">mol_id</span>
+                <span class="k">elif</span> <span class="n">coeff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">subunit_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)</span>
+
+            <span class="n">complex_id_to_subunit_ids</span><span class="p">[</span><span class="n">complex_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">subunit_ids</span>
+
+        <span class="k">def</span> <span class="nf">get_compartment</span><span class="p">(</span><span class="n">mol_id</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Recursive function that returns a compartment tag given a molecule ID.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># Look for molecule ID in existing dictionaries, and return</span>
+            <span class="c1"># compartment tag if found</span>
+            <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_compartments</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">protein_complex_compartments</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">protein_complex_compartments</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]</span>
+
+            <span class="c1"># If molecule ID does not exist, return the subunit compartment</span>
+            <span class="c1"># with the highest priority</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">all_subunit_compartments</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">subunit_id</span> <span class="ow">in</span> <span class="n">complex_id_to_subunit_ids</span><span class="p">[</span><span class="n">mol_id</span><span class="p">]:</span>
+                    <span class="c1"># Skip metabolites (can exist in all compartments)</span>
+                    <span class="k">if</span> <span class="n">subunit_id</span> <span class="ow">in</span> <span class="n">metabolite_ids</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">all_subunit_compartments</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_compartment</span><span class="p">(</span><span class="n">subunit_id</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_subunit_compartments</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">InvalidProteinComplexError</span><span class="p">(</span>
+                        <span class="s2">&quot;Complex </span><span class="si">%s</span><span class="s2"> is composed of only metabolites.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">mol_id</span><span class="p">,)</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># Return compartment with highest complexation priority</span>
+                <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">all_compartments_sorted</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">all_subunit_compartments</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="p">[</span><span class="n">loc</span><span class="p">]</span>
+
+        <span class="c1"># Get compartments of each protein complex</span>
+        <span class="k">for</span> <span class="n">complex_id</span> <span class="ow">in</span> <span class="n">complex_id_to_subunit_ids</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">protein_complex_compartments</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="n">complex_id</span><span class="p">:</span> <span class="n">get_compartment</span><span class="p">(</span><span class="n">complex_id</span><span class="p">)}</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">protein_complex_compartments</span></div>
+
+
+<div class="viewcode-block" id="GetterFunctions._build_genomic_coordinates">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.getter_functions.html#reconstruction.ecoli.dataclasses.getter_functions.GetterFunctions._build_genomic_coordinates">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_genomic_coordinates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds a dictionary of genomic coordinates of DNA sites. Keys are the</span>
+<span class="sd">        IDs of the sites, and the values are tuples of the left-end coordinate</span>
+<span class="sd">        and the right-end coordinate of the site. Sites whose types are included</span>
+<span class="sd">        in IGNORED_DNA_SITE_TYPES are ignored.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_genomic_coordinates</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">site</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="p">(</span><span class="n">site</span><span class="p">[</span><span class="s2">&quot;left_end_pos&quot;</span><span class="p">],</span> <span class="n">site</span><span class="p">[</span><span class="s2">&quot;right_end_pos&quot;</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">dna_sites</span>
+            <span class="k">if</span> <span class="n">site</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">IGNORED_DNA_SITE_TYPES</span>
+        <span class="p">}</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

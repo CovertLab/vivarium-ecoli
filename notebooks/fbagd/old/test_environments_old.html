@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import simulation output &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Import simulation output</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/notebooks/fbagd/old/test_environments_old.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">linalg</span><span class="p">,</span> <span class="n">special</span>
+<span class="kn">from</span> <span class="nn">scipy.sparse</span> <span class="kn">import</span> <span class="n">csr_matrix</span>
+<span class="kn">import</span> <span class="nn">sympy</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/vivarium-ecoli&#39;</span><span class="p">))</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+<span class="kn">import</span> <span class="nn">cvxpy</span> <span class="k">as</span> <span class="nn">cp</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">ecoli.processes.metabolism_redux</span> <span class="kn">import</span> <span class="n">NetworkFlowModel</span><span class="p">,</span> <span class="n">FlowResult</span>
+
+
+<span class="n">sns</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s1">&#39;darkgrid&#39;</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;talk&#39;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<section id="Import-simulation-output">
+<h1>Import simulation output<a class="headerlink" href="#Import-simulation-output" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="o">=</span> <span class="s1">&#39;10&#39;</span>
+<span class="n">date</span> <span class="o">=</span> <span class="s1">&#39;2023-04-10&#39;</span>
+<span class="n">experiment</span> <span class="o">=</span> <span class="s1">&#39;fba-redux-standard&#39;</span>
+<span class="n">entry</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">experiment</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">date</span><span class="si">}</span><span class="s1">&#39;</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;out/fbagd/</span><span class="si">{</span><span class="n">entry</span><span class="si">}</span><span class="s1">/&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;output.npy&#39;</span><span class="p">,</span><span class="n">allow_pickle</span><span class="o">=</span><span class="s1">&#39;TRUE&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+<span class="c1"># output = np.load(r&quot;out/geneRxnVerifData/output_glc.npy&quot;, allow_pickle=True, encoding=&#39;ASCII&#39;).tolist()</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>
+<span class="n">fba</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;fba_results&#39;</span><span class="p">]</span>
+<span class="n">mass</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span>
+<span class="n">bulk</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;agent_steps.pkl&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span>
+<span class="n">agent</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">stoichiometry</span>
+<span class="n">maintenance_reaction</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">maintenance_reaction</span>
+<span class="n">stoichiometry</span><span class="p">[</span><span class="s2">&quot;maintenance_reaction&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">maintenance_reaction</span>
+
+<span class="n">bad_rxns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;RXN-12440&quot;</span><span class="p">,</span> <span class="s2">&quot;TRANS-RXN-121&quot;</span><span class="p">,</span> <span class="s2">&quot;TRANS-RXN-300&quot;</span><span class="p">,</span> <span class="s2">&quot;TRANS-RXN-8&quot;</span><span class="p">]</span> <span class="c1"># generate carbon mistake in parca, efflux/influx proton gen, iron cheating</span>
+<span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">bad_rxns</span><span class="p">:</span>
+    <span class="n">stoichiometry</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">rxn</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<p>Pandas automatically understands dicts of dicts as matrices.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_fluxes&quot;</span><span class="p">])</span>
+<span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">sim_fluxes</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>4</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>TRANS-RXN-300</th>
+      <td>14905204</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN-121</th>
+      <td>14905204</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN-145</th>
+      <td>4685215</td>
+    </tr>
+    <tr>
+      <th>ATPSYN-RXN (reverse)</th>
+      <td>3622805</td>
+    </tr>
+    <tr>
+      <th>FUMHYDR-RXN__FUMARASE-A</th>
+      <td>1131615</td>
+    </tr>
+    <tr>
+      <th>FUMHYDR-RXN__FUMARASE-A (reverse)</th>
+      <td>787822</td>
+    </tr>
+    <tr>
+      <th>GAPOXNPHOSPHN-RXN</th>
+      <td>429866</td>
+    </tr>
+    <tr>
+      <th>PHOSGLYPHOS-RXN (reverse)</th>
+      <td>429864</td>
+    </tr>
+    <tr>
+      <th>2PGADEHYDRAT-RXN</th>
+      <td>429258</td>
+    </tr>
+    <tr>
+      <th>3PGAREARR-RXN (reverse)</th>
+      <td>429210</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+</section>
+<section id="Change-nutrient-composition">
+<h1>Change nutrient composition<a class="headerlink" href="#Change-nutrient-composition" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">uptake</span> <span class="o">=</span> <span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;unconstrained_molecules&quot;</span><span class="p">][</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">uptake_c</span> <span class="o">=</span> <span class="n">fba</span><span class="p">[</span><span class="s2">&quot;constrained_molecules&quot;</span><span class="p">]</span>
+
+<span class="n">uptake</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake_c</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">uptake</span><span class="p">)</span>
+
+<span class="c1"># addition = set([&quot;CPD0-1074[c]&quot;])</span>
+<span class="n">addition</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+    <span class="p">[</span>
+        <span class="c1"># &quot;D-Ribopyranose[p]&quot;,</span>
+        <span class="c1"># &quot;NITRATE[p]&quot;</span>
+        <span class="c1"># &#39;THIAMINE[p]&#39;,</span>
+        <span class="c1"># &#39;HYDROGEN-MOLECULE[p]&#39;,</span>
+        <span class="c1"># &#39;FUM[p]&#39;</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+<span class="n">removals</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+                <span class="p">[</span>
+               <span class="c1">#    &quot;GLC[p]&quot;,</span>
+               <span class="c1">#      # &#39;AMMONIUM[c]&#39;,</span>
+               <span class="c1">#      # &#39;WATER[p]&#39;</span>
+               <span class="c1">#       # &#39;Pi[p]&#39;,</span>
+               <span class="c1">#       # &#39;SULFATE[p]&#39;</span>
+               <span class="c1"># &#39;OXYGEN-MOLECULE[p]&#39;</span>
+                <span class="p">]</span>
+                <span class="p">)</span>
+
+
+<span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">|</span> <span class="n">addition</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">-</span> <span class="n">removals</span>
+<span class="n">uptake</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;AMMONIUM[c]&#39;,
+ &#39;CA+2[p]&#39;,
+ &#39;CARBON-DIOXIDE[p]&#39;,
+ &#39;CL-[p]&#39;,
+ &#39;CO+2[p]&#39;,
+ &#39;FE+2[p]&#39;,
+ &#39;GLC[p]&#39;,
+ &#39;K+[p]&#39;,
+ &#39;L-SELENOCYSTEINE[c]&#39;,
+ &#39;MG+2[p]&#39;,
+ &#39;MN+2[p]&#39;,
+ &#39;NA+[p]&#39;,
+ &#39;NI+2[p]&#39;,
+ &#39;OXYGEN-MOLECULE[p]&#39;,
+ &#39;Pi[p]&#39;,
+ &#39;SULFATE[p]&#39;,
+ &#39;WATER[p]&#39;,
+ &#39;ZN+2[p]&#39;}
+</pre></div></div>
+</div>
+</section>
+<section id="Use-NetworkFlowModel-class-to-run-model">
+<h1>Use NetworkFlowModel class to run model<a class="headerlink" href="#Use-NetworkFlowModel-class-to-run-model" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">homeostatic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_homeostatic_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">maintenance</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">homeostatic</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+2-3-DIHYDROXYBENZOATE[c]          73
+2-KETOGLUTARATE[c]               187
+2-PG[c]                           49
+2K-4CH3-PENTANOATE[c]             72
+4-AMINO-BUTYRATE[c]              161
+                              ...
+WATER[c]                    22086088
+XYLULOSE-5-PHOSPHATE[c]           89
+ZN+2[c]                           89
+ZN+2[p]                           53
+glycogen-monomer[c]            35110
+Name: 4, Length: 172, dtype: int64
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">NetworkFlowModel</span><span class="p">(</span><span class="n">reactions</span><span class="o">=</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">homeostatic_metabolites</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">homeostatic</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">set_up_exchanges</span><span class="p">(</span><span class="n">exchanges</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">exchanges</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">uptakes</span><span class="o">=</span><span class="n">uptake</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span><span class="p">:</span> <span class="n">FlowResult</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">homeostatic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">homeostatic</span><span class="p">),</span>
+                                   <span class="n">maintenance_target</span><span class="o">=</span><span class="n">maintenance</span><span class="p">,</span>
+                                   <span class="n">kinetic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">kinetic</span><span class="p">),</span>
+                                   <span class="n">binary_kinetic_targets</span><span class="o">=</span><span class="p">{},</span>
+                                   <span class="n">objective_weights</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;secretion&#39;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s1">&#39;efficiency&#39;</span><span class="p">:</span> <span class="mf">0.00001</span><span class="p">,</span> <span class="s1">&#39;kinetics&#39;</span><span class="p">:</span> <span class="mf">0.000001</span><span class="p">},</span>
+                                   <span class="n">upper_flux_bound</span><span class="o">=</span><span class="mi">100000000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">exchanges</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+WATER[p]              1.730667e+07
+OXYGEN-MOLECULE[p]    1.431635e+06
+GLC[p]                1.411259e+06
+AMMONIUM[c]           1.366761e+06
+Pi[p]                 1.776750e+05
+K+[p]                 5.145700e+04
+SULFATE[p]            1.428000e+04
+MG+2[p]               2.287000e+03
+FE+2[p]               1.930000e+03
+CA+2[p]               1.425000e+03
+dtype: float64
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">velocities</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+TRANS-RXN-145                                                                   1.730667e+07
+ATPSYN-RXN (reverse)                                                            4.997869e+06
+maintenance_reaction                                                            3.058992e+06
+NADH-DEHYDROG-A-RXN-NADH/UBIQUINONE-8/PROTON//NAD/CPD-9956/PROTON.46.           2.489249e+06
+TRANS-RXN0-545[CCO-PM-BAC-NEG]-CARBON-DIOXIDE//CARBON-DIOXIDE.47. (reverse)     1.992032e+06
+TRANS-RXN0-474                                                                  1.431583e+06
+RXN-21817-CPD-9956/PROTON/OXYGEN-MOLECULE//UBIQUINONE-8/PROTON/WATER.59.        1.430605e+06
+GLU6PDEHYDROG-RXN-GLC-6-P/NADP//D-6-P-GLUCONO-DELTA-LACTONE/NADPH/PROTON.55.    1.295287e+06
+6PGLUCONOLACT-RXN                                                               1.295287e+06
+PYRUVDEH-RXN                                                                    1.219392e+06
+dtype: float64
+</pre></div></div>
+</div>
+</section>
+<section id="Original">
+<h1>Original<a class="headerlink" href="#Original" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[88]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">Sd</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[105]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1">#stoich_dict = {item[&quot;reaction id&quot;]: item[&quot;stoichiometry&quot;] for item in stoichiometry}</span>
+
+<span class="n">mets_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span> <span class="c1"># index to name</span>
+<span class="n">rxns_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span>
+
+<span class="n">exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span>
+<span class="n">homeostatic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_homeostatic_dmdt&quot;</span><span class="p">])</span>
+<span class="n">maintenance</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">])</span>
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span>
+
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span>
+<span class="n">kin_rxns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+<span class="n">homeostatic_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">exchange_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">exchanges</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">intermediate_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">mets_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+<span class="n">n_mets</span><span class="p">,</span> <span class="n">n_orig_rxns</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">shape</span>
+
+<span class="n">exchange_mets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake</span><span class="p">))</span>
+
+<span class="n">Se</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">exchange_mets</span><span class="p">:</span>
+    <span class="n">exch_name</span> <span class="o">=</span> <span class="n">met</span> <span class="o">+</span> <span class="s2">&quot; exchange&quot;</span>
+    <span class="k">if</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">uptake</span><span class="p">:</span>
+        <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+        <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+    <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+
+
+<span class="n">S_orig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Sd</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">S_exch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Se</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+<span class="n">_</span><span class="p">,</span> <span class="n">n_exch_rxns</span> <span class="o">=</span> <span class="n">S_exch</span><span class="o">.</span><span class="n">shape</span>
+
+
+<span class="n">int_df</span> <span class="o">=</span> <span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">intermediate_mets</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">int_idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">int_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span>
+
+<span class="n">hom_df</span> <span class="o">=</span> <span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">homeostatic_mets</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">target_hom</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">target_hom</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Count&quot;</span><span class="p">]</span>
+<span class="n">merge_df</span> <span class="o">=</span> <span class="n">hom_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">target_hom</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">))</span>
+
+<span class="n">kin_df</span> <span class="o">=</span> <span class="n">rxns_df</span><span class="p">[</span><span class="n">rxns_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">kin_rxns</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">target_kin</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">target_kin</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux&quot;</span><span class="p">]</span>
+<span class="n">merge_kin_df</span> <span class="o">=</span> <span class="n">kin_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">target_kin</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">))</span>
+
+<span class="n">v_hom</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_df</span><span class="p">[</span><span class="s2">&quot;Count&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">hom_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+<span class="n">v_kin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_kin_df</span><span class="p">[</span><span class="s2">&quot;Flux&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">kin_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_kin_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+<span class="n">v_main</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">][</span><span class="mi">4</span><span class="p">])</span>
+<span class="n">main_idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;maintenance_reaction&quot;</span><span class="p">)</span>
+
+
+<span class="n">secretion_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">S_exch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[106]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">v</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_orig_rxns</span><span class="p">)</span>
+<span class="n">e</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_exch_rxns</span><span class="p">)</span>
+<span class="n">v_t</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">v</span><span class="p">,</span><span class="n">e</span><span class="p">])</span>
+<span class="n">dm</span> <span class="o">=</span> <span class="n">S_orig</span> <span class="o">@</span> <span class="n">v</span> <span class="o">+</span> <span class="n">S_exch</span> <span class="o">@</span> <span class="n">e</span>
+
+
+<span class="n">constr</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="n">int_idx</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">main_idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">v_main</span><span class="p">)</span>
+<span class="c1"># constr.append(dm[hom_idx] == v_hom)</span>
+<span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">,</span> <span class="n">e</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">e</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">])</span>
+
+<span class="n">loss</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="n">hom_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">v_hom</span><span class="p">)</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.0001</span><span class="o">*</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="n">secretion_idx</span><span class="p">]))</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.00001</span><span class="o">*</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.0000001</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">kin_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">v_kin</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[107]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span>
+        <span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">),</span>
+    <span class="n">constr</span>
+    <span class="p">)</span>
+
+<span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">solver</span><span class="o">=</span><span class="n">cp</span><span class="o">.</span><span class="n">GLOP</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[107]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+891.7414328911044
+</pre></div></div>
+</div>
+</section>
+<section id="Analyze-output">
+<h1>Analyze output<a class="headerlink" href="#Analyze-output" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">exchange_rxns</span> <span class="o">=</span> <span class="n">Se</span><span class="o">.</span><span class="n">columns</span>
+<span class="n">exchange_nb</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">exchange_rxns</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">exchange_rxns</span><span class="p">))})</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="n">exchange_nb</span> <span class="o">=</span> <span class="n">exchange_nb</span><span class="p">[</span><span class="n">exchange_nb</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span>
+<span class="n">index_raw</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">exchange_nb</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+<span class="n">index_cleaned</span> <span class="o">=</span> <span class="p">[</span><span class="n">index_raw</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">index_raw</span><span class="p">))]</span>
+<span class="n">exchange_nb</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index_cleaned</span>
+<span class="n">exchange_nb</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Exchange flux&quot;</span><span class="p">]</span>
+<span class="n">exchange_nb</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[108]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Exchange flux</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>WATER[p]</th>
+      <td>1.722097e+07</td>
+    </tr>
+    <tr>
+      <th>CARBON-DIOXIDE[p]</th>
+      <td>2.078603e+06</td>
+    </tr>
+    <tr>
+      <th>OXYGEN-MOLECULE[p]</th>
+      <td>1.517739e+06</td>
+    </tr>
+    <tr>
+      <th>GLC[p]</th>
+      <td>1.425021e+06</td>
+    </tr>
+    <tr>
+      <th>AMMONIUM[c]</th>
+      <td>1.366323e+06</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[109]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">exchange_sim</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">exchanges</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">())</span>
+<span class="n">exchange_sim</span> <span class="o">=</span> <span class="n">exchange_sim</span><span class="p">[</span><span class="n">exchange_sim</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span>
+<span class="n">exchange_sim</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Exchange flux&quot;</span><span class="p">]</span>
+<span class="n">exchange_sim</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[109]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Exchange flux</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>S-ADENOSYL-4-METHYLTHIO-2-OXOBUTANOATE[c]</th>
+      <td>10</td>
+    </tr>
+    <tr>
+      <th>CPD-1772[c]</th>
+      <td>17</td>
+    </tr>
+    <tr>
+      <th>L-SELENOCYSTEINE[c]</th>
+      <td>20</td>
+    </tr>
+    <tr>
+      <th>METOH[p]</th>
+      <td>33</td>
+    </tr>
+    <tr>
+      <th>CPD-108[p]</th>
+      <td>49</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">exch_comp</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">exchange_nb</span><span class="p">,</span> <span class="n">exchange_sim</span><span class="p">,</span> <span class="n">left_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">right_index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">suffixes</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39; new&#39;</span><span class="p">,</span> <span class="s1">&#39; standard&#39;</span><span class="p">),</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;outer&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+<span class="n">exch_comp</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;Exchange flux new&quot;</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[111]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Exchange flux new</th>
+      <th>Exchange flux standard</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>WATER[p]</th>
+      <td>17220969</td>
+      <td>18742975</td>
+    </tr>
+    <tr>
+      <th>CARBON-DIOXIDE[p]</th>
+      <td>2078602</td>
+      <td>559251</td>
+    </tr>
+    <tr>
+      <th>OXYGEN-MOLECULE[p]</th>
+      <td>1517739</td>
+      <td>3334</td>
+    </tr>
+    <tr>
+      <th>GLC[p]</th>
+      <td>1425020</td>
+      <td>1169640</td>
+    </tr>
+    <tr>
+      <th>AMMONIUM[c]</th>
+      <td>1366323</td>
+      <td>1366539</td>
+    </tr>
+    <tr>
+      <th>Pi[p]</th>
+      <td>177675</td>
+      <td>177748</td>
+    </tr>
+    <tr>
+      <th>K+[p]</th>
+      <td>51456</td>
+      <td>51457</td>
+    </tr>
+    <tr>
+      <th>SULFATE[p]</th>
+      <td>14280</td>
+      <td>14288</td>
+    </tr>
+    <tr>
+      <th>MG+2[p]</th>
+      <td>2287</td>
+      <td>2287</td>
+    </tr>
+    <tr>
+      <th>UNDECAPRENYL-DIPHOSPHATE[p]</th>
+      <td>1999</td>
+      <td>2001</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[112]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">8</span><span class="p">,</span><span class="mi">8</span><span class="p">])</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Exchange flux new&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;Exchange flux standard&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">exch_comp</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../../_images/notebooks_fbagd_old_test_environments_old_26_0.png" src="../../../_images/notebooks_fbagd_old_test_environments_old_26_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[113]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">flux_indexed</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">[:</span><span class="n">n_orig_rxns</span><span class="p">])</span>
+<span class="n">fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">flux_indexed</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">stoichiometry</span><span class="p">[</span><span class="n">flux_indexed</span><span class="p">[</span><span class="n">i</span><span class="p">]]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">flux_indexed</span><span class="p">))})</span><span class="o">.</span><span class="n">T</span>
+<span class="n">fluxes</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[113]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>0</th>
+      <th>1</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>TRANS-RXN-145</th>
+      <td>17220969.011255</td>
+      <td>{'WATER[p]': -1, 'WATER[c]': 1}</td>
+    </tr>
+    <tr>
+      <th>ATPSYN-RXN (reverse)</th>
+      <td>5634574.458733</td>
+      <td>{'ATP[c]': 1, 'WATER[c]': 1, 'PROTON[c]': 3, '...</td>
+    </tr>
+    <tr>
+      <th>maintenance_reaction</th>
+      <td>3058991.943728</td>
+      <td>{'ATP[c]': -1, 'WATER[c]': -1, 'ADP[c]': 1, 'P...</td>
+    </tr>
+    <tr>
+      <th>NADH-DEHYDROG-A-RXN-NADH/UBIQUINONE-8/PROTON//NAD/CPD-9956/PROTON.46.</th>
+      <td>2661920.481242</td>
+      <td>{'NADH[c]': -1, 'UBIQUINONE-8[i]': -1, 'PROTON...</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN0-545[CCO-PM-BAC-NEG]-CARBON-DIOXIDE//CARBON-DIOXIDE.47. (reverse)</th>
+      <td>2078105.988746</td>
+      <td>{'CARBON-DIOXIDE[p]': 1, 'CARBON-DIOXIDE[c]': -1}</td>
+    </tr>
+    <tr>
+      <th>GAPOXNPHOSPHN-RXN</th>
+      <td>1662005.488745</td>
+      <td>{'GAP[c]': -1, 'NAD[c]': -1, 'Pi[c]': -1, 'DPG...</td>
+    </tr>
+    <tr>
+      <th>PHOSGLYPHOS-RXN (reverse)</th>
+      <td>1661997.488745</td>
+      <td>{'G3P[c]': 1, 'ATP[c]': 1, 'DPG[c]': -1, 'ADP[...</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN0-474</th>
+      <td>1517687.238745</td>
+      <td>{'OXYGEN-MOLECULE[p]': -1, 'OXYGEN-MOLECULE[c]...</td>
+    </tr>
+    <tr>
+      <th>RXN-21817-CPD-9956/PROTON/OXYGEN-MOLECULE//UBIQUINONE-8/PROTON/WATER.59.</th>
+      <td>1516708.738745</td>
+      <td>{'CPD-9956[i]': -2, 'PROTON[c]': -8, 'OXYGEN-M...</td>
+    </tr>
+    <tr>
+      <th>3PGAREARR-RXN (reverse)</th>
+      <td>1476043.488745</td>
+      <td>{'2-PG[c]': 1, 'G3P[c]': -1}</td>
+    </tr>
+    <tr>
+      <th>2PGADEHYDRAT-RXN</th>
+      <td>1475994.488745</td>
+      <td>{'2-PG[c]': -1, 'PHOSPHO-ENOL-PYRUVATE[c]': 1,...</td>
+    </tr>
+    <tr>
+      <th>PYRUVDEH-RXN</th>
+      <td>1179861.992497</td>
+      <td>{'PYRUVATE[c]': -1, 'CO-A[c]': -1, 'NAD[c]': -...</td>
+    </tr>
+    <tr>
+      <th>DEPHOSICITDEHASE-RXN</th>
+      <td>1166310.0</td>
+      <td>{'Iso-Cit[c]': -1, 'WATER[c]': -1, 'isocitrate...</td>
+    </tr>
+    <tr>
+      <th>PHOSICITDEHASE-RXN</th>
+      <td>1166310.0</td>
+      <td>{'isocitrate-dehydrogenase[c]': -1, 'ATP[c]': ...</td>
+    </tr>
+    <tr>
+      <th>GLU6PDEHYDROG-RXN-GLC-6-P/NADP//D-6-P-GLUCONO-DELTA-LACTONE/NADPH/PROTON.55.</th>
+      <td>851841.507503</td>
+      <td>{'GLC-6-P[c]': -1, 'NADP[c]': -1, 'D-6-P-GLUCO...</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_fluxes&quot;</span><span class="p">])</span>
+<span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">sim_fluxes</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[114]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>4</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>TRANS-RXN-300</th>
+      <td>14905204</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN-121</th>
+      <td>14905204</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN-145</th>
+      <td>4685215</td>
+    </tr>
+    <tr>
+      <th>ATPSYN-RXN (reverse)</th>
+      <td>3622805</td>
+    </tr>
+    <tr>
+      <th>FUMHYDR-RXN__FUMARASE-A</th>
+      <td>1131615</td>
+    </tr>
+    <tr>
+      <th>FUMHYDR-RXN__FUMARASE-A (reverse)</th>
+      <td>787822</td>
+    </tr>
+    <tr>
+      <th>GAPOXNPHOSPHN-RXN</th>
+      <td>429866</td>
+    </tr>
+    <tr>
+      <th>PHOSGLYPHOS-RXN (reverse)</th>
+      <td>429864</td>
+    </tr>
+    <tr>
+      <th>2PGADEHYDRAT-RXN</th>
+      <td>429258</td>
+    </tr>
+    <tr>
+      <th>3PGAREARR-RXN (reverse)</th>
+      <td>429210</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[115]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">exchanges</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[115]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+WATER[p]              18742975
+AMMONIUM[c]            1366539
+GLC[p]                 1169640
+PROTON[p]              1166472
+CARBON-DIOXIDE[p]       559251
+Pi[p]                   177748
+K+[p]                    51457
+SULFATE[p]               14288
+OXYGEN-MOLECULE[p]        3334
+MG+2[p]                   2287
+Name: 4, dtype: int64
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[116]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dmdt_indexed</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="c1"># hom_idx</span>
+<span class="n">dmdt_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">dmdt_indexed</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span> <span class="p">[</span><span class="n">dm</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">v_hom</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">dm</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">v_hom</span><span class="p">[</span><span class="n">j</span><span class="p">]]</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">hom_idx</span><span class="p">)}</span>
+<span class="n">dmdt</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">dmdt_dict</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="n">dmdt</span>
+<span class="c1">#dmdt = pd.DataFrame({dmdt_indexed[i]: [dm.value[i], v_hom[j]] for j, i in enumerate(hom_idx)})</span>
+<span class="c1">#dmdt.sort_values(by=0, axis=1, ascending=False).T.head(20)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[116]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>PPI[c]</th>
+      <td>-91148.0</td>
+      <td>-91148.0</td>
+      <td>-1.164153e-10</td>
+    </tr>
+    <tr>
+      <th>PROTON[c]</th>
+      <td>-32222.0</td>
+      <td>-32222.0</td>
+      <td>5.587935e-09</td>
+    </tr>
+    <tr>
+      <th>GMP[c]</th>
+      <td>-8734.0</td>
+      <td>-8734.0</td>
+      <td>3.637979e-12</td>
+    </tr>
+    <tr>
+      <th>AMP[c]</th>
+      <td>-8014.0</td>
+      <td>-8014.0</td>
+      <td>-2.910383e-11</td>
+    </tr>
+    <tr>
+      <th>CMP[c]</th>
+      <td>-7777.0</td>
+      <td>-7777.0</td>
+      <td>2.182787e-11</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>GLY[c]</th>
+      <td>55792.0</td>
+      <td>55792.0</td>
+      <td>-1.455192e-11</td>
+    </tr>
+    <tr>
+      <th>LEU[c]</th>
+      <td>56225.0</td>
+      <td>56225.0</td>
+      <td>-7.275958e-12</td>
+    </tr>
+    <tr>
+      <th>GLT[c]</th>
+      <td>56546.0</td>
+      <td>56546.0</td>
+      <td>2.328306e-10</td>
+    </tr>
+    <tr>
+      <th>L-ALPHA-ALANINE[c]</th>
+      <td>70356.0</td>
+      <td>70356.0</td>
+      <td>-1.455192e-11</td>
+    </tr>
+    <tr>
+      <th>WATER[c]</th>
+      <td>22086088.0</td>
+      <td>22086088.0</td>
+      <td>1.490116e-08</td>
+    </tr>
+  </tbody>
+</table>
+<p>172 rows × 3 columns</p>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[117]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;Name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;FUM&quot;</span><span class="p">)]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[117]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Name</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>576</th>
+      <td>FUM[c]</td>
+    </tr>
+    <tr>
+      <th>3678</th>
+      <td>FUM[p]</td>
+    </tr>
+    <tr>
+      <th>4506</th>
+      <td>FUM[e]</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+</section>
+<section id="Set-up-function">
+<h1>Set up function<a class="headerlink" href="#Set-up-function" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[118]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># inputs</span>
+<span class="n">exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span>
+<span class="n">homeostatic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_homeostatic_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span>
+<span class="n">maintenance</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span>
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,:]</span>
+
+<span class="n">exchange_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">exchanges</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">homeostatic_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">kin_rxns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+<span class="n">uptake</span> <span class="o">=</span> <span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;unconstrained_molecules&quot;</span><span class="p">][</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">uptake_c</span> <span class="o">=</span> <span class="n">fba</span><span class="p">[</span><span class="s2">&quot;constrained_molecules&quot;</span><span class="p">]</span>
+
+<span class="n">uptake</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake_c</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">uptake</span><span class="p">)</span>
+
+<span class="n">stoichiometry</span>
+
+<span class="n">kin_rxns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">homeostatic_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">exchange_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">exchanges</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[119]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">FlowResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reaction velocities and dm/dt for an FBA solution, with metrics.&quot;&quot;&quot;</span>
+    <span class="n">velocities</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="n">dm_dt</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="n">exchanges</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="n">objective</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="c1"># residual: Mapping[str, np.ndarray]</span>
+
+<span class="k">class</span> <span class="nc">NetworkFlowModel</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">reactions</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span>
+                 <span class="n">exchanges</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                 <span class="n">uptakes</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                 <span class="n">homeostatic_metabolites</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+
+        <span class="c1"># inputs: reactions: dict of dict</span>
+        <span class="c1"># exchanges: list(set)</span>
+        <span class="c1"># homeostatic: dict of str:floats (concs)</span>
+
+        <span class="c1"># set up S matrix</span>
+        <span class="c1"># homeostatic objective keys</span>
+        <span class="c1"># exchange keys? if possible</span>
+        <span class="c1"># reversibility is not needed as matrix already does it</span>
+
+        <span class="c1"># pandas automatically creates S matrix from dict of dicts, then we fill zeros in remainder</span>
+        <span class="n">Sd</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">reactions</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_mets</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_orig_rxns</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="c1"># extract names of mets and rxns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rxns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intermediates</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mets</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">homeostatic_metabolites</span><span class="p">))</span>
+
+        <span class="n">all_exchanges</span> <span class="o">=</span> <span class="n">exchanges</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">all_exchanges</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">uptakes</span><span class="p">)</span>
+
+        <span class="c1"># Set up exchange rxns df</span>
+        <span class="n">Se</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">all_exchanges</span><span class="p">:</span>
+            <span class="n">exch_name</span> <span class="o">=</span> <span class="n">met</span> <span class="o">+</span> <span class="s2">&quot; exchange&quot;</span>
+            <span class="k">if</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">uptakes</span><span class="p">:</span>
+                <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+                <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+            <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">S_orig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Sd</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Se</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="n">_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_exch_rxns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="c1"># steady state indices, secretion indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">intermediates_idx</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">mets</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">met</span><span class="p">)</span> <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">intermediates</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">solve</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">homeostatic_targets</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+              <span class="n">maintenance_target</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+              <span class="n">kinetic_targets</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+              <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FlowResult</span><span class="p">:</span>
+
+        <span class="c1"># objective targets: dict of dicts to floats, for now</span>
+        <span class="c1">## kinetic</span>
+        <span class="c1">## maintenance</span>
+        <span class="c1">## homeostasis</span>
+        <span class="c1">## binary kinetic</span>
+        <span class="c1"># starting fluxes: optional for now, could reintroduce</span>
+        <span class="c1">#</span>
+
+        <span class="n">homeostatic_arr</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">self</span><span class="o">.</span><span class="n">mets</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">met</span><span class="p">),</span> <span class="n">target</span><span class="p">]</span> <span class="k">for</span> <span class="n">met</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">homeostatic_targets</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+        <span class="n">homeostatic_idx</span><span class="p">,</span> <span class="n">homeostatic_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">homeostatic_arr</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">homeostatic_arr</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">kinetic_array</span> <span class="o">=</span> <span class="p">[[</span><span class="bp">self</span><span class="o">.</span><span class="n">rxns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">met</span><span class="p">),</span> <span class="n">target</span><span class="p">]</span> <span class="k">for</span> <span class="n">met</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">kinetic_targets</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+        <span class="n">kinetic_idx</span><span class="p">,</span> <span class="n">kinetic_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kinetic_array</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kinetic_array</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">maintenance_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rxns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;maintenance_reaction&quot;</span><span class="p">)</span>  <span class="c1"># TODO (Cyrus) - use name provided</span>
+
+        <span class="c1"># set up variables</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_orig_rxns</span><span class="p">)</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_exch_rxns</span><span class="p">)</span>
+        <span class="n">dm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_orig</span> <span class="o">@</span> <span class="n">v</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_exch</span> <span class="o">@</span> <span class="n">e</span>
+
+        <span class="n">constr</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">intermediates_idx</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">maintenance_idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">maintenance_target</span><span class="p">)</span>
+        <span class="c1"># constr.append(dm[homeostatic_idx[]] == homeostatic_target)</span>
+        <span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">,</span> <span class="n">e</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">e</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">])</span>
+
+        <span class="n">loss</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">loss</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="n">homeostatic_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">homeostatic_target</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.001</span> <span class="o">*</span> <span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">secretion_idx</span><span class="p">]))</span>
+        <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.00001</span> <span class="o">*</span> <span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+        <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.000001</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">kinetic_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">kinetic_target</span><span class="p">)</span>
+
+        <span class="n">p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span>
+            <span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">),</span>
+            <span class="n">constr</span>
+        <span class="p">)</span>
+
+        <span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">solver</span><span class="o">=</span><span class="n">cp</span><span class="o">.</span><span class="n">GLOP</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">FlowResult</span><span class="p">(</span><span class="n">velocities</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                          <span class="n">dm_dt</span><span class="o">=</span><span class="n">dm</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                          <span class="n">exchanges</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+                          <span class="n">objective</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">NetworkFlowModel</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">exchange_mets</span><span class="p">,</span> <span class="n">uptake</span><span class="p">,</span> <span class="n">homeostatic_mets</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[120]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">homeostatic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">homeostatic</span><span class="p">),</span> <span class="n">maintenance_target</span><span class="o">=</span><span class="n">maintenance</span><span class="p">,</span> <span class="n">kinetic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">kinetic</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[121]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">result</span><span class="o">.</span><span class="n">objective</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[121]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+2715.9945231057463
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[122]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">uptake</span> <span class="o">=</span> <span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;unconstrained_molecules&quot;</span><span class="p">][</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">uptake_c</span> <span class="o">=</span> <span class="n">fba</span><span class="p">[</span><span class="s2">&quot;constrained_molecules&quot;</span><span class="p">]</span>
+
+<span class="n">uptake</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake_c</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">uptake</span><span class="p">)</span>
+
+<span class="c1"># convert stoich dict to stoich matrix</span>
+<span class="n">Sd</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">stoichiometry</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+
+
+
+<span class="c1">#stoich_dict = {item[&quot;reaction id&quot;]: item[&quot;stoichiometry&quot;] for item in stoichiometry}</span>
+
+<span class="n">mets_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span> <span class="c1"># index to name</span>
+<span class="n">rxns_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span>
+
+<span class="n">exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span>
+<span class="n">homeostatic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_homeostatic_dmdt&quot;</span><span class="p">])</span>
+<span class="n">maintenance</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">])</span>
+
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span>
+
+<span class="n">kin_rxns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">homeostatic_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">exchange_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">exchanges</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">intermediate_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">mets_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+<span class="n">n_mets</span><span class="p">,</span> <span class="n">n_orig_rxns</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">shape</span>
+
+<span class="n">exchange_mets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake</span><span class="p">))</span>
+
+<span class="n">Se</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">exchange_mets</span><span class="p">:</span>
+    <span class="n">exch_name</span> <span class="o">=</span> <span class="n">met</span> <span class="o">+</span> <span class="s2">&quot; exchange&quot;</span>
+    <span class="k">if</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">uptake</span><span class="p">:</span>
+        <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+        <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+    <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+
+
+<span class="n">S_orig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Sd</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">S_exch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Se</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+<span class="n">_</span><span class="p">,</span> <span class="n">n_exch_rxns</span> <span class="o">=</span> <span class="n">S_exch</span><span class="o">.</span><span class="n">shape</span>
+
+
+<span class="n">int_df</span> <span class="o">=</span> <span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">intermediate_mets</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">int_idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">int_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span>
+
+<span class="n">hom_df</span> <span class="o">=</span> <span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">homeostatic_mets</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">target_hom</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">target_hom</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Count&quot;</span><span class="p">]</span>
+<span class="n">merge_df</span> <span class="o">=</span> <span class="n">hom_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">target_hom</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">))</span>
+
+<span class="n">kin_df</span> <span class="o">=</span> <span class="n">rxns_df</span><span class="p">[</span><span class="n">rxns_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">kin_rxns</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">target_kin</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">target_kin</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux&quot;</span><span class="p">]</span>
+<span class="n">merge_kin_df</span> <span class="o">=</span> <span class="n">kin_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">target_kin</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">))</span>
+
+<span class="n">v_hom</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_df</span><span class="p">[</span><span class="s2">&quot;Count&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">hom_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+<span class="n">v_kin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_kin_df</span><span class="p">[</span><span class="s2">&quot;Flux&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">kin_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_kin_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+<span class="n">v_main</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">][</span><span class="mi">4</span><span class="p">])</span>
+<span class="n">main_idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;maintenance_reaction&quot;</span><span class="p">)</span>
+
+
+<span class="n">secretion_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">S_exch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[123]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">v</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_orig_rxns</span><span class="p">)</span>
+<span class="n">e</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_exch_rxns</span><span class="p">)</span>
+<span class="n">v_t</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">v</span><span class="p">,</span><span class="n">e</span><span class="p">])</span>
+<span class="n">dm</span> <span class="o">=</span> <span class="n">S_orig</span> <span class="o">@</span> <span class="n">v</span> <span class="o">+</span> <span class="n">S_exch</span> <span class="o">@</span> <span class="n">e</span>
+
+
+<span class="n">constr</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="n">int_idx</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">main_idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">v_main</span><span class="p">)</span>
+<span class="c1"># constr.append(dm[hom_idx] == v_hom)</span>
+<span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">,</span> <span class="n">e</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">e</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">])</span>
+
+<span class="n">loss</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="n">hom_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">v_hom</span><span class="p">)</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.001</span><span class="o">*</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="n">secretion_idx</span><span class="p">]))</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.00001</span><span class="o">*</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+<span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.000001</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">kin_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">v_kin</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[124]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span>
+        <span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">),</span>
+    <span class="n">constr</span>
+    <span class="p">)</span>
+
+<span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">solver</span><span class="o">=</span><span class="n">cp</span><span class="o">.</span><span class="n">GLOP</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[124]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+2715.994523111255
+</pre></div></div>
+</div>
+</section>
+<section id="Set-up-schema-for-testing-lots-of-fluxes">
+<h1>Set up schema for testing lots of fluxes<a class="headerlink" href="#Set-up-schema-for-testing-lots-of-fluxes" title="Link to this heading"></a></h1>
+<section id="Connect-to-EcoCyc-to-go-from-Genes--&gt;-Reactions">
+<h2>Connect to EcoCyc to go from Genes -&gt; Reactions<a class="headerlink" href="#Connect-to-EcoCyc-to-go-from-Genes-->-Reactions" title="Link to this heading"></a></h2>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[125]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">s</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span> <span class="c1"># create session</span>
+<span class="c1"># Post login credentials to session:</span>
+<span class="n">s</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;https://websvc.biocyc.org/credentials/login/&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;email&#39;</span><span class="p">:</span><span class="s1">&#39;cellulararchitect@protonmail.com&#39;</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span><span class="s1">&#39;Cellman0451&#39;</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[125]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;Response [200]&gt;
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[126]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">condition_sets</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;Environment&quot;</span><span class="p">:</span> <span class="s2">&quot;Hydrogen + fumarate, -O2, -Glc&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;Genes&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;EG10468&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10469&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10470&quot;</span><span class="p">,</span> <span class="s2">&quot;EG11799&quot;</span><span class="p">,</span> <span class="s2">&quot;EG11800&quot;</span><span class="p">,</span> <span class="s2">&quot;EG11801&quot;</span><span class="p">,</span> <span class="s2">&quot;G7554&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Add&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;FUM[p]&quot;</span><span class="p">,</span> <span class="s1">&#39;HYDROGEN-MOLECULE[p]&#39;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Remove&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;GLC[p]&quot;</span><span class="p">,</span> <span class="s2">&quot;OXYGEN-MOLECULE[p]&quot;</span><span class="p">]),</span>
+                      <span class="p">},</span>
+
+                  <span class="mi">1</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;Environment&quot;</span><span class="p">:</span> <span class="s2">&quot;Ribose C-source&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;Genes&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;EG10814&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10815&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10816&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10818&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Add&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;D-Ribopyranose[p]&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Remove&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;GLC[p]&quot;</span><span class="p">]),</span>
+                      <span class="p">},</span>
+
+                  <span class="mi">2</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;Environment&quot;</span><span class="p">:</span> <span class="s2">&quot;Thiamine salvaging&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;Genes&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;EG11574&quot;</span><span class="p">,</span> <span class="s2">&quot;G6566&quot;</span><span class="p">,</span> <span class="s2">&quot;M007&quot;</span><span class="p">,</span> <span class="s2">&quot;EG11573&quot;</span><span class="p">,</span> <span class="s2">&quot;EG11572&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Add&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;THIAMINE[p]&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Remove&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">(),</span>
+                      <span class="p">},</span>
+
+                  <span class="mi">3</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;Environment&quot;</span><span class="p">:</span> <span class="s2">&quot;Nitrate as reduction target&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;Genes&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;EG10638&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10639&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10640&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10644&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10647&quot;</span><span class="p">,</span> <span class="s2">&quot;EG10648&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Add&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;NITRATE[p]&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Remove&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;OXYGEN-MOLECULE[p]&quot;</span><span class="p">]),</span>
+                      <span class="p">},</span>
+
+                  <span class="mi">4</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;Environment&quot;</span><span class="p">:</span> <span class="s2">&quot;3-Phenylpropionate as carbon and energy source&quot;</span><span class="p">,</span>
+                      <span class="s2">&quot;Genes&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;M010&quot;</span><span class="p">,</span> <span class="s2">&quot;M011&quot;</span><span class="p">,</span> <span class="s2">&quot;M012&quot;</span><span class="p">,</span> <span class="s2">&quot;G6206&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Add&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;3-PHENYLPROPIONATE[p]&quot;</span><span class="p">]),</span>
+                      <span class="s2">&quot;Remove&quot;</span><span class="p">:</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;GLC[p]&quot;</span><span class="p">]),</span>
+                      <span class="p">},</span>
+
+                  <span class="c1"># 5: {&quot;Genes&quot;: set([&quot;EG10286&quot;, &quot;EG10287&quot;, &quot;EG10288&quot;, &quot;EG10289&quot;,</span>
+                  <span class="c1">#                   &quot;EG10290&quot;, &quot;EG10293&quot;, &quot;EG10294&quot;, &quot;EG10295&quot;,</span>
+                  <span class="c1">#                   &quot;EG10296&quot;, &quot;EG10298&quot;, &quot;EG10302&quot;, &quot;EG10303&quot;,</span>
+                  <span class="c1">#                   &quot;EG10304&quot;, &quot;EG10305&quot;, &quot;EG10306&quot;, &quot;G6414&quot;]),</span>
+                  <span class="c1">#     &quot;Add&quot;: set(),</span>
+                  <span class="c1">#     &quot;Remove&quot;: set(),</span>
+                  <span class="c1">#     &quot;Environment&quot;: &quot;Proper metal (iron) uptake&quot;}</span>
+                 <span class="p">}</span>
+
+<span class="n">condition_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">condition_sets</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+<span class="n">condition_df</span><span class="p">[</span><span class="s2">&quot;Reactions&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[[</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">condition_df</span><span class="p">)</span>
+<span class="n">condition_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[126]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Environment</th>
+      <th>Genes</th>
+      <th>Add</th>
+      <th>Remove</th>
+      <th>Reactions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Hydrogen + fumarate, -O2, -Glc</td>
+      <td>{EG11801, EG10468, EG10469, G7554, EG10470, EG...</td>
+      <td>{HYDROGEN-MOLECULE[p], FUM[p]}</td>
+      <td>{OXYGEN-MOLECULE[p], GLC[p]}</td>
+      <td>[nan]</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Ribose C-source</td>
+      <td>{EG10815, EG10814, EG10816, EG10818}</td>
+      <td>{D-Ribopyranose[p]}</td>
+      <td>{GLC[p]}</td>
+      <td>[nan]</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Thiamine salvaging</td>
+      <td>{EG11573, EG11574, G6566, EG11572, M007}</td>
+      <td>{THIAMINE[p]}</td>
+      <td>{}</td>
+      <td>[nan]</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Nitrate as reduction target</td>
+      <td>{EG10648, EG10647, EG10640, EG10638, EG10639, ...</td>
+      <td>{NITRATE[p]}</td>
+      <td>{OXYGEN-MOLECULE[p]}</td>
+      <td>[nan]</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>3-Phenylpropionate as carbon and energy source</td>
+      <td>{M012, M011, G6206, M010}</td>
+      <td>{3-PHENYLPROPIONATE[p]}</td>
+      <td>{GLC[p]}</td>
+      <td>[nan]</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[127]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">condition_df</span><span class="o">.</span><span class="n">index</span><span class="p">)):</span>
+
+    <span class="n">genes</span> <span class="o">=</span> <span class="n">condition_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;Genes&quot;</span><span class="p">]</span>
+    <span class="n">rxn_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">genes</span><span class="p">:</span>
+        <span class="n">function</span> <span class="o">=</span> <span class="s2">&quot;reactions-of-gene&quot;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">gene</span>
+        <span class="n">req_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;https://websvc.biocyc.org/apixml?fn=</span><span class="si">{</span><span class="n">function</span><span class="si">}</span><span class="s2">&amp;id=ECOLI:</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&amp;detail=none&amp;fmt=json&quot;</span>
+
+        <span class="n">r</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_str</span><span class="p">)</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)[</span><span class="s1">&#39;ptools-xml&#39;</span><span class="p">][</span><span class="s1">&#39;Reaction&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+            <span class="n">o</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">o</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">rxn</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">str</span><span class="p">:</span> <span class="c1"># no rxns</span>
+                <span class="n">rxn_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">rxn</span><span class="p">[</span><span class="s1">&#39;@frameid&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">gene</span><span class="p">,</span> <span class="n">rxn</span><span class="p">)</span>
+
+    <span class="n">condition_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s2">&quot;Reactions&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rxn_set</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[128]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[128]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;ptools-xml&#39;: {&#39;@ptools-version&#39;: &#39;26.5&#39;,
+  &#39;@xml:base&#39;: &#39;http://BioCyc.org/apixml?fn=reactions-of-gene%26id=ECOLI:M010%26detail=NONE&#39;,
+  &#39;metadata&#39;: {&#39;url&#39;: &#39;http://BioCyc.org/&#39;,
+   &#39;service_name&#39;: &#39;apixml&#39;,
+   &#39;query&#39;: &#39;fn=reactions-of-gene&amp;id=ECOLI:M010&amp;detail=NONE&#39;,
+   &#39;num_results&#39;: &#39;2&#39;},
+  &#39;Reaction&#39;: [{&#39;@resource&#39;: &#39;getxml?ECOLI:MHPHYDROXY-RXN&#39;,
+    &#39;@orgid&#39;: &#39;ECOLI&#39;,
+    &#39;@frameid&#39;: &#39;MHPHYDROXY-RXN&#39;},
+   {&#39;@resource&#39;: &#39;getxml?ECOLI:RXN-10040&#39;,
+    &#39;@orgid&#39;: &#39;ECOLI&#39;,
+    &#39;@frameid&#39;: &#39;RXN-10040&#39;}]}}
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[129]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">condition_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[129]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Environment</th>
+      <th>Genes</th>
+      <th>Add</th>
+      <th>Remove</th>
+      <th>Reactions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Hydrogen + fumarate, -O2, -Glc</td>
+      <td>{EG11801, EG10468, EG10469, G7554, EG10470, EG...</td>
+      <td>{HYDROGEN-MOLECULE[p], FUM[p]}</td>
+      <td>{OXYGEN-MOLECULE[p], GLC[p]}</td>
+      <td>{RXN-16420, RXN0-5256, RXN0-7399}</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>Ribose C-source</td>
+      <td>{EG10815, EG10814, EG10816, EG10818}</td>
+      <td>{D-Ribopyranose[p]}</td>
+      <td>{GLC[p]}</td>
+      <td>{ABC-28-RXN, RIBOKIN-RXN}</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>Thiamine salvaging</td>
+      <td>{EG11573, EG11574, G6566, EG11572, M007}</td>
+      <td>{THIAMINE[p]}</td>
+      <td>{}</td>
+      <td>{THIKIN-RXN, ABC-32-RXN, THIAZOLSYN3-RXN, RXN0...</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>Nitrate as reduction target</td>
+      <td>{EG10648, EG10647, EG10640, EG10638, EG10639, ...</td>
+      <td>{NITRATE[p]}</td>
+      <td>{OXYGEN-MOLECULE[p]}</td>
+      <td>{RXN0-3501, RXN0-7124, RXN-15119}</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>3-Phenylpropionate as carbon and energy source</td>
+      <td>{M012, M011, G6206, M010}</td>
+      <td>{3-PHENYLPROPIONATE[p]}</td>
+      <td>{GLC[p]}</td>
+      <td>{1.13.11.16-RXN, TRANS-RXN-61, RXN-10040, TRAN...</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+</section>
+<section id="Initialize-FBA">
+<h2>Initialize FBA<a class="headerlink" href="#Initialize-FBA" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[130]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1">#stoich_dict = {item[&quot;reaction id&quot;]: item[&quot;stoichiometry&quot;] for item in stoichiometry}</span>
+
+<span class="n">mets_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span> <span class="c1"># index to name</span>
+<span class="n">rxns_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span>
+
+<span class="n">exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span>
+<span class="n">homeostatic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_homeostatic_dmdt&quot;</span><span class="p">])</span>
+<span class="n">maintenance</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">])</span>
+
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span>
+<span class="n">kin_rxns</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+<span class="n">homeostatic_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">exchange_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">exchanges</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">intermediate_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">mets_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">])</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+<span class="n">n_mets</span><span class="p">,</span> <span class="n">n_orig_rxns</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">shape</span>
+
+
+<span class="n">int_df</span> <span class="o">=</span> <span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">intermediate_mets</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">int_idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">int_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span>
+
+<span class="n">hom_df</span> <span class="o">=</span> <span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">homeostatic_mets</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">target_hom</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">homeostatic</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">target_hom</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Count&quot;</span><span class="p">]</span>
+<span class="n">merge_df</span> <span class="o">=</span> <span class="n">hom_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">target_hom</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">))</span>
+
+<span class="n">kin_df</span> <span class="o">=</span> <span class="n">rxns_df</span><span class="p">[</span><span class="n">rxns_df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">kin_rxns</span><span class="p">)]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="n">target_kin</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">kinetic</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">target_kin</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux&quot;</span><span class="p">]</span>
+<span class="n">merge_kin_df</span> <span class="o">=</span> <span class="n">kin_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">target_kin</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">))</span>
+
+<span class="n">v_hom</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_df</span><span class="p">[</span><span class="s2">&quot;Count&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">hom_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+<span class="n">v_kin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_kin_df</span><span class="p">[</span><span class="s2">&quot;Flux&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="n">kin_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">merge_kin_df</span><span class="p">[</span><span class="s2">&quot;index&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+<span class="n">v_main</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_maintenance_flux&quot;</span><span class="p">][</span><span class="mi">4</span><span class="p">])</span>
+<span class="n">main_idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;maintenance_reaction&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Quick-and-dirty-loop-(after-init)">
+<h2>Quick and dirty loop (after init)<a class="headerlink" href="#Quick-and-dirty-loop-(after-init)" title="Link to this heading"></a></h2>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[131]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">results_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Environment&quot;</span><span class="p">,</span> <span class="s2">&quot;Reaction&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux&quot;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">condition_df</span><span class="p">)):</span>
+    <span class="n">condition_idx</span> <span class="o">=</span> <span class="n">i</span>
+
+    <span class="n">uptake</span> <span class="o">=</span> <span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;unconstrained_molecules&quot;</span><span class="p">][</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">uptake_c</span> <span class="o">=</span> <span class="n">fba</span><span class="p">[</span><span class="s2">&quot;constrained_molecules&quot;</span><span class="p">]</span>
+
+    <span class="n">uptake</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake_c</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+    <span class="n">uptake</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">uptake</span><span class="p">)</span>
+
+    <span class="n">addition</span> <span class="o">=</span> <span class="n">condition_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">condition_idx</span><span class="p">,</span> <span class="s2">&quot;Add&quot;</span><span class="p">]</span>
+    <span class="n">removals</span> <span class="o">=</span> <span class="n">condition_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">condition_idx</span><span class="p">,</span> <span class="s2">&quot;Remove&quot;</span><span class="p">]</span>
+
+    <span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">|</span> <span class="n">addition</span>
+    <span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">-</span> <span class="n">removals</span>
+    <span class="n">uptake</span>
+
+    <span class="c1"># just need to change exchanges.</span>
+    <span class="n">exchange_mets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">exchanges</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">exchange_mets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake</span><span class="p">))</span>
+
+    <span class="n">Se</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">Sd</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">exchange_mets</span><span class="p">:</span>
+        <span class="n">exch_name</span> <span class="o">=</span> <span class="n">met</span> <span class="o">+</span> <span class="s2">&quot; exchange&quot;</span>
+        <span class="k">if</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">uptake</span><span class="p">:</span>
+            <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+            <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">Se</span><span class="p">[</span><span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_mets</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span>
+        <span class="n">Se</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">met</span><span class="p">,</span> <span class="n">exch_name</span> <span class="o">+</span> <span class="s2">&quot; rev&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="n">S_exch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Se</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="n">_</span><span class="p">,</span> <span class="n">n_exch_rxns</span> <span class="o">=</span> <span class="n">S_exch</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="n">secretion_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">S_exch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">v</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_orig_rxns</span><span class="p">)</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">n_exch_rxns</span><span class="p">)</span>
+    <span class="n">v_t</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">v</span><span class="p">,</span><span class="n">e</span><span class="p">])</span>
+    <span class="n">dm</span> <span class="o">=</span> <span class="n">S_orig</span> <span class="o">@</span> <span class="n">v</span> <span class="o">+</span> <span class="n">S_exch</span> <span class="o">@</span> <span class="n">e</span>
+
+
+    <span class="n">constr</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="n">int_idx</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">constr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">main_idx</span><span class="p">]</span> <span class="o">==</span> <span class="n">v_main</span><span class="p">)</span>
+    <span class="c1"># constr.append(dm[hom_idx] == v_hom)</span>
+    <span class="n">constr</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">,</span> <span class="n">e</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">e</span> <span class="o">&lt;=</span> <span class="mi">100000000</span><span class="p">])</span>
+
+    <span class="n">loss</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">loss</span> <span class="o">+=</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">dm</span><span class="p">[</span><span class="n">hom_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">v_hom</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.001</span><span class="o">*</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="n">secretion_idx</span><span class="p">]))</span>
+    <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.00001</span><span class="o">*</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+    <span class="n">loss</span> <span class="o">+=</span> <span class="mf">0.000001</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">norm1</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="n">kin_idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">v_kin</span><span class="p">)</span>
+
+    <span class="n">p</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">Problem</span><span class="p">(</span>
+            <span class="n">cp</span><span class="o">.</span><span class="n">Minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">),</span>
+        <span class="n">constr</span>
+        <span class="p">)</span>
+
+    <span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">solver</span><span class="o">=</span><span class="n">cp</span><span class="o">.</span><span class="n">GLOP</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Check flux</span>
+    <span class="n">flux_indexed</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Sd</span><span class="o">.</span><span class="n">columns</span><span class="p">[:</span><span class="n">n_orig_rxns</span><span class="p">])</span>
+    <span class="n">fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">flux_indexed</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">stoichiometry</span><span class="p">[</span><span class="n">flux_indexed</span><span class="p">[</span><span class="n">i</span><span class="p">]]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">flux_indexed</span><span class="p">))})</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">fluxes</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Flux&quot;</span><span class="p">,</span> <span class="s2">&quot;Stoichiometry&quot;</span><span class="p">]</span>
+
+    <span class="n">relevant_rxns</span> <span class="o">=</span> <span class="n">condition_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">condition_idx</span><span class="p">,</span> <span class="s2">&quot;Reactions&quot;</span><span class="p">]</span>
+    <span class="n">relevant_rxn_idx</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">relevant_rxns</span><span class="p">:</span>
+        <span class="n">relevant_rxn_idx</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">fluxes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">rxn</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span> <span class="p">))</span>
+
+    <span class="n">relevant_fluxes</span> <span class="o">=</span> <span class="n">fluxes</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">relevant_rxn_idx</span><span class="p">,</span> <span class="p">:]</span>
+
+    <span class="n">relevant_nonzero_fluxes</span> <span class="o">=</span> <span class="n">relevant_fluxes</span><span class="p">[</span><span class="n">relevant_fluxes</span><span class="p">[</span><span class="s2">&quot;Flux&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;Flux&quot;</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">relevant_nonzero_fluxes</span><span class="o">.</span><span class="n">index</span><span class="p">):</span>
+        <span class="n">results_df</span> <span class="o">=</span> <span class="n">results_df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([[</span><span class="n">condition_df</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">condition_idx</span><span class="p">,</span> <span class="s2">&quot;Environment&quot;</span><span class="p">],</span>
+                          <span class="n">relevant_nonzero_fluxes</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+                          <span class="n">relevant_nonzero_fluxes</span><span class="p">[</span><span class="n">k</span><span class="p">]]],</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Environment&quot;</span><span class="p">,</span> <span class="s2">&quot;Reaction&quot;</span><span class="p">,</span> <span class="s2">&quot;Flux&quot;</span><span class="p">]))</span>
+    <span class="c1">#print(condition_df.at[condition_idx, &quot;Environment&quot;],&quot;\n&quot; ,relevant_fluxes[relevant_fluxes[&quot;Flux&quot;] != 0].loc[:, &quot;Flux&quot;], &quot;\n&quot;)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[132]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">results_df</span><span class="p">[</span><span class="s2">&quot;Reaction&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">results_df</span><span class="p">[</span><span class="s1">&#39;Reaction&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">20</span><span class="p">)</span>
+<span class="n">results_df</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[132]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Environment</th>
+      <th>Reaction</th>
+      <th>Flux</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>Hydrogen + fumarate, -O2, -Glc</td>
+      <td>RXN0-5256-CPD-9728/P</td>
+      <td>1.633399e+07</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>Ribose C-source</td>
+      <td>ABC-28-RXN-ATP/D-Rib</td>
+      <td>1.758890e+06</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>Ribose C-source</td>
+      <td>RIBOKIN-RXN-CPD0-110</td>
+      <td>1.758887e+06</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>Ribose C-source</td>
+      <td>RIBOKIN-RXN-CPD0-110</td>
+      <td>3.000000e+00</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>Thiamine salvaging</td>
+      <td>THIKIN-RXN</td>
+      <td>4.900000e+01</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>Thiamine salvaging</td>
+      <td>ABC-32-RXN</td>
+      <td>4.900000e+01</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>Nitrate as reduction target</td>
+      <td>RXN0-3501-NITRATE/RE</td>
+      <td>8.196559e+05</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>Nitrate as reduction target</td>
+      <td>RXN0-7124-NITRATE/CP</td>
+      <td>6.394500e+04</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>3-Phenylpropionate as carbon and energy source</td>
+      <td>1.13.11.16-RXN</td>
+      <td>1.065631e+06</td>
+    </tr>
+    <tr>
+      <th>0</th>
+      <td>3-Phenylpropionate as carbon and energy source</td>
+      <td>MHPCHYDROL-RXN</td>
+      <td>1.065631e+06</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[133]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">catplot</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="s2">&quot;Environment&quot;</span><span class="p">,</span><span class="n">hue</span><span class="o">=</span><span class="s2">&quot;Reaction&quot;</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s2">&quot;Flux&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">results_df</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;bar&quot;</span><span class="p">,</span> <span class="n">aspect</span><span class="o">=</span><span class="mf">2.5</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="c1">#plt.tight_layout()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s2">&quot;notebooks/fbagd/figures/rxns_light_up.png&quot;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../../_images/notebooks_fbagd_old_test_environments_old_52_0.png" src="../../../_images/notebooks_fbagd_old_test_environments_old_52_0.png" />
+</div>
+</div>
+</section>
+</section>
+<section id="Check-metal-reactions">
+<h1>Check metal reactions<a class="headerlink" href="#Check-metal-reactions" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># find mets containing</span>
+<span class="n">mets_df</span><span class="p">[</span><span class="n">mets_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;Name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;FE\+2\[c\]&quot;</span><span class="p">)]</span>
+
+<span class="c1"># find reactions containing met</span>
+<span class="n">reactions_id</span> <span class="o">=</span> <span class="n">Sd</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span> <span class="s2">&quot;FE+2[c]&quot;</span><span class="p">,</span> <span class="n">Sd</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1092</span><span class="p">,</span> <span class="p">:]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>
+<span class="n">reactions_id</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># find reactions containing met</span>
+<span class="n">fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">reactions_id</span><span class="p">,:]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Troubleshoot-wrong-fluxes">
+<h1>Troubleshoot wrong fluxes<a class="headerlink" href="#Troubleshoot-wrong-fluxes" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">top_wrong</span> <span class="o">=</span> <span class="n">fluxes_wrong</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
+<span class="n">top_right</span> <span class="o">=</span> <span class="n">fluxes</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
+
+<span class="n">top_wrong</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">top_right</span><span class="p">,</span> <span class="n">lsuffix</span><span class="o">=</span><span class="s2">&quot;wrong&quot;</span><span class="p">,</span> <span class="n">rsuffix</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">m2</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;LXULRU5P-RXN (reverse)&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN-21400&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN0-703 (reverse)&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN0-704&quot;</span><span class="p">,</span> <span class="s2">&quot;RIBULPEPIM-RXN__EG12287-MONOMER&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN0-705__EG12285-MONOMER&quot;</span><span class="p">]:</span>
+    <span class="n">m2</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="mi">2</span><span class="o">*</span><span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">stoichiometry</span><span class="p">[</span><span class="n">rxn</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
+
+<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">m2</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">m1</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ALANINE-AMINOTRANSFERASE-RXN (reverse)&quot;</span><span class="p">,</span> <span class="s2">&quot;MALATE-DEH-RXN (reverse)&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN-3523&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN-10981&quot;</span><span class="p">,</span> \
+ <span class="s2">&quot;RXN-12440&quot;</span><span class="p">,</span> <span class="s2">&quot;CHD-RXN (reverse)&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN0-7230-CHOLINE/UBIQUINONE-8//BETAINE_ALDEHYDE/CPD-9956.48.&quot;</span><span class="p">,</span> <span class="s2">&quot;ALARACECAT-RXN&quot;</span><span class="p">,</span> <span class="s2">&quot;PMPOXI-RXN&quot;</span><span class="p">,</span> <span class="s2">&quot;RXN0-5240&quot;</span><span class="p">]:</span>
+    <span class="n">m1</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">stoichiometry</span><span class="p">[</span><span class="n">rxn</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()})</span>
+
+<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">m1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int8</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Extract-specific-fluxes-for-balancing">
+<h1>Extract specific fluxes for balancing<a class="headerlink" href="#Extract-specific-fluxes-for-balancing" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">rxns_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;PGLUCISOM-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;6PFRUCTPHOS-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;F16ALDOLASE-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;TRIOSEPISOMERIZATION-RXN&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;GAPOXNPHOSPHN-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;PHOSGLYPHOS-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;3PGAREARR-RXN&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;2PGADEHYDRAT-RXN&#39;</span><span class="p">,</span> <span class="s1">&#39;PEPDEPHOS-RXN&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fluxes</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fluxes_small</span> <span class="o">=</span> <span class="n">fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">fluxes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">rxns_names</span><span class="p">),</span> <span class="p">:]</span>
+<span class="n">fluxes_small</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">fluxes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;TRIOSEPISOMERIZATION-RXN&quot;</span><span class="p">),:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">fluxes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;3PGAREARR-RXN&quot;</span><span class="p">),:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">fluxes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;PHOSGLYPHOS-RXN&quot;</span><span class="p">),:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">fluxes</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;2TRANSKETO-RXN&quot;</span><span class="p">),:]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="Glucose-transport">
+<h1>Glucose transport<a class="headerlink" href="#Glucose-transport" title="Link to this heading"></a></h1>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">glucose_transport_reactions</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;TRANS-RXN-157-PTSH-PHOSPHORYLATED/GLC//ALPHA-GLC-6-P/PTSH-MONOMER.52.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;TRANS-RXN-157-PTSH-PHOSPHORYLATED/GLC//D-glucopyranose-6-phosphate/PTSH-MONOMER.66.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;TRANS-RXN-157-PTSH-PHOSPHORYLATED/GLC//GLC-6-P/PTSH-MONOMER.46.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;RXN0-7077-GLC/PROTON//ALPHA-GLUCOSE/PROTON.33.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;RXN0-7077-GLC/PROTON//Glucopyranose/PROTON.33.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;RXN0-7077-GLC/PROTON//GLC/PROTON.23.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;TRANS-RXN0-574-GLC//GLC.9.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;TRANS-RXN0-574-GLC//Glucopyranose.19.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;TRANS-RXN-320-GLC/ATP/WATER//ALPHA-GLUCOSE/ADP/Pi/PROTON.43.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;TRANS-RXN-320-GLC/ATP/WATER//GLC/ADP/Pi/PROTON.33.&#39;</span><span class="p">,</span>
+                               <span class="s1">&#39;TRANS-RXN-320-GLC/ATP/WATER//Glucopyranose/ADP/Pi/PROTON.43.&#39;</span><span class="p">]</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

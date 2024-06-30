@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.library.pymunk_multibody &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.library.pymunk_multibody</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.library.pymunk_multibody</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">pymunk</span>
+
+
+<span class="n">PI</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span>
+<span class="n">DEBUG_SIZE</span> <span class="o">=</span> <span class="mi">600</span>  <span class="c1"># size of the pygame debug screen</span>
+
+
+<div class="viewcode-block" id="get_force_with_angle">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.get_force_with_angle">[docs]</a>
+<span class="k">def</span> <span class="nf">get_force_with_angle</span><span class="p">(</span><span class="n">force</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">force</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">force</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="front_from_corner">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.front_from_corner">[docs]</a>
+<span class="k">def</span> <span class="nf">front_from_corner</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">corner_position</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span>
+    <span class="n">half_width</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="n">length</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span> <span class="o">+</span> <span class="n">half_width</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span>
+        <span class="n">angle</span> <span class="o">+</span> <span class="n">PI</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="p">)</span>  <span class="c1"># PI/2 gives a half-rotation for the width component</span>
+    <span class="n">dy</span> <span class="o">=</span> <span class="n">length</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span> <span class="o">+</span> <span class="n">half_width</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span> <span class="o">+</span> <span class="n">PI</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">front_position</span> <span class="o">=</span> <span class="p">[</span><span class="n">corner_position</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">corner_position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">dy</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">front_position</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">front_position</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">angle</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="corner_from_center">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.corner_from_center">[docs]</a>
+<span class="k">def</span> <span class="nf">corner_from_center</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">center_position</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span>
+    <span class="n">half_length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">half_width</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="n">half_length</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span> <span class="o">+</span> <span class="n">half_width</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span> <span class="o">+</span> <span class="n">PI</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">dy</span> <span class="o">=</span> <span class="n">half_length</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span> <span class="o">+</span> <span class="n">half_width</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span> <span class="o">+</span> <span class="n">PI</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">corner_position</span> <span class="o">=</span> <span class="p">[</span><span class="n">center_position</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">dx</span><span class="p">,</span> <span class="n">center_position</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">dy</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">corner_position</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">corner_position</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">angle</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="random_body_position">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.random_body_position">[docs]</a>
+<span class="k">def</span> <span class="nf">random_body_position</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">rng</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;pick a random point along the boundary&quot;&quot;&quot;</span>
+    <span class="n">width</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">dimensions</span>
+    <span class="k">if</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># force along ends</span>
+        <span class="k">if</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># force on the left end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># force on the right end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span> <span class="n">length</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># force along length</span>
+        <span class="k">if</span> <span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># force on the bottom end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">length</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># force on the top end</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">length</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">location</span></div>
+
+
+
+<div class="viewcode-block" id="NullScreen">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.NullScreen">[docs]</a>
+<span class="k">class</span> <span class="nc">NullScreen</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="NullScreen.update_screen">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.NullScreen.update_screen">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_screen</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="NullScreen.configure">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.NullScreen.configure">[docs]</a>
+    <span class="k">def</span> <span class="nf">configure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="PymunkMultibody">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody">[docs]</a>
+<span class="k">class</span> <span class="nc">PymunkMultibody</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Multibody object for interfacing with pymunk</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;agent_shape&quot;</span><span class="p">:</span> <span class="s2">&quot;segment&quot;</span><span class="p">,</span>
+        <span class="c1"># hardcoded parameters</span>
+        <span class="s2">&quot;elasticity&quot;</span><span class="p">:</span> <span class="mf">0.9</span><span class="p">,</span>
+        <span class="s2">&quot;damping&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>  <span class="c1"># 1 is no damping, 0 is full damping</span>
+        <span class="s2">&quot;angular_damping&quot;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span>
+        <span class="s2">&quot;friction&quot;</span><span class="p">:</span> <span class="mf">0.9</span><span class="p">,</span>  <span class="c1"># does this do anything?</span>
+        <span class="s2">&quot;physics_dt&quot;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span>
+        <span class="s2">&quot;force_scaling&quot;</span><span class="p">:</span> <span class="mf">5e4</span><span class="p">,</span>  <span class="c1"># scales from pN</span>
+        <span class="c1"># configured parameters</span>
+        <span class="s2">&quot;jitter_force&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>  <span class="c1"># pN</span>
+        <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">],</span>
+        <span class="s2">&quot;barriers&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;initial_agents&quot;</span><span class="p">:</span> <span class="p">{},</span>
+        <span class="c1"># for debugging</span>
+        <span class="s2">&quot;screen&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="c1"># PRNG for jitter force</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">]))</span>
+
+        <span class="c1"># hardcoded parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elasticity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;elasticity&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">friction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;friction&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">damping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;damping&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">angular_damping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;angular_damping&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">physics_dt</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;physics_dt&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;physics_dt&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">force_scaling</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;force_scaling&quot;</span><span class="p">]</span>
+
+        <span class="c1"># configured parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;agent_shape&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;agent_shape&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jitter_force</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;jitter_force&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;jitter_force&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bounds&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;bounds&quot;</span><span class="p">])</span>
+        <span class="n">barriers</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;barriers&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;barriers&quot;</span><span class="p">])</span>
+
+        <span class="c1"># initialize pymunk space</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">Space</span><span class="p">()</span>
+
+        <span class="c1"># debug screen</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">screen</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;screen&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">screen</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">screen</span> <span class="o">=</span> <span class="n">NullScreen</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">screen</span><span class="o">.</span><span class="n">configure</span><span class="p">({</span><span class="s2">&quot;space&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="p">,</span> <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">})</span>
+
+        <span class="c1"># add static barriers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_barriers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span> <span class="n">barriers</span><span class="p">)</span>
+
+        <span class="c1"># initialize agents</span>
+        <span class="n">initial_agents</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;initial_agents&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;initial_agents&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">agent_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">initial_agents</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_body_from_center</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">specs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PymunkMultibody.run">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.run">[docs]</a>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestep</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">physics_dt</span> <span class="o">&gt;</span> <span class="n">timestep</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;timestep skipped by pymunk_multibody: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">timestep</span><span class="p">))</span>
+            <span class="k">return</span>
+
+        <span class="n">time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">time</span> <span class="o">&lt;</span> <span class="n">timestep</span><span class="p">:</span>
+            <span class="n">time</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physics_dt</span>
+
+            <span class="c1"># apply forces</span>
+            <span class="k">for</span> <span class="n">body</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">bodies</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">apply_jitter_force</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">apply_motile_force</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">apply_viscous_force</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+
+            <span class="c1"># run for a physics timestep</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">physics_dt</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">screen</span><span class="o">.</span><span class="n">update_screen</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.apply_motile_force">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.apply_motile_force">[docs]</a>
+    <span class="k">def</span> <span class="nf">apply_motile_force</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">):</span>
+        <span class="n">width</span><span class="p">,</span> <span class="n">length</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">dimensions</span>
+        <span class="n">motile_location</span> <span class="o">=</span> <span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># apply force at back end of body</span>
+        <span class="n">thrust</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">torque</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">motile_force</span> <span class="o">=</span> <span class="p">[</span><span class="n">thrust</span><span class="p">,</span> <span class="n">torque</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="s2">&quot;thrust&quot;</span><span class="p">):</span>
+            <span class="n">thrust</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">thrust</span>
+            <span class="n">torque</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">torque</span>
+            <span class="n">motile_force</span> <span class="o">=</span> <span class="p">[</span><span class="n">thrust</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+
+            <span class="c1"># add to angular velocity</span>
+            <span class="n">body</span><span class="o">.</span><span class="n">angular_velocity</span> <span class="o">+=</span> <span class="n">torque</span>
+
+        <span class="n">scaled_motile_force</span> <span class="o">=</span> <span class="p">[</span><span class="n">force</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">force_scaling</span> <span class="k">for</span> <span class="n">force</span> <span class="ow">in</span> <span class="n">motile_force</span><span class="p">]</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">apply_impulse_at_local_point</span><span class="p">(</span><span class="n">scaled_motile_force</span><span class="p">,</span> <span class="n">motile_location</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.apply_jitter_force">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.apply_jitter_force">[docs]</a>
+    <span class="k">def</span> <span class="nf">apply_jitter_force</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">):</span>
+        <span class="n">jitter_location</span> <span class="o">=</span> <span class="n">random_body_position</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="p">)</span>
+        <span class="n">jitter_force</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">jitter_force</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">jitter_force</span><span class="p">),</span>
+        <span class="p">]</span>
+        <span class="n">scaled_jitter_force</span> <span class="o">=</span> <span class="p">[</span><span class="n">force</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">force_scaling</span> <span class="k">for</span> <span class="n">force</span> <span class="ow">in</span> <span class="n">jitter_force</span><span class="p">]</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">apply_impulse_at_local_point</span><span class="p">(</span><span class="n">scaled_jitter_force</span><span class="p">,</span> <span class="n">jitter_location</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.apply_viscous_force">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.apply_viscous_force">[docs]</a>
+    <span class="k">def</span> <span class="nf">apply_viscous_force</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">):</span>
+        <span class="c1"># dampen velocity</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">body</span><span class="o">.</span><span class="n">velocity</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">damping</span> <span class="o">+</span> <span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">force</span> <span class="o">/</span> <span class="n">body</span><span class="o">.</span><span class="n">mass</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">physics_dt</span>
+        <span class="p">)</span>
+
+        <span class="c1"># dampen angular velocity</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">angular_velocity</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">body</span><span class="o">.</span><span class="n">angular_velocity</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">angular_damping</span>
+            <span class="o">+</span> <span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">torque</span> <span class="o">/</span> <span class="n">body</span><span class="o">.</span><span class="n">moment</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">physics_dt</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.add_barriers">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.add_barriers">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_barriers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">barriers</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create static barriers&quot;&quot;&quot;</span>
+        <span class="n">thickness</span> <span class="o">=</span> <span class="mf">50.0</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">thickness</span>
+        <span class="n">x_bound</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">y_bound</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">static_body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">static_body</span>
+        <span class="n">static_lines</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">pymunk</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span>
+                <span class="n">static_body</span><span class="p">,</span>
+                <span class="p">(</span><span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">,</span> <span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">x_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">,</span> <span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="n">thickness</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">pymunk</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span>
+                <span class="n">static_body</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">x_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">,</span> <span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">x_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">,</span> <span class="n">y_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="n">thickness</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">pymunk</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span>
+                <span class="n">static_body</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">x_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">,</span> <span class="n">y_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="p">(</span><span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">,</span> <span class="n">y_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="n">thickness</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">pymunk</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span>
+                <span class="n">static_body</span><span class="p">,</span>
+                <span class="p">(</span><span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">,</span> <span class="n">y_bound</span> <span class="o">+</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="p">(</span><span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">,</span> <span class="mf">0.0</span> <span class="o">-</span> <span class="n">offset</span><span class="p">),</span>
+                <span class="n">thickness</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">barriers</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">barriers</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+            <span class="n">spacer_thickness</span> <span class="o">=</span> <span class="n">barriers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;spacer_thickness&quot;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+            <span class="n">channel_height</span> <span class="o">=</span> <span class="n">barriers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;channel_height&quot;</span><span class="p">,</span> <span class="mf">0.7</span> <span class="o">*</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">channel_space</span> <span class="o">=</span> <span class="n">barriers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;channel_space&quot;</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">)</span>
+            <span class="n">n_lines</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">x_bound</span> <span class="o">/</span> <span class="n">channel_space</span><span class="p">)</span>
+
+            <span class="n">machine_lines</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">pymunk</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span>
+                    <span class="n">static_body</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">channel_space</span> <span class="o">*</span> <span class="n">line</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="p">(</span><span class="n">channel_space</span> <span class="o">*</span> <span class="n">line</span><span class="p">,</span> <span class="n">channel_height</span><span class="p">),</span>
+                    <span class="n">spacer_thickness</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_lines</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="n">static_lines</span> <span class="o">+=</span> <span class="n">machine_lines</span>
+
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">static_lines</span><span class="p">:</span>
+            <span class="n">line</span><span class="o">.</span><span class="n">elasticity</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># bounce</span>
+            <span class="n">line</span><span class="o">.</span><span class="n">friction</span> <span class="o">=</span> <span class="mf">0.8</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">line</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.get_shape">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.get_shape">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boundary</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        shape documentation at: https://pymunk-tutorial.readthedocs.io/en/latest/shape/shape.html</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;segment&quot;</span><span class="p">:</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;length&quot;</span><span class="p">]</span>
+
+            <span class="n">half_width</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">half_length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">half_width</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span>
+                <span class="kc">None</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="n">half_length</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="n">half_length</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">radius</span><span class="o">=</span><span class="n">half_width</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;circle&quot;</span><span class="p">:</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;length&quot;</span><span class="p">]</span>
+            <span class="n">half_length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">Circle</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">half_length</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;rectangle&quot;</span><span class="p">:</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+            <span class="n">length</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;length&quot;</span><span class="p">]</span>
+            <span class="n">half_length</span> <span class="o">=</span> <span class="n">length</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">half_width</span> <span class="o">=</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">Poly</span><span class="p">(</span>
+                <span class="kc">None</span><span class="p">,</span>
+                <span class="p">(</span>
+                    <span class="p">(</span><span class="o">-</span><span class="n">half_length</span><span class="p">,</span> <span class="o">-</span><span class="n">half_width</span><span class="p">),</span>
+                    <span class="p">(</span><span class="n">half_length</span><span class="p">,</span> <span class="o">-</span><span class="n">half_width</span><span class="p">),</span>
+                    <span class="p">(</span><span class="n">half_length</span><span class="p">,</span> <span class="n">half_width</span><span class="p">),</span>
+                    <span class="p">(</span><span class="o">-</span><span class="n">half_length</span><span class="p">,</span> <span class="n">half_width</span><span class="p">),</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">shape</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.get_inertia">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.get_inertia">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_inertia</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">mass</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;rectangle&quot;</span><span class="p">:</span>
+            <span class="n">inertia</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">moment_for_poly</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="n">shape</span><span class="o">.</span><span class="n">get_vertices</span><span class="p">())</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;circle&quot;</span><span class="p">:</span>
+            <span class="n">radius</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">radius</span>
+            <span class="n">inertia</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">moment_for_circle</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">radius</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_shape</span> <span class="o">==</span> <span class="s2">&quot;segment&quot;</span><span class="p">:</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">a</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">b</span>
+            <span class="n">radius</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">radius</span>
+            <span class="n">inertia</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">moment_for_segment</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">radius</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">inertia</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.add_body_from_center">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.add_body_from_center">[docs]</a>
+    <span class="k">def</span> <span class="nf">add_body_from_center</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body_id</span><span class="p">,</span> <span class="n">specs</span><span class="p">):</span>
+        <span class="n">boundary</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">]</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;mass&quot;</span><span class="p">]</span>
+        <span class="n">center_position</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;location&quot;</span><span class="p">]</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;angle&quot;</span><span class="p">]</span>
+        <span class="n">angular_velocity</span> <span class="o">=</span> <span class="n">boundary</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;angular_velocity&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;length&quot;</span><span class="p">]</span>
+
+        <span class="c1"># get shape, inertia, make body, assign body to shape</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_shape</span><span class="p">(</span><span class="n">boundary</span><span class="p">)</span>
+        <span class="n">inertia</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_inertia</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">mass</span><span class="p">)</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">Body</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="n">inertia</span><span class="p">)</span>
+        <span class="n">shape</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">body</span>
+
+        <span class="n">body</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="p">(</span><span class="n">center_position</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">center_position</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">angle</span> <span class="o">=</span> <span class="n">angle</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">dimensions</span> <span class="o">=</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+        <span class="n">body</span><span class="o">.</span><span class="n">angular_velocity</span> <span class="o">=</span> <span class="n">angular_velocity</span>
+
+        <span class="n">shape</span><span class="o">.</span><span class="n">elasticity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elasticity</span>
+        <span class="n">shape</span><span class="o">.</span><span class="n">friction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">friction</span>
+
+        <span class="c1"># add body and shape to space</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+
+        <span class="c1"># add body to agents dictionary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="p">[</span><span class="n">body_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.update_body">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.update_body">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_body</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body_id</span><span class="p">,</span> <span class="n">specs</span><span class="p">):</span>
+        <span class="n">boundary</span> <span class="o">=</span> <span class="n">specs</span><span class="p">[</span><span class="s2">&quot;boundary&quot;</span><span class="p">]</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;length&quot;</span><span class="p">]</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;mass&quot;</span><span class="p">]</span>
+        <span class="n">thrust</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;thrust&quot;</span><span class="p">]</span>
+        <span class="n">torque</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">[</span><span class="s2">&quot;torque&quot;</span><span class="p">]</span>
+
+        <span class="n">body</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="p">[</span><span class="n">body_id</span><span class="p">]</span>
+        <span class="n">position</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">position</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">angle</span>
+
+        <span class="c1"># get shape, inertia, make body, assign body to shape</span>
+        <span class="n">new_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_shape</span><span class="p">(</span><span class="n">boundary</span><span class="p">)</span>
+        <span class="n">inertia</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_inertia</span><span class="p">(</span><span class="n">new_shape</span><span class="p">,</span> <span class="n">mass</span><span class="p">)</span>
+        <span class="n">new_body</span> <span class="o">=</span> <span class="n">pymunk</span><span class="o">.</span><span class="n">Body</span><span class="p">(</span><span class="n">mass</span><span class="p">,</span> <span class="n">inertia</span><span class="p">)</span>
+        <span class="n">new_shape</span><span class="o">.</span><span class="n">body</span> <span class="o">=</span> <span class="n">new_body</span>
+
+        <span class="n">new_body</span><span class="o">.</span><span class="n">position</span> <span class="o">=</span> <span class="n">position</span>
+        <span class="n">new_body</span><span class="o">.</span><span class="n">angle</span> <span class="o">=</span> <span class="n">angle</span>
+        <span class="n">new_body</span><span class="o">.</span><span class="n">velocity</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">velocity</span>
+        <span class="n">new_body</span><span class="o">.</span><span class="n">angular_velocity</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">angular_velocity</span>
+        <span class="n">new_body</span><span class="o">.</span><span class="n">dimensions</span> <span class="o">=</span> <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span>
+        <span class="n">new_body</span><span class="o">.</span><span class="n">thrust</span> <span class="o">=</span> <span class="n">thrust</span>
+        <span class="n">new_body</span><span class="o">.</span><span class="n">torque</span> <span class="o">=</span> <span class="n">torque</span>
+
+        <span class="n">new_shape</span><span class="o">.</span><span class="n">elasticity</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">elasticity</span>
+        <span class="n">new_shape</span><span class="o">.</span><span class="n">friction</span> <span class="o">=</span> <span class="n">shape</span><span class="o">.</span><span class="n">friction</span>
+
+        <span class="c1"># swap bodies</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">new_body</span><span class="p">,</span> <span class="n">new_shape</span><span class="p">)</span>
+
+        <span class="c1"># update body</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="p">[</span><span class="n">body_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_body</span><span class="p">,</span> <span class="n">new_shape</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.update_bodies">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.update_bodies">[docs]</a>
+    <span class="k">def</span> <span class="nf">update_bodies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bodies</span><span class="p">):</span>
+        <span class="c1"># if an agent has been removed from the agents store,</span>
+        <span class="c1"># remove it from space and bodies</span>
+        <span class="n">removed_bodies</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">body_id</span> <span class="k">for</span> <span class="n">body_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">body_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">bodies</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">body_id</span> <span class="ow">in</span> <span class="n">removed_bodies</span><span class="p">:</span>
+            <span class="n">body</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="p">[</span><span class="n">body_id</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="p">[</span><span class="n">body_id</span><span class="p">]</span>
+
+        <span class="c1"># update agents, add new agents</span>
+        <span class="k">for</span> <span class="n">body_id</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">bodies</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">body_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_body</span><span class="p">(</span><span class="n">body_id</span><span class="p">,</span> <span class="n">specs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_body_from_center</span><span class="p">(</span><span class="n">body_id</span><span class="p">,</span> <span class="n">specs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.get_body_position">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.get_body_position">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_body_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agent_id</span><span class="p">):</span>
+        <span class="n">body</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="p">[</span><span class="n">agent_id</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;location&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">pos</span> <span class="k">for</span> <span class="n">pos</span> <span class="ow">in</span> <span class="n">body</span><span class="o">.</span><span class="n">position</span><span class="p">],</span>
+            <span class="s2">&quot;angle&quot;</span><span class="p">:</span> <span class="n">body</span><span class="o">.</span><span class="n">angle</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="PymunkMultibody.get_body_positions">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.pymunk_multibody.html#ecoli.library.pymunk_multibody.PymunkMultibody.get_body_positions">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_body_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">body_id</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;boundary&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_body_position</span><span class="p">(</span><span class="n">body_id</span><span class="p">)}</span>
+            <span class="k">for</span> <span class="n">body_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bodies</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<span class="k">def</span> <span class="nf">test_multibody</span><span class="p">(</span>
+    <span class="n">total_time</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">agent_shape</span><span class="o">=</span><span class="s2">&quot;rectangle&quot;</span><span class="p">,</span> <span class="n">n_agents</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">jitter_force</span><span class="o">=</span><span class="mf">1e1</span><span class="p">,</span> <span class="n">screen</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">):</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">500</span><span class="p">,</span> <span class="mi">500</span><span class="p">]</span>
+    <span class="n">center_location</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">loc</span> <span class="k">for</span> <span class="n">loc</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">]</span>
+    <span class="n">agents</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">agent_idx</span><span class="p">):</span> <span class="p">{</span>
+            <span class="s2">&quot;boundary&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;location&quot;</span><span class="p">:</span> <span class="n">center_location</span><span class="p">,</span>
+                <span class="s2">&quot;angle&quot;</span><span class="p">:</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">PI</span><span class="p">),</span>
+                <span class="s2">&quot;volume&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">,</span>
+                <span class="s2">&quot;length&quot;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+                <span class="s2">&quot;width&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+                <span class="s2">&quot;mass&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s2">&quot;thrust&quot;</span><span class="p">:</span> <span class="mf">1e3</span><span class="p">,</span>
+                <span class="s2">&quot;torque&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">agent_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_agents</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;agent_shape&quot;</span><span class="p">:</span> <span class="n">agent_shape</span><span class="p">,</span>
+        <span class="s2">&quot;jitter_force&quot;</span><span class="p">:</span> <span class="n">jitter_force</span><span class="p">,</span>
+        <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="n">bounds</span><span class="p">,</span>
+        <span class="s2">&quot;barriers&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;initial_agents&quot;</span><span class="p">:</span> <span class="n">agents</span><span class="p">,</span>
+        <span class="s2">&quot;screen&quot;</span><span class="p">:</span> <span class="n">screen</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">multibody</span> <span class="o">=</span> <span class="n">PymunkMultibody</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="c1"># run simulation</span>
+    <span class="n">time</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">time_step</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">while</span> <span class="n">time</span> <span class="o">&lt;</span> <span class="n">total_time</span><span class="p">:</span>
+        <span class="n">time</span> <span class="o">+=</span> <span class="n">time_step</span>
+        <span class="n">multibody</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">time_step</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">test_multibody</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.build_ode &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.build_ode</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.build_ode</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Utilities to compile functions, esp. from Sympy-constructed Matrix math.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">Matrix</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+
+
+<div class="viewcode-block" id="build_functions">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.build_ode.html#wholecell.utils.build_ode.build_functions">[docs]</a>
+<span class="k">def</span> <span class="nf">build_functions</span><span class="p">(</span><span class="n">arguments</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">expression</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a function from its arguments and source code expression.</span>
+<span class="sd">    (This USED TO return a second function that had Numba set up to JIT-compile</span>
+<span class="sd">    the code on demand, but the compiled code time savings don&#39;t pay back the</span>
+<span class="sd">    compilation time in Python 3.9+.)</span>
+
+<span class="sd">    This still returns two functions so the JIT compiler could be restored</span>
+<span class="sd">    someday.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            arguments: comma-separated lambda argument names</span>
+<span class="sd">            expression: expression to compile</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            a function(arguments),</span>
+<span class="sd">            the same function(arguments) [was a JIT-enabled version]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">local_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">expression</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;def f(</span><span class="si">{</span><span class="n">arguments</span><span class="si">}</span><span class="s2">):</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">expression</span>
+    <span class="n">exec</span><span class="p">(</span><span class="n">expression</span><span class="p">,</span> <span class="nb">globals</span><span class="p">(),</span> <span class="n">local_dict</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">local_dict</span><span class="p">[</span><span class="s2">&quot;f&quot;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">f</span></div>
+
+
+
+<div class="viewcode-block" id="_matrix_to_array">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.build_ode.html#wholecell.utils.build_ode._matrix_to_array">[docs]</a>
+<span class="k">def</span> <span class="nf">_matrix_to_array</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">Matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a sympy Matrix expression to a function body.&quot;&quot;&quot;</span>
+    <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">np</span>  <span class="c1"># So the tools won&#39;t warn about unused np import.</span>
+
+    <span class="n">function_str</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">arr = np.zeros((</span><span class="si">{</span><span class="n">rows</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">cols</span><span class="si">}</span><span class="s2">))</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cols</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">function_str</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">arr[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">] = </span><span class="si">{</span><span class="n">matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">function_str</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">return arr&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">function_str</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="derivatives">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.build_ode.html#wholecell.utils.build_ode.derivatives">[docs]</a>
+<span class="k">def</span> <span class="nf">derivatives</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">Matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build an optimized derivatives ODE function(y, t).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">build_functions</span><span class="p">(</span><span class="s2">&quot;y, t&quot;</span><span class="p">,</span> <span class="n">_matrix_to_array</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.reshape(-1)&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="derivatives_jacobian">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.build_ode.html#wholecell.utils.build_ode.derivatives_jacobian">[docs]</a>
+<span class="k">def</span> <span class="nf">derivatives_jacobian</span><span class="p">(</span><span class="n">jacobian_matrix</span><span class="p">:</span> <span class="n">Matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build an optimized derivatives ODE Jacobian function(y, t).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">build_functions</span><span class="p">(</span><span class="s2">&quot;y, t&quot;</span><span class="p">,</span> <span class="n">_matrix_to_array</span><span class="p">(</span><span class="n">jacobian_matrix</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="rates">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.build_ode.html#wholecell.utils.build_ode.rates">[docs]</a>
+<span class="k">def</span> <span class="nf">rates</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">Matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build an optimized rates function(t, y, kf, kr).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">build_functions</span><span class="p">(</span><span class="s2">&quot;t, y, kf, kr&quot;</span><span class="p">,</span> <span class="n">_matrix_to_array</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.reshape(-1)&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="rates_jacobian">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.build_ode.html#wholecell.utils.build_ode.rates_jacobian">[docs]</a>
+<span class="k">def</span> <span class="nf">rates_jacobian</span><span class="p">(</span><span class="n">jacobian_matrix</span><span class="p">:</span> <span class="n">Matrix</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build an optimized rates Jacobian function(t, y, kf, kr).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">build_functions</span><span class="p">(</span><span class="s2">&quot;t, y, kf, kr&quot;</span><span class="p">,</span> <span class="n">_matrix_to_array</span><span class="p">(</span><span class="n">jacobian_matrix</span><span class="p">))</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.dataclasses.process.complexation &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.dataclasses.process.complexation</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.dataclasses.process.complexation</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SimulationData for the Complexation process</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.mc_complexation</span> <span class="kn">import</span> <span class="n">mccBuildMatrices</span>
+
+
+<div class="viewcode-block" id="ComplexationError">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.ComplexationError">[docs]</a>
+<span class="k">class</span> <span class="nc">ComplexationError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="MoleculeNotFoundError">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.MoleculeNotFoundError">[docs]</a>
+<span class="k">class</span> <span class="nc">MoleculeNotFoundError</span><span class="p">(</span><span class="n">ComplexationError</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Complexation">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation">[docs]</a>
+<span class="k">class</span> <span class="nc">Complexation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="c1"># Build the abstractions needed for complexation</span>
+        <span class="n">molecules</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># List of all molecules involved in complexation</span>
+        <span class="n">subunits</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># List of all molecules that participate as subunits</span>
+        <span class="n">complexes</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># List of all molecules that participate as complexes</span>
+        <span class="n">stoichMatrixI</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Molecule indices</span>
+        <span class="n">stoichMatrixJ</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Reaction indices</span>
+        <span class="n">stoichMatrixV</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Stoichiometric coefficients</span>
+        <span class="n">stoichMatrixMass</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Molecular masses of molecules in stoichMatrixI</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ids_reactions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reaction_stoichiometry_unknown</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">reaction_index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">miscrnas_with_singleton_tus</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_miscrnas_with_singleton_tus</span><span class="p">()</span>
+
+        <span class="c1"># Build stoichiometric matrix from given complexation reactions</span>
+        <span class="k">for</span> <span class="n">reaction</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">complexation_reactions</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ids_reactions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+            <span class="n">stoichiometry_unknown</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">reaction</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Replace miscRNA subunit IDs with TU IDs</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">miscrnas_with_singleton_tus</span><span class="p">:</span>
+                    <span class="n">mol_id</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_singleton_tu_id</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)</span>
+
+                <span class="n">mol_id_with_compartment</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">[</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">mol_id</span><span class="p">,</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_compartment</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">mol_id_with_compartment</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">molecules</span><span class="p">:</span>
+                    <span class="n">molecules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mol_id_with_compartment</span><span class="p">)</span>
+                    <span class="n">molecule_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">molecules</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">molecule_index</span> <span class="o">=</span> <span class="n">molecules</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">mol_id_with_compartment</span><span class="p">)</span>
+
+                <span class="c1"># Flag reactions whose stoichioemtric coefficients are given</span>
+                <span class="c1"># as null and replace with -1</span>
+                <span class="k">if</span> <span class="n">coeff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">stoichiometry_unknown</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">coeff</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+                <span class="k">assert</span> <span class="p">(</span><span class="n">coeff</span> <span class="o">%</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+
+                <span class="n">stoichMatrixI</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">molecule_index</span><span class="p">)</span>
+                <span class="n">stoichMatrixJ</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction_index</span><span class="p">)</span>
+                <span class="n">stoichMatrixV</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coeff</span><span class="p">)</span>
+
+                <span class="c1"># Classify molecule into subunit or complex depending on sign</span>
+                <span class="c1"># of the stoichiometric coefficient - Note that a molecule can</span>
+                <span class="c1"># be both a subunit and a complex</span>
+                <span class="k">if</span> <span class="n">coeff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">subunits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mol_id_with_compartment</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">complexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mol_id_with_compartment</span><span class="p">)</span>
+
+                <span class="c1"># Find molecular mass of the molecule and add to mass matrix</span>
+                <span class="n">molecularMass</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_mass</span><span class="p">(</span>
+                    <span class="n">mol_id_with_compartment</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+                <span class="n">stoichMatrixMass</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">molecularMass</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">reaction_stoichiometry_unknown</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stoichiometry_unknown</span><span class="p">)</span>
+            <span class="n">reaction_index</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">reaction_index</span><span class="p">,),</span>
+            <span class="n">sim_data</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">complexation_rate</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_I</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixI</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_J</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixJ</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_V</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixV</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_mass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMass</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span> <span class="o">=</span> <span class="n">molecules</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ids_complexes</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Remove duplicate names in subunits and complexes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subunit_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">subunits</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">complex_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">complexes</span><span class="p">)</span>
+
+        <span class="c1"># Create sparse matrix for monomer to complex stoichiometry</span>
+        <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buildStoichMatrixMonomers</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersI</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersJ</span> <span class="o">=</span> <span class="n">j</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersV</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersShape</span> <span class="o">=</span> <span class="n">shape</span>
+
+        <span class="c1"># Mass balance matrix</span>
+        <span class="c1"># All reaction mass balances should balance out to numerical zero</span>
+        <span class="n">balanceMatrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mass_matrix</span><span class="p">()</span>
+        <span class="n">massBalanceArray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">balanceMatrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">massBalanceArray</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">1e-8</span>
+        <span class="p">)</span>  <span class="c1"># had to bump this up to 1e-8 because of flagella supercomplex</span>
+
+        <span class="n">stoichMatrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prebuilt_matrices</span> <span class="o">=</span> <span class="n">mccBuildMatrices</span><span class="p">(</span><span class="n">stoichMatrix</span><span class="p">)</span>
+
+        <span class="c1"># Add boolean array to mark reactions with unknown stoichiometries</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reaction_stoichiometry_unknown</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reaction_stoichiometry_unknown</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="Complexation.stoich_matrix">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation.stoich_matrix">[docs]</a>
+    <span class="k">def</span> <span class="nf">stoich_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds a stoichiometric matrix based on each given complexation</span>
+<span class="sd">        reaction. One reaction corresponds to one column in the stoichiometric</span>
+<span class="sd">        matrix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_I</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_J</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_I</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_J</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_V</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="Complexation.mass_matrix">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation.mass_matrix">[docs]</a>
+    <span class="k">def</span> <span class="nf">mass_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds a matrix with the same shape as the stoichiometric matrix, but</span>
+<span class="sd">        with molecular masses as elements instead of stoichiometric constants</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_I</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_J</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_I</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_J</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoich_matrix_mass</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="Complexation.stoich_matrix_monomers">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation.stoich_matrix_monomers">[docs]</a>
+    <span class="k">def</span> <span class="nf">stoich_matrix_monomers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the dense stoichiometric matrix for monomers from each complex</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersShape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersI</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersJ</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMonomersV</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+    <span class="c1"># TODO: redesign this so it doesn&#39;t need to create a stoich matrix</span>
+<div class="viewcode-block" id="Complexation.get_monomers">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation.get_monomers">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_monomers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns subunits for a complex (or any ID passed). If the ID passed is</span>
+<span class="sd">        already a monomer returns the monomer ID again with a stoichiometric</span>
+<span class="sd">        coefficient of one.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_moleculeRecursiveSearch</span><span class="p">(</span>
+            <span class="n">cplxId</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span>
+        <span class="p">)</span>
+        <span class="n">subunits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">subunit_stoich</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">subunit</span><span class="p">,</span> <span class="n">stoich</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">subunits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subunit</span><span class="p">)</span>
+            <span class="n">subunit_stoich</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stoich</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;subunitIds&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">subunits</span><span class="p">),</span>
+            <span class="s2">&quot;subunitStoich&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">subunit_stoich</span><span class="p">),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Complexation._buildStoichMatrixMonomers">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation._buildStoichMatrixMonomers">[docs]</a>
+    <span class="k">def</span> <span class="nf">_buildStoichMatrixMonomers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds a stoichiometric matrix where each column is a reaction that</span>
+<span class="sd">        forms a complex directly from its constituent monomers. Since some</span>
+<span class="sd">        reactions from the raw data are complexation reactions of complexes,</span>
+<span class="sd">        this is different from the stoichiometric matrix generated by</span>
+<span class="sd">        stoichMatrix().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stoichMatrixMonomersI</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stoichMatrixMonomersJ</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stoichMatrixMonomersV</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">colIdx</span><span class="p">,</span> <span class="n">id_complex</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ids_complexes</span><span class="p">):</span>
+            <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_monomers</span><span class="p">(</span><span class="n">id_complex</span><span class="p">)</span>
+
+            <span class="n">rowIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">id_complex</span><span class="p">)</span>
+            <span class="n">stoichMatrixMonomersI</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rowIdx</span><span class="p">)</span>
+            <span class="n">stoichMatrixMonomersJ</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">colIdx</span><span class="p">)</span>
+            <span class="n">stoichMatrixMonomersV</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">subunitId</span><span class="p">,</span> <span class="n">subunitStoich</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">],</span> <span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitStoich&quot;</span><span class="p">]):</span>
+                <span class="n">rowIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">subunitId</span><span class="p">)</span>
+                <span class="n">stoichMatrixMonomersI</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rowIdx</span><span class="p">)</span>
+                <span class="n">stoichMatrixMonomersJ</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">colIdx</span><span class="p">)</span>
+                <span class="n">stoichMatrixMonomersV</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">subunitStoich</span><span class="p">)</span>
+
+        <span class="n">stoichMatrixMonomersI</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMonomersI</span><span class="p">)</span>
+        <span class="n">stoichMatrixMonomersJ</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMonomersJ</span><span class="p">)</span>
+        <span class="n">stoichMatrixMonomersV</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMonomersV</span><span class="p">)</span>
+
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">stoichMatrixMonomersI</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">stoichMatrixMonomersJ</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">stoichMatrixMonomersI</span><span class="p">,</span>
+            <span class="n">stoichMatrixMonomersJ</span><span class="p">,</span>
+            <span class="n">stoichMatrixMonomersV</span><span class="p">,</span>
+            <span class="n">shape</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Complexation._findRow">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation._findRow">[docs]</a>
+    <span class="k">def</span> <span class="nf">_findRow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">product</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">speciesList</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">product</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># Flag if not found so not a complex</span>
+        <span class="k">return</span> <span class="n">row</span></div>
+
+
+<div class="viewcode-block" id="Complexation._findColumn">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation._findColumn">[docs]</a>
+    <span class="k">def</span> <span class="nf">_findColumn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stoichMatrixRow</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stoichMatrixRow</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">stoichMatrixRow</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">i</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># Flag for monomer</span></div>
+
+
+<div class="viewcode-block" id="Complexation._moleculeRecursiveSearch">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.complexation.html#reconstruction.ecoli.dataclasses.process.complexation.Complexation._moleculeRecursiveSearch">[docs]</a>
+    <span class="k">def</span> <span class="nf">_moleculeRecursiveSearch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">product</span><span class="p">,</span> <span class="n">stoichMatrix</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_findRow</span><span class="p">(</span><span class="n">product</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">row</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">product</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}</span>
+
+        <span class="n">col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_findColumn</span><span class="p">(</span><span class="n">stoichMatrix</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="k">if</span> <span class="n">col</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">product</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}</span>
+
+        <span class="n">total</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">speciesList</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">row</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">stoichMatrix</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">col</span><span class="p">]</span>
+            <span class="n">sp</span> <span class="o">=</span> <span class="n">speciesList</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">val</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_moleculeRecursiveSearch</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">stoichMatrix</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">x</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">total</span><span class="p">:</span>
+                        <span class="n">total</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">total</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">total</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

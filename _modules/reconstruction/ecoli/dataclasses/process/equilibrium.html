@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.dataclasses.process.equilibrium &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.dataclasses.process.equilibrium</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.dataclasses.process.equilibrium</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Equilibrium.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">integrate</span>
+<span class="kn">import</span> <span class="nn">sympy</span> <span class="k">as</span> <span class="nn">sp</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">build_ode</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.random</span> <span class="kn">import</span> <span class="n">stochasticRound</span>
+
+
+<div class="viewcode-block" id="EquilibriumError">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.EquilibriumError">[docs]</a>
+<span class="k">class</span> <span class="nc">EquilibriumError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="MoleculeNotFoundError">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.MoleculeNotFoundError">[docs]</a>
+<span class="k">class</span> <span class="nc">MoleculeNotFoundError</span><span class="p">(</span><span class="n">EquilibriumError</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Equilibrium">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium">[docs]</a>
+<span class="k">class</span> <span class="nc">Equilibrium</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="c1"># Build the abstractions needed for complexation</span>
+        <span class="n">molecules</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">ratesFwd</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">ratesRev</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">rxnIds</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">stoichMatrixI</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stoichMatrixJ</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stoichMatrixV</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">stoichMatrixMass</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">complex_name_to_rxn_idx</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Make sure reactions are not duplicated in complexationReactions and</span>
+        <span class="c1"># equilibriumReactions</span>
+        <span class="n">equilibrium_reaction_ids</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">equilibrium_reactions</span><span class="p">}</span>
+        <span class="n">complexation_reaction_ids</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">complexation_reactions</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">equilibrium_reaction_ids</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">complexation_reaction_ids</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;The following reaction ids are specified in equilibriumReactions and complexationReactions: </span><span class="si">%s</span><span class="s2">&quot;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">equilibrium_reaction_ids</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">complexation_reaction_ids</span><span class="p">))</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Get IDs of all metabolites</span>
+        <span class="n">metabolite_ids</span> <span class="o">=</span> <span class="p">{</span><span class="n">met</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">met</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">metabolites</span><span class="p">}</span>
+
+        <span class="c1"># IDs of 2CS ligands that should be tagged to the periplasm</span>
+        <span class="n">two_component_system_ligands</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">system</span><span class="p">[</span><span class="s2">&quot;molecules&quot;</span><span class="p">][</span><span class="s2">&quot;LIGAND&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">system</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">two_component_systems</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Remove complexes that are currently not simulated</span>
+        <span class="n">FORBIDDEN_MOLECULES</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;modified-charged-selC-tRNA&quot;</span><span class="p">,</span>  <span class="c1"># molecule does not exist</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Remove reactions that we know won&#39;t occur (e.g., don&#39;t do</span>
+        <span class="c1"># computations on metabolites that have zero counts)</span>
+        <span class="c1"># TODO (ggsun): check if this list is accurate</span>
+        <span class="n">MOLECULES_THAT_WILL_EXIST_IN_SIMULATION</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="n">m</span><span class="p">[</span><span class="s2">&quot;Metabolite&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">metabolite_concentrations</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;LEU&quot;</span><span class="p">,</span> <span class="s2">&quot;S-ADENOSYLMETHIONINE&quot;</span><span class="p">,</span> <span class="s2">&quot;ARABINOSE&quot;</span><span class="p">,</span> <span class="s2">&quot;4FE-4S&quot;</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">two_component_system_ligands</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Get forward and reverse rates of each reaction</span>
+        <span class="n">forward_rates</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;forward_rate&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">equilibrium_reaction_rates</span>
+        <span class="p">}</span>
+        <span class="n">reverse_rates</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]:</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;reverse_rate&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">rxn</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">equilibrium_reaction_rates</span>
+        <span class="p">}</span>
+        <span class="n">median_forward_rate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">forward_rates</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+        <span class="n">median_reverse_rate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">reverse_rates</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+
+        <span class="n">reaction_index</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">def</span> <span class="nf">should_skip_reaction</span><span class="p">(</span><span class="n">reaction</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">reaction</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">FORBIDDEN_MOLECULES</span> <span class="ow">or</span> <span class="p">(</span>
+                    <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">metabolite_ids</span>
+                    <span class="ow">and</span> <span class="n">mol_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">MOLECULES_THAT_WILL_EXIST_IN_SIMULATION</span>
+                <span class="p">):</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="c1"># Build stoichiometry matrix</span>
+        <span class="k">for</span> <span class="n">reaction</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">equilibrium_reactions</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">should_skip_reaction</span><span class="p">(</span><span class="n">reaction</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="n">ratesFwd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">forward_rates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">reaction</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">median_forward_rate</span><span class="p">))</span>
+            <span class="n">ratesRev</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reverse_rates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">reaction</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span> <span class="n">median_reverse_rate</span><span class="p">))</span>
+            <span class="n">rxnIds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+
+            <span class="k">for</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">reaction</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">metabolite_ids</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">mol_id</span> <span class="ow">in</span> <span class="n">two_component_system_ligands</span><span class="p">:</span>
+                        <span class="n">mol_id_with_compartment</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">[</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">mol_id</span><span class="p">,</span>
+                            <span class="s2">&quot;p&quot;</span><span class="p">,</span>  <span class="c1"># Assume 2CS ligands are in periplasm</span>
+                        <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">mol_id_with_compartment</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">[</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">mol_id</span><span class="p">,</span>
+                            <span class="s2">&quot;c&quot;</span><span class="p">,</span>  <span class="c1"># Assume all other metabolites are in cytosol</span>
+                        <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mol_id_with_compartment</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">mol_id_with_compartment</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">[</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">mol_id</span><span class="p">,</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_compartment</span><span class="p">(</span><span class="n">mol_id</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">mol_id_with_compartment</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">molecules</span><span class="p">:</span>
+                    <span class="n">molecules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mol_id_with_compartment</span><span class="p">)</span>
+                    <span class="n">molecule_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">molecules</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">molecule_index</span> <span class="o">=</span> <span class="n">molecules</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">mol_id_with_compartment</span><span class="p">)</span>
+
+                <span class="c1"># Assume coefficients given as null are -1</span>
+                <span class="k">if</span> <span class="n">coeff</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">coeff</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+                <span class="c1"># All stoichiometric coefficients must be integers</span>
+                <span class="k">assert</span> <span class="n">coeff</span> <span class="o">%</span> <span class="mi">1</span> <span class="o">==</span> <span class="mi">0</span>
+
+                <span class="c1"># Store indices for the row and column, and molecule</span>
+                <span class="c1"># coefficient for building the stoichiometry matrix</span>
+                <span class="n">stoichMatrixI</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">molecule_index</span><span class="p">)</span>
+                <span class="n">stoichMatrixJ</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reaction_index</span><span class="p">)</span>
+                <span class="n">stoichMatrixV</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coeff</span><span class="p">)</span>
+
+                <span class="c1"># If coefficient is positive, the molecule is the complex</span>
+                <span class="k">if</span> <span class="n">coeff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">complex_name_to_rxn_idx</span><span class="p">[</span><span class="n">mol_id_with_compartment</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">reaction_index</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># Find molecular mass</span>
+                <span class="n">molecularMass</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_mass</span><span class="p">(</span>
+                    <span class="n">mol_id_with_compartment</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+                <span class="n">stoichMatrixMass</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">molecularMass</span><span class="p">)</span>
+
+            <span class="n">reaction_index</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># TODO(jerry): Move the rest to a subroutine for __init__ and __setstate__?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixI</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixI</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixJ</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixJ</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixV</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixV</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span> <span class="o">=</span> <span class="n">molecules</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ids_complexes</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rxn_ids</span> <span class="o">=</span> <span class="n">rxnIds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rates_fwd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ratesFwd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rates_rev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ratesRev</span><span class="p">)</span>
+
+        <span class="c1"># Mass balance matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMass</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">balance_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">mass_matrix</span><span class="p">()</span>
+
+        <span class="c1"># Find the mass balance of each equation in the balanceMatrix</span>
+        <span class="n">massBalanceArray</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mass_balance</span><span class="p">()</span>
+
+        <span class="c1"># The stoichometric matrix should balance out to numerical zero.</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">massBalanceArray</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">1e-9</span>
+
+        <span class="c1"># Build matrices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_populateDerivativeAndJacobian</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the state to pickle, omitting derived attributes that</span>
+<span class="sd">        __setstate__() will recompute, esp. those like the rates for ODEs</span>
+<span class="sd">        that don&#39;t pickle.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">dissoc_strict</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">,</span>
+            <span class="p">(</span>
+                <span class="s2">&quot;_stoichMatrix&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Rp&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Pp&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;mets_to_rxn_fluxes&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;symbolic_rates&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;symbolic_rates_jacobian&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;_rates&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;_rates_jacobian&quot;</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Restore instance attributes, recomputing some of them.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_populateDerivativeAndJacobian</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Equilibrium.stoich_matrix">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.stoich_matrix">[docs]</a>
+    <span class="k">def</span> <span class="nf">stoich_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds stoichiometry matrix</span>
+<span class="sd">        Rows: molecules</span>
+<span class="sd">        Columns: reactions</span>
+<span class="sd">        Values: reaction stoichiometry</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixI</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixJ</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixI</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixJ</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixV</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.mass_matrix">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.mass_matrix">[docs]</a>
+    <span class="k">def</span> <span class="nf">mass_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds stoichiometry mass matrix</span>
+<span class="sd">        Rows: molecules</span>
+<span class="sd">        Columns: reactions</span>
+<span class="sd">        Values: molecular mass</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixI</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixJ</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixI</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixJ</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrixMass</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.mass_balance">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.mass_balance">[docs]</a>
+    <span class="k">def</span> <span class="nf">mass_balance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sum along the columns of the massBalance matrix to check for reaction</span>
+<span class="sd">        mass balance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">balance_matrix</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.stoich_matrix_monomers">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.stoich_matrix_monomers">[docs]</a>
+    <span class="k">def</span> <span class="nf">stoich_matrix_monomers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds a stoichiometric matrix where each column is a reaction that</span>
+<span class="sd">        forms a complex directly from its constituent monomers. Since some</span>
+<span class="sd">        reactions from the raw data are complexation reactions of complexes,</span>
+<span class="sd">        this is different from the stoichiometric matrix generated by</span>
+<span class="sd">        stoichMatrix().</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stoichMatrixMonomersI</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stoichMatrixMonomersJ</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stoichMatrixMonomersV</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">colIdx</span><span class="p">,</span> <span class="n">id_complex</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ids_complexes</span><span class="p">):</span>
+            <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_monomers</span><span class="p">(</span><span class="n">id_complex</span><span class="p">)</span>
+
+            <span class="n">rowIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">id_complex</span><span class="p">)</span>
+            <span class="n">stoichMatrixMonomersI</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rowIdx</span><span class="p">)</span>
+            <span class="n">stoichMatrixMonomersJ</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">colIdx</span><span class="p">)</span>
+            <span class="n">stoichMatrixMonomersV</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">subunitId</span><span class="p">,</span> <span class="n">subunitStoich</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">],</span> <span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitStoich&quot;</span><span class="p">]):</span>
+                <span class="n">rowIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">subunitId</span><span class="p">)</span>
+                <span class="n">stoichMatrixMonomersI</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rowIdx</span><span class="p">)</span>
+                <span class="n">stoichMatrixMonomersJ</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">colIdx</span><span class="p">)</span>
+                <span class="n">stoichMatrixMonomersV</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">subunitStoich</span><span class="p">)</span>
+
+        <span class="n">stoichMatrixMonomersI</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMonomersI</span><span class="p">)</span>
+        <span class="n">stoichMatrixMonomersJ</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMonomersJ</span><span class="p">)</span>
+        <span class="n">stoichMatrixMonomersV</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">stoichMatrixMonomersV</span><span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">stoichMatrixMonomersI</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">stoichMatrixMonomersJ</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">stoichMatrixMonomersI</span><span class="p">,</span> <span class="n">stoichMatrixMonomersJ</span><span class="p">]</span> <span class="o">=</span> <span class="n">stoichMatrixMonomersV</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium._populateDerivativeAndJacobian">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium._populateDerivativeAndJacobian">[docs]</a>
+    <span class="k">def</span> <span class="nf">_populateDerivativeAndJacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compile callable functions for computing the derivative and the Jacobian.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_makeMatrices</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_make_rates</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rates</span> <span class="o">=</span> <span class="n">build_ode</span><span class="o">.</span><span class="n">rates</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbolic_rates</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rates_jacobian</span> <span class="o">=</span> <span class="n">build_ode</span><span class="o">.</span><span class="n">rates_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbolic_rates_jacobian</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium._makeMatrices">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium._makeMatrices">[docs]</a>
+    <span class="k">def</span> <span class="nf">_makeMatrices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates matrix that maps metabolites to the flux through their reactions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">EPS</span> <span class="o">=</span> <span class="mf">1e-9</span>
+
+        <span class="n">S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span>
+        <span class="n">Rp</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">S</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span> <span class="o">*</span> <span class="n">EPS</span><span class="p">)</span> <span class="o">*</span> <span class="n">S</span>
+        <span class="n">Pp</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">S</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="o">*</span> <span class="n">EPS</span><span class="p">)</span> <span class="o">*</span> <span class="n">S</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Rp</span> <span class="o">=</span> <span class="n">Rp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Pp</span> <span class="o">=</span> <span class="n">Pp</span>
+
+        <span class="n">mets_to_rxn_fluxes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">mets_to_rxn_fluxes</span><span class="p">[(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mets_to_rxn_fluxes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">EPS</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">colIdx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">mets_to_rxn_fluxes</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">firstNonZeroIdx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mets_to_rxn_fluxes</span><span class="p">[:,</span> <span class="n">colIdx</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">EPS</span><span class="p">)[</span>
+                    <span class="mi">0</span>
+                <span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Column </span><span class="si">%d</span><span class="s2"> of S matrix not linearly independent!&quot;</span> <span class="o">%</span> <span class="n">colIdx</span>
+                <span class="p">)</span>
+            <span class="n">mets_to_rxn_fluxes</span><span class="p">[:</span><span class="n">firstNonZeroIdx</span><span class="p">,</span> <span class="n">colIdx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">mets_to_rxn_fluxes</span><span class="p">[(</span><span class="n">firstNonZeroIdx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="p">:,</span> <span class="n">colIdx</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mets_to_rxn_fluxes</span> <span class="o">=</span> <span class="n">mets_to_rxn_fluxes</span><span class="o">.</span><span class="n">T</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium._make_rates">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium._make_rates">[docs]</a>
+    <span class="k">def</span> <span class="nf">_make_rates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates symbolic representation of the rates for ordinary differential</span>
+<span class="sd">        equations and the Jacobian. Used during simulations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">S</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stoich_matrix</span><span class="p">()</span>
+
+        <span class="n">yStrings</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;y[</span><span class="si">%d</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+        <span class="n">ratesFwdStrings</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;kf[</span><span class="si">%d</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+        <span class="n">ratesRevStrings</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;kr[</span><span class="si">%d</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">symbols</span><span class="p">(</span><span class="n">yStrings</span><span class="p">)</span>
+        <span class="n">ratesFwd</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">symbols</span><span class="p">(</span><span class="n">ratesFwdStrings</span><span class="p">)</span>
+        <span class="n">ratesRev</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">symbols</span><span class="p">(</span><span class="n">ratesRevStrings</span><span class="p">)</span>
+
+        <span class="n">rates</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">colIdx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">S</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">negIdxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">S</span><span class="p">[:,</span> <span class="n">colIdx</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">posIdxs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">S</span><span class="p">[:,</span> <span class="n">colIdx</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">fwd_stoich</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">reactantFlux</span> <span class="o">=</span> <span class="n">ratesFwd</span><span class="p">[</span><span class="n">colIdx</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">negIdx</span> <span class="ow">in</span> <span class="n">negIdxs</span><span class="p">:</span>
+                <span class="n">stoich</span> <span class="o">=</span> <span class="o">-</span><span class="n">S</span><span class="p">[</span><span class="n">negIdx</span><span class="p">,</span> <span class="n">colIdx</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">stoich</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">reactantFlux</span> <span class="o">*=</span> <span class="n">y</span><span class="p">[</span><span class="n">negIdx</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">stoich</span> <span class="o">&gt;</span> <span class="n">fwd_stoich</span><span class="p">:</span>
+                        <span class="n">fwd_stoich</span> <span class="o">=</span> <span class="n">stoich</span>
+                    <span class="n">reactantFlux</span> <span class="o">*=</span> <span class="n">y</span><span class="p">[</span><span class="n">negIdx</span><span class="p">]</span> <span class="o">**</span> <span class="n">stoich</span>
+
+            <span class="c1"># Need to scale the rate by the number of dissociation reactions</span>
+            <span class="c1"># which is the highest stoichiometry in the forward direction</span>
+            <span class="k">if</span> <span class="n">fwd_stoich</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">productFlux</span> <span class="o">=</span> <span class="n">ratesRev</span><span class="p">[</span><span class="n">colIdx</span><span class="p">]</span> <span class="o">**</span> <span class="n">fwd_stoich</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">productFlux</span> <span class="o">=</span> <span class="n">ratesRev</span><span class="p">[</span><span class="n">colIdx</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">posIdx</span> <span class="ow">in</span> <span class="n">posIdxs</span><span class="p">:</span>
+                <span class="n">stoich</span> <span class="o">=</span> <span class="n">S</span><span class="p">[</span><span class="n">posIdx</span><span class="p">,</span> <span class="n">colIdx</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">stoich</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">productFlux</span> <span class="o">*=</span> <span class="n">y</span><span class="p">[</span><span class="n">posIdx</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># If this needs to be included, it may affect the rate</span>
+                    <span class="c1"># calculation with multiple products so double check before</span>
+                    <span class="c1"># implementing.  For now, the assumption is that there will</span>
+                    <span class="c1"># only be one product and this verifies that assumption.</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Expected a single product (stoichiometry&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot; of 1) for equilibrium reaction </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rxn_ids</span><span class="p">[</span><span class="n">colIdx</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+
+            <span class="n">rates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reactantFlux</span> <span class="o">-</span> <span class="n">productFlux</span><span class="p">)</span>
+
+        <span class="n">dy</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">Matrix</span><span class="p">(</span><span class="n">rates</span><span class="p">)</span>
+        <span class="n">J</span> <span class="o">=</span> <span class="n">dy</span><span class="o">.</span><span class="n">jacobian</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbolic_rates</span> <span class="o">=</span> <span class="n">dy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbolic_rates_jacobian</span> <span class="o">=</span> <span class="n">J</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.derivatives">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.derivatives">[docs]</a>
+    <span class="k">def</span> <span class="nf">derivatives</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rates</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_fwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_rev</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.derivatives_jacobian">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.derivatives_jacobian">[docs]</a>
+    <span class="k">def</span> <span class="nf">derivatives_jacobian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rates_jacobian</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_fwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_rev</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.derivatives_jit">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.derivatives_jit">[docs]</a>
+    <span class="k">def</span> <span class="nf">derivatives_jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rates</span><span class="p">[</span><span class="mi">1</span><span class="p">](</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_fwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_rev</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.derivatives_jacobian_jit">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.derivatives_jacobian_jit">[docs]</a>
+    <span class="k">def</span> <span class="nf">derivatives_jacobian_jit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rates_jacobian</span><span class="p">[</span><span class="mi">1</span><span class="p">](</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_fwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_rev</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.fluxes_and_molecules_to_SS">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.fluxes_and_molecules_to_SS">[docs]</a>
+    <span class="k">def</span> <span class="nf">fluxes_and_molecules_to_SS</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">moleculeCounts</span><span class="p">,</span>
+        <span class="n">cellVolume</span><span class="p">,</span>
+        <span class="n">nAvogadro</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="p">,</span>
+        <span class="n">time_limit</span><span class="o">=</span><span class="mf">1e20</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+        <span class="n">jit</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">y_init</span> <span class="o">=</span> <span class="n">moleculeCounts</span> <span class="o">/</span> <span class="p">(</span><span class="n">cellVolume</span> <span class="o">*</span> <span class="n">nAvogadro</span><span class="p">)</span>
+
+        <span class="c1"># In this version of SciPy, solve_ivp does not support args so need to</span>
+        <span class="c1"># select the derivatives functions to use. Could be simplified to single</span>
+        <span class="c1"># functions that take a jit argument from solve_ivp in the future.</span>
+        <span class="k">if</span> <span class="n">jit</span><span class="p">:</span>
+            <span class="n">derivatives</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">derivatives_jit</span>
+            <span class="n">derivatives_jacobian</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">derivatives_jacobian_jit</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">derivatives</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">derivatives</span>
+            <span class="n">derivatives_jacobian</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">derivatives_jacobian</span>
+
+        <span class="c1"># Note: odeint has issues solving with a long time step so need to use solve_ivp</span>
+        <span class="k">for</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;LSODA&quot;</span><span class="p">,</span> <span class="s2">&quot;BDF&quot;</span><span class="p">]:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">sol</span> <span class="o">=</span> <span class="n">integrate</span><span class="o">.</span><span class="n">solve_ivp</span><span class="p">(</span>
+                    <span class="n">derivatives</span><span class="p">,</span>
+                    <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">time_limit</span><span class="p">],</span>
+                    <span class="n">y_init</span><span class="p">,</span>
+                    <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+                    <span class="n">t_eval</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">time_limit</span><span class="p">],</span>
+                    <span class="n">jac</span><span class="o">=</span><span class="n">derivatives_jacobian</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">break</span>
+            <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: switching solver method in equilibrium, </span><span class="si">{</span><span class="n">e</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Could not solve ODEs in equilibrium to SS.&quot;</span>
+                <span class="s2">&quot; Try adjusting time step or changing methods.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">y</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="p">(</span><span class="n">cellVolume</span> <span class="o">*</span> <span class="n">nAvogadro</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Have negative values at equilibrium steady state -- probably due to numerical instability.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">derivatives</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]),</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">cellVolume</span> <span class="o">*</span> <span class="n">nAvogadro</span><span class="p">)</span>
+            <span class="o">&gt;</span> <span class="mi">1</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Did not reach steady state for equilibrium.&quot;</span><span class="p">)</span>
+        <span class="n">y</span><span class="p">[</span><span class="n">y</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">yMolecules</span> <span class="o">=</span> <span class="n">y</span> <span class="o">*</span> <span class="p">(</span><span class="n">cellVolume</span> <span class="o">*</span> <span class="n">nAvogadro</span><span class="p">)</span>
+
+        <span class="c1"># Pick rounded solution that does not cause negative counts</span>
+        <span class="n">dYMolecules</span> <span class="o">=</span> <span class="n">yMolecules</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">yMolecules</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+            <span class="n">rxnFluxes</span> <span class="o">=</span> <span class="n">stochasticRound</span><span class="p">(</span>
+                <span class="n">random_state</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mets_to_rxn_fluxes</span><span class="p">,</span> <span class="n">dYMolecules</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">moleculeCounts</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rxnFluxes</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Negative counts in equilibrium steady state.&quot;</span><span class="p">)</span>
+
+        <span class="n">rxnFluxesN</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">rxnFluxes</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">rxnFluxes</span>
+        <span class="n">rxnFluxesP</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">rxnFluxes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">rxnFluxes</span>
+        <span class="n">moleculesNeeded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Rp</span><span class="p">,</span> <span class="n">rxnFluxesP</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Pp</span><span class="p">,</span> <span class="n">rxnFluxesN</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">rxnFluxes</span><span class="p">,</span> <span class="n">moleculesNeeded</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.get_monomers">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.get_monomers">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_monomers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns subunits for a complex (or any ID passed). If the ID passed is</span>
+<span class="sd">        already a monomer returns the monomer ID again with a stoichiometric</span>
+<span class="sd">        coefficient of one.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_moleculeRecursiveSearch</span><span class="p">(</span>
+            <span class="n">cplxId</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stoichMatrix</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecule_names</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;subunitIds&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">())),</span>
+            <span class="s2">&quot;subunitStoich&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">values</span><span class="p">())),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.get_metabolite">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.get_metabolite">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_metabolite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">):</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_monomers</span><span class="p">(</span><span class="n">cplxId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Calling this function only makes sense for reactions with 2 reactants&quot;</span>
+            <span class="p">)</span>
+        <span class="k">for</span> <span class="n">subunit</span> <span class="ow">in</span> <span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">subunit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_set</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">subunit</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.get_metabolite_coeff">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.get_metabolite_coeff">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_metabolite_coeff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">):</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_monomers</span><span class="p">(</span><span class="n">cplxId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Calling this function only makes sense for reactions with 2 reactants&quot;</span>
+            <span class="p">)</span>
+        <span class="k">for</span> <span class="n">subunit</span><span class="p">,</span> <span class="n">stoich</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">],</span> <span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitStoich&quot;</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">subunit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_set</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">stoich</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.get_unbound">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.get_unbound">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_unbound</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">):</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_monomers</span><span class="p">(</span><span class="n">cplxId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Calling this function only makes sense for reactions with 2 reactants&quot;</span>
+            <span class="p">)</span>
+        <span class="k">for</span> <span class="n">subunit</span> <span class="ow">in</span> <span class="n">D</span><span class="p">[</span><span class="s2">&quot;subunitIds&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">subunit</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metabolite_set</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">subunit</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.get_fwd_rate">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.get_fwd_rate">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_fwd_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">):</span>
+        <span class="n">rxnIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">complex_name_to_rxn_idx</span><span class="p">[</span><span class="n">cplxId</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_fwd</span><span class="p">[</span><span class="n">rxnIdx</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.get_rev_rate">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.get_rev_rate">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_rev_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">):</span>
+        <span class="n">rxnIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">complex_name_to_rxn_idx</span><span class="p">[</span><span class="n">cplxId</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rates_rev</span><span class="p">[</span><span class="n">rxnIdx</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.set_fwd_rate">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.set_fwd_rate">[docs]</a>
+    <span class="k">def</span> <span class="nf">set_fwd_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">,</span> <span class="n">rate</span><span class="p">):</span>
+        <span class="n">rxnIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">complex_name_to_rxn_idx</span><span class="p">[</span><span class="n">cplxId</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rates_fwd</span><span class="p">[</span><span class="n">rxnIdx</span><span class="p">]</span> <span class="o">=</span> <span class="n">rate</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium.set_rev_rate">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium.set_rev_rate">[docs]</a>
+    <span class="k">def</span> <span class="nf">set_rev_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cplxId</span><span class="p">,</span> <span class="n">rate</span><span class="p">):</span>
+        <span class="n">rxnIdx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">complex_name_to_rxn_idx</span><span class="p">[</span><span class="n">cplxId</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rates_rev</span><span class="p">[</span><span class="n">rxnIdx</span><span class="p">]</span> <span class="o">=</span> <span class="n">rate</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium._findRow">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium._findRow">[docs]</a>
+    <span class="k">def</span> <span class="nf">_findRow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">product</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">speciesList</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">product</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">MoleculeNotFoundError</span><span class="p">(</span>
+                <span class="s2">&quot;Could not find </span><span class="si">%s</span><span class="s2"> in the list of molecules.&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">product</span><span class="p">,),</span> <span class="n">e</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">row</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium._findColumn">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium._findColumn">[docs]</a>
+    <span class="k">def</span> <span class="nf">_findColumn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stoichMatrixRow</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stoichMatrixRow</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">stoichMatrixRow</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">i</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># Flag for monomer</span></div>
+
+
+<div class="viewcode-block" id="Equilibrium._moleculeRecursiveSearch">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.process.equilibrium.html#reconstruction.ecoli.dataclasses.process.equilibrium.Equilibrium._moleculeRecursiveSearch">[docs]</a>
+    <span class="k">def</span> <span class="nf">_moleculeRecursiveSearch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">product</span><span class="p">,</span> <span class="n">stoichMatrix</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_findRow</span><span class="p">(</span><span class="n">product</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">)</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_findColumn</span><span class="p">(</span><span class="n">stoichMatrix</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="p">:])</span>
+        <span class="k">if</span> <span class="n">col</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">product</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}</span>
+
+        <span class="n">total</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">speciesList</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">row</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">stoichMatrix</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">col</span><span class="p">]</span>
+            <span class="n">species</span> <span class="o">=</span> <span class="n">speciesList</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">val</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_moleculeRecursiveSearch</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">stoichMatrix</span><span class="p">,</span> <span class="n">speciesList</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">x</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">total</span><span class="p">:</span>
+                        <span class="n">total</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">total</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">total</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

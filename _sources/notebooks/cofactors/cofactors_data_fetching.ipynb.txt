@@ -1,0 +1,1364 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "source": [
+    "# Setup"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "collapsed": true,
+    "ExecuteTime": {
+     "end_time": "2024-02-01T19:07:53.593853Z",
+     "start_time": "2024-02-01T19:07:53.523394Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "\n",
+    "import seaborn as sns\n",
+    "import pandas as pd\n",
+    "import os\n",
+    "import pprint\n",
+    "import ast\n",
+    "import re\n",
+    "import matplotlib.pyplot as plt\n",
+    "import dill\n",
+    "import requests\n",
+    "import xmltodict\n",
+    "import json\n",
+    "\n",
+    "pp = pprint.PrettyPrinter(depth=6)\n",
+    "\n",
+    "os.chdir(os.path.expanduser('~/vivarium-ecoli'))\n",
+    "\n",
+    "ALLOWED_METAL_NAMES =   {'Iron': 'FE+2', 'Cobalt': 'CO+2', 'Copper': 'CU+2', 'Manganese': 'MN+2', 'Molybdenum': 'CPD-8123', 'Nickel': 'NI+2', 'Zinc': 'ZN+2',\n",
+    "                        'Calcium': 'CA+2', 'Magnesium': 'MG+2', 'Sodium': 'NA+', 'Potassium': 'K+',\n",
+    "                        'Iron-sulfur \\(4Fe-4S\\)': 'CPD-7', 'Iron-sulfur \\(2Fe-2S\\)': 'CPD-6',\n",
+    "                         'Iron-sulfur \\(4Fe-4S-S-AdoMet\\)': 'CPD-7', 'Iron-sulfur \\(3Fe-4S\\)': '3FE-4S', 'Iron-oxo-sulfur \\(4Fe-2O-2S\\)': 'CPD-7',\n",
+    "                         'Iron-sulfur': 'CPD-7', # has to be after others since it is a substring of others\n",
+    "                        'heme': 'Heme-b', 'Molybdate': 'CPD-3', 'heme B': 'Heme-b', 'Cobalamin': 'COB-I-ALAMIN',\n",
+    "                         'Selenocysteine': 'L-SELENOCYSTEINE',\n",
+    "                        'Divalent metal cation': 'Any+2'}\n",
+    "\n",
+    "\n",
+    "\n",
+    "# What else should I include, copilot?\n",
+    "# 1. Transcription\n",
+    "# 2. Translation\n",
+    "# 3. Iron-sulfur cluster assembly\n",
+    "# 4. DNA repair\n",
+    "# 5. DNA replication\n",
+    "# 6. Cell division\n",
+    "# 7. Cell cycle\n",
+    "# 8. Cell wall biosynthesis\n",
+    "\n",
+    "\n",
+    "ACCEPTED_OTHER_FEATURES = {'PYRIDOXAL_PHOSPHATE', 'THIAMINE-PYROPHOSPHATE', 'FMN', 'FAD', 'LIPOIC-ACID', 'BIOTIN'}"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Connect to api"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "outputs": [],
+   "source": [
+    "password = input(\"Enter Password: \")"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2024-02-01T19:07:57.060946Z",
+     "start_time": "2024-02-01T19:07:53.594094Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "<Response [200]>"
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "s = requests.Session() # create session\n",
+    "# Post login credentials to session:\n",
+    "s.post('https://websvc.biocyc.org/credentials/login/', data={'email':'cellulararchitect@protonmail.com', 'password': password})"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2024-02-01T19:07:57.426540Z",
+     "start_time": "2024-02-01T19:07:57.046601Z"
+    }
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## api test"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'#text': 'Neidhardt EZ rich defined medium',\n",
+      " '@ptools-version': '27.5',\n",
+      " '@xml:base': 'http://BioCyc.org/getxml?ECOLI:MIX0-76',\n",
+      " 'metadata': {'PGDB': {'@orgid': 'ECOLI',\n",
+      "                       '@version': '27.5',\n",
+      "                       'dblink': {'dblink-URL': 'http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&id=511145',\n",
+      "                                  'dblink-db': 'NCBI-TAXONOMY-DB',\n",
+      "                                  'dblink-oid': '511145',\n",
+      "                                  'dblink-relationship': 'unification'},\n",
+      "                       'species': {'#text': 'Escherichia coli',\n",
+      "                                   '@datatype': 'string'},\n",
+      "                       'strain': {'#text': 'K-12 substr. MG1655',\n",
+      "                                  '@datatype': 'string'}},\n",
+      "              'num_results': '1',\n",
+      "              'query': 'ECOLI:MIX0-76',\n",
+      "              'service_name': 'getxml',\n",
+      "              'url': 'http://BioCyc.org/'}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "# example entry\n",
+    "# entity = 'PWY0-1356'\n",
+    "entity = 'MIX0-76'\n",
+    "req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{entity}&detail=full'\n",
+    "\n",
+    "r = s.get(req_str)\n",
+    "if r.status_code != 200:\n",
+    "    print(entity, r.status_code)\n",
+    "\n",
+    "o = xmltodict.parse(r.content)\n",
+    "pp.pprint(o['ptools-xml'])"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2024-02-01T19:08:02.609242Z",
+     "start_time": "2024-02-01T19:08:02.555096Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'@ptools-version': '27.5',\n",
+      " '@xml:base': 'http://BioCyc.org/apixml?fn=get-class-all-instances%26id=ECOLI:Fermentation%26detail=NONE',\n",
+      " 'Pathway': [{'@frameid': 'PWY-5480',\n",
+      "              '@orgid': 'ECOLI',\n",
+      "              '@resource': 'getxml?ECOLI:PWY-5480'},\n",
+      "             {'@frameid': 'FERMENTATION-PWY',\n",
+      "              '@orgid': 'ECOLI',\n",
+      "              '@resource': 'getxml?ECOLI:FERMENTATION-PWY'},\n",
+      "             {'@frameid': 'PWY-5437',\n",
+      "              '@orgid': 'ECOLI',\n",
+      "              '@resource': 'getxml?ECOLI:PWY-5437'},\n",
+      "             {'@frameid': 'PWY-5485',\n",
+      "              '@orgid': 'ECOLI',\n",
+      "              '@resource': 'getxml?ECOLI:PWY-5485'},\n",
+      "             {'@frameid': 'PWY0-1312',\n",
+      "              '@orgid': 'ECOLI',\n",
+      "              '@resource': 'getxml?ECOLI:PWY0-1312'},\n",
+      "             {'@frameid': 'PWY-8274',\n",
+      "              '@orgid': 'ECOLI',\n",
+      "              '@resource': 'getxml?ECOLI:PWY-8274'}],\n",
+      " 'metadata': {'num_results': '6',\n",
+      "              'query': 'fn=get-class-all-instances&id=ECOLI:Fermentation&detail=NONE',\n",
+      "              'service_name': 'apixml',\n",
+      "              'url': 'http://BioCyc.org/'}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "entity = 'Fermentation'\n",
+    "\n",
+    "fn = 'get-class-all-instances'\n",
+    "req_str = f'https://websvc.biocyc.org/apixml?fn={fn}&id=ECOLI:{entity}&detail=none'\n",
+    "\n",
+    "r = s.get(req_str)\n",
+    "if r.status_code != 200:\n",
+    "    print(entity, r.status_code)\n",
+    "\n",
+    "o = xmltodict.parse(r.content)\n",
+    "pp.pprint(o['ptools-xml'])"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2024-02-01T19:13:23.614047Z",
+     "start_time": "2024-02-01T19:13:23.557633Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'@ptools-version': '27.0',\n",
+      " '@xml:base': 'http://BioCyc.org/getxml?ECOLI:GO:0008150',\n",
+      " 'GO-Term': {'@ID': 'ECOLI:GO:0008150',\n",
+      "             '@class': 'true',\n",
+      "             '@detail': 'full',\n",
+      "             '@frameid': 'GO:0008150',\n",
+      "             '@orgid': 'ECOLI',\n",
+      "             'comment': {'#text': 'Note that, in addition to forming the root '\n",
+      "                                  'of the biological process ontology, this '\n",
+      "                                  'term is recommended for use for the '\n",
+      "                                  'annotation of gene products whose '\n",
+      "                                  'biological process is unknown. When this '\n",
+      "                                  'term is used for annotation, it indicates '\n",
+      "                                  'that no information was available about the '\n",
+      "                                  'biological process of the gene product '\n",
+      "                                  'annotated as of the date the annotation was '\n",
+      "                                  \"made; the evidence code 'no data' (ND), is \"\n",
+      "                                  'used to indicate this.',\n",
+      "                         '@datatype': 'string'},\n",
+      "             'common-name': {'#text': 'biological_process',\n",
+      "                             '@datatype': 'string'},\n",
+      "             'dblink': {'dblink-URL': 'http://en.wikipedia.org/wiki/Biological_process',\n",
+      "                        'dblink-db': 'Wikipedia',\n",
+      "                        'dblink-oid': 'Biological_process',\n",
+      "                        'dblink-relationship': 'RELATED-TO'},\n",
+      "             'definition': {'#text': 'A biological process is the execution of '\n",
+      "                                     'a genetically-encoded biological module '\n",
+      "                                     'or program. It consists of all the steps '\n",
+      "                                     'required to achieve the specific '\n",
+      "                                     'biological objective of the module. A '\n",
+      "                                     'biological process is accomplished by a '\n",
+      "                                     'particular set of molecular functions '\n",
+      "                                     'carried out by specific gene products '\n",
+      "                                     '(or macromolecular complexes), often in '\n",
+      "                                     'a highly regulated manner and in a '\n",
+      "                                     'particular temporal sequence.',\n",
+      "                            '@datatype': 'string'},\n",
+      "             'subclass': [{'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0008152',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0008152'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0098754',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0098754'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0051179',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0051179'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0042592',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0042592'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0032501',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0032501'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0009987',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0009987'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0051703',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0051703'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0044419',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0044419'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0032502',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0032502'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0016032',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0016032'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0000003',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0000003'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0065007',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0065007'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0050896',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0050896'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0040011',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0040011'}},\n",
+      "                          {'GO-Term': {'@class': 'true',\n",
+      "                                       '@frameid': 'GO:0022414',\n",
+      "                                       '@orgid': 'ECOLI',\n",
+      "                                       '@resource': 'getxml?ECOLI:GO:0022414'}}],\n",
+      "             'synonym': [{'#text': 'GO:0000004', '@datatype': 'string'},\n",
+      "                         {'#text': 'GO:0007582', '@datatype': 'string'},\n",
+      "                         {'#text': 'GO:0044699', '@datatype': 'string'},\n",
+      "                         {'#text': 'biological process', '@datatype': 'string'},\n",
+      "                         {'#text': 'physiological process',\n",
+      "                          '@datatype': 'string'}]},\n",
+      " 'metadata': {'PGDB': {'@orgid': 'ECOLI',\n",
+      "                       '@version': '27.1',\n",
+      "                       'dblink': {'dblink-URL': 'http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&id=511145',\n",
+      "                                  'dblink-db': 'NCBI-TAXONOMY-DB',\n",
+      "                                  'dblink-oid': '511145',\n",
+      "                                  'dblink-relationship': 'unification'},\n",
+      "                       'species': {'#text': 'Escherichia coli',\n",
+      "                                   '@datatype': 'string'},\n",
+      "                       'strain': {'#text': 'K-12 substr. MG1655',\n",
+      "                                  '@datatype': 'string'}},\n",
+      "              'num_results': '1',\n",
+      "              'query': 'ECOLI:GO:0008150',\n",
+      "              'service_name': 'getxml',\n",
+      "              'url': 'http://BioCyc.org/'}}\n"
+     ]
+    }
+   ],
+   "source": [
+    "# example entry\n",
+    "# entity = 'PWY0-1356'\n",
+    "entity = 'GO:0008150'\n",
+    "req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{entity}&detail=full'\n",
+    "\n",
+    "r = s.get(req_str)\n",
+    "if r.status_code != 200:\n",
+    "    print(entity, r.status_code)\n",
+    "\n",
+    "o = xmltodict.parse(r.content)\n",
+    "pp.pprint(o['ptools-xml'])"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:11:22.676499Z",
+     "start_time": "2023-11-06T19:11:22.624152Z"
+    }
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "# Getting raw data"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Fetch EcoCyc pathway tree"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "outputs": [],
+   "source": [
+    "def recursive_pathway_tree(current_node, parent_node, node_dict, level):\n",
+    "\n",
+    "\n",
+    "    if current_node in node_dict.keys():\n",
+    "\n",
+    "        if level < node_dict[current_node]['level']:\n",
+    "            node_dict[current_node]['level'] = level\n",
+    "\n",
+    "        node_dict[current_node]['parents'].append(parent_node)\n",
+    "\n",
+    "        return\n",
+    "\n",
+    "    else:\n",
+    "\n",
+    "        req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{current_node}&detail=high'\n",
+    "\n",
+    "        node_dict[current_node] = {'parents': [], 'children': [], 'level': level, 'common_name': 'N/A'}\n",
+    "\n",
+    "        if parent_node is not None:\n",
+    "            node_dict[current_node]['parents'].append(parent_node)\n",
+    "\n",
+    "        r = s.get(req_str)\n",
+    "        if r.status_code != 200:\n",
+    "            print(current_node, r.status_code)\n",
+    "            return\n",
+    "\n",
+    "        o = xmltodict.parse(r.content)\n",
+    "\n",
+    "        if 'common-name' in o['ptools-xml']['Pathway']:\n",
+    "            node_dict[current_node]['common_name'] = o['ptools-xml']['Pathway']['common-name']['#text']\n",
+    "\n",
+    "\n",
+    "        subclasses = o['ptools-xml']['Pathway']['subclass'] if 'subclass' in o['ptools-xml']['Pathway'] else []\n",
+    "        if type(subclasses) is dict:\n",
+    "            subclasses = [subclasses]\n",
+    "\n",
+    "        instances = o['ptools-xml']['Pathway']['instance'] if 'instance' in o['ptools-xml']['Pathway'] else []\n",
+    "        if type(instances) is dict:\n",
+    "            instances = [instances]\n",
+    "\n",
+    "        pathways = subclasses + instances\n",
+    "\n",
+    "        # print(f'{current_node}: {len(subclasses)}, {len(instances)}')\n",
+    "\n",
+    "        for pathway in pathways:\n",
+    "            pathway_id = pathway['Pathway']['@frameid']\n",
+    "\n",
+    "            node_dict[current_node]['children'].append(pathway_id)\n",
+    "            recursive_pathway_tree(pathway_id, current_node, node_dict, level+1)\n",
+    "\n",
+    "\n",
+    "    return\n",
+    "\n",
+    "\n",
+    "def get_pathway_ith_level_parents(cur_pathway_idx, pathway_matrix, name_list, level_vector, level=2, parent_dict=None):\n",
+    "\n",
+    "    if parent_dict is None:\n",
+    "        parent_dict = {}\n",
+    "\n",
+    "    cur_pathway_level = level_vector[cur_pathway_idx]\n",
+    "\n",
+    "    if cur_pathway_level == level:\n",
+    "        parent_dict[name_list[cur_pathway_idx]] = cur_pathway_level\n",
+    "\n",
+    "    parent_slice = pathway_matrix[:, cur_pathway_idx]\n",
+    "    parent_idxs = np.where(parent_slice != 0)[0]\n",
+    "\n",
+    "\n",
+    "    for idx in parent_idxs:\n",
+    "\n",
+    "        _ = get_pathway_ith_level_parents(idx, pathway_matrix, name_list, level_vector, level, parent_dict)\n",
+    "\n",
+    "    return parent_dict\n",
+    "\n"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:11:22.682867Z",
+     "start_time": "2023-11-06T19:11:22.680983Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "ARG+POLYAMINE-SYN 404\n"
+     ]
+    }
+   ],
+   "source": [
+    "entity = 'Pathways'\n",
+    "\n",
+    "fn = 'get-class-direct-subs'\n",
+    "req_str = f'https://websvc.biocyc.org/apixml?fn={fn}&id=ECOLI:{entity}&detail=none'\n",
+    "\n",
+    "r = s.get(req_str)\n",
+    "o = xmltodict.parse(r.content)['ptools-xml']['Pathway']\n",
+    "top_level_pathways = [pathway['@frameid'] for pathway in o]\n",
+    "\n",
+    "pathway_node_dict = {}\n",
+    "\n",
+    "for top_node in top_level_pathways:\n",
+    "\n",
+    "    recursive_pathway_tree(top_node, None, pathway_node_dict, level=1)"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:12:33.900425Z",
+     "start_time": "2023-11-06T19:11:22.683822Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                          id  \\\n0         Transport-Pathways   \n1         Metabolic-Clusters   \n2               OANTIGEN-PWY   \n3                   PWY-7206   \n4                   PWY-7184   \n...                      ...   \n1168               PWY0-1299   \n1169  Mercury-Detoxification   \n1170   Antibiotic-Resistance   \n1171   Vancomycin-Resistnace   \n1172         Bioluminescence   \n\n                                                parents  \\\n0                                                    []   \n1                                                    []   \n2     [Metabolic-Clusters, SUGAR-NUCLEOTIDES, Super-...   \n3     [Metabolic-Clusters, Pyrimidine-Deoxyribonucle...   \n4     [Metabolic-Clusters, Pyrimid-Deoxyribonucleot-...   \n...                                                 ...   \n1168                                  [Acid-Resistance]   \n1169                                   [Detoxification]   \n1170                                   [Detoxification]   \n1171                            [Antibiotic-Resistance]   \n1172                                                 []   \n\n                                               children level  \\\n0                                                    []     1   \n1     [OANTIGEN-PWY, PWY-7206, PWY-7184, PWY-7801, P...     1   \n2                                                    []     2   \n3                                                    []     2   \n4                                                    []     2   \n...                                                 ...   ...   \n1168                                                 []     3   \n1169                                                 []     2   \n1170                 [Vancomycin-Resistnace, PWY0-1338]     2   \n1171                                                 []     3   \n1172                                                 []     1   \n\n                                            common_name  \n0                                             Transport  \n1                                    Metabolic Clusters  \n2     <i>O</i>-antigen building blocks biosynthesis ...  \n3     pyrimidine deoxyribonucleotides dephosphorylation  \n4     pyrimidine deoxyribonucleotides <i>de novo</i>...  \n...                                                 ...  \n1168                 arginine dependent acid resistance  \n1169                             Mercury Detoxification  \n1170                              Antibiotic Resistance  \n1171                              Vancomycin Resistance  \n1172                                    Bioluminescence  \n\n[1173 rows x 5 columns]",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>parents</th>\n      <th>children</th>\n      <th>level</th>\n      <th>common_name</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>Transport-Pathways</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>1</td>\n      <td>Transport</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>Metabolic-Clusters</td>\n      <td>[]</td>\n      <td>[OANTIGEN-PWY, PWY-7206, PWY-7184, PWY-7801, P...</td>\n      <td>1</td>\n      <td>Metabolic Clusters</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>OANTIGEN-PWY</td>\n      <td>[Metabolic-Clusters, SUGAR-NUCLEOTIDES, Super-...</td>\n      <td>[]</td>\n      <td>2</td>\n      <td>&lt;i&gt;O&lt;/i&gt;-antigen building blocks biosynthesis ...</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>PWY-7206</td>\n      <td>[Metabolic-Clusters, Pyrimidine-Deoxyribonucle...</td>\n      <td>[]</td>\n      <td>2</td>\n      <td>pyrimidine deoxyribonucleotides dephosphorylation</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>PWY-7184</td>\n      <td>[Metabolic-Clusters, Pyrimid-Deoxyribonucleot-...</td>\n      <td>[]</td>\n      <td>2</td>\n      <td>pyrimidine deoxyribonucleotides &lt;i&gt;de novo&lt;/i&gt;...</td>\n    </tr>\n    <tr>\n      <th>...</th>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n    </tr>\n    <tr>\n      <th>1168</th>\n      <td>PWY0-1299</td>\n      <td>[Acid-Resistance]</td>\n      <td>[]</td>\n      <td>3</td>\n      <td>arginine dependent acid resistance</td>\n    </tr>\n    <tr>\n      <th>1169</th>\n      <td>Mercury-Detoxification</td>\n      <td>[Detoxification]</td>\n      <td>[]</td>\n      <td>2</td>\n      <td>Mercury Detoxification</td>\n    </tr>\n    <tr>\n      <th>1170</th>\n      <td>Antibiotic-Resistance</td>\n      <td>[Detoxification]</td>\n      <td>[Vancomycin-Resistnace, PWY0-1338]</td>\n      <td>2</td>\n      <td>Antibiotic Resistance</td>\n    </tr>\n    <tr>\n      <th>1171</th>\n      <td>Vancomycin-Resistnace</td>\n      <td>[Antibiotic-Resistance]</td>\n      <td>[]</td>\n      <td>3</td>\n      <td>Vancomycin Resistance</td>\n    </tr>\n    <tr>\n      <th>1172</th>\n      <td>Bioluminescence</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>1</td>\n      <td>Bioluminescence</td>\n    </tr>\n  </tbody>\n</table>\n<p>1173 rows × 5 columns</p>\n</div>"
+     },
+     "execution_count": 9,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "pathway_df = pd.DataFrame(pathway_node_dict).T.reset_index(names='id')\n",
+    "pathway_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:12:33.900682Z",
+     "start_time": "2023-11-06T19:12:33.868208Z"
+    }
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Fetch protein monomer annotations"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                                            id  \\\n0      1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER   \n1                                1-PFK-MONOMER   \n2             2-DEHYDROPANTOATE-REDUCT-MONOMER   \n3                 2-ISOPROPYLMALATESYN-MONOMER   \n4     2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER   \n...                                        ...   \n4429                              YTFR-MONOMER   \n4430                              YTFT-MONOMER   \n4431                              ZNUA-MONOMER   \n4432                              ZNUB-MONOMER   \n4433                              ZNUC-MONOMER   \n\n                                            common_name  \\\n0     1-acylglycerol-3-phosphate <i>O</i>-acyltransf...   \n1                                 1-phosphofructokinase   \n2                         2-dehydropantoate 2-reductase   \n3                            2-isopropylmalate synthase   \n4     bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...   \n...                                                 ...   \n4429  galactofuranose ABC transporter putative ATP b...   \n4430  galactofuranose ABC transporter putative membr...   \n4431  Zn<sup>2+</sup> ABC transporter periplasmic bi...   \n4432   Zn<sup>2+</sup> ABC transporter membrane subunit   \n4433  Zn<sup>2+</sup> ABC transporter ATP binding su...   \n\n                                                    seq enzyme_reaction  \\\n0     MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...               0   \n1     MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...               0   \n2     MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...               0   \n3     MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...               0   \n4     MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...               0   \n...                                                 ...             ...   \n4429  MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...               0   \n4430  MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...               0   \n4431  MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...               0   \n4432  MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...               0   \n4433  MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...               0   \n\n     cofactors metal_features other_features direct_annotations go_annotations  \n0            0              0              0                  0              0  \n1            0              0              0                  0              0  \n2            0              0              0                  0              0  \n3            0              0              0                  0              0  \n4            0              0              0                  0              0  \n...        ...            ...            ...                ...            ...  \n4429         0              0              0                  0              0  \n4430         0              0              0                  0              0  \n4431         0              0              0                  0              0  \n4432         0              0              0                  0              0  \n4433         0              0              0                  0              0  \n\n[4434 rows x 9 columns]",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>common_name</th>\n      <th>seq</th>\n      <th>enzyme_reaction</th>\n      <th>cofactors</th>\n      <th>metal_features</th>\n      <th>other_features</th>\n      <th>direct_annotations</th>\n      <th>go_annotations</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>\n      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>\n      <td>MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>1-PFK-MONOMER</td>\n      <td>1-phosphofructokinase</td>\n      <td>MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>\n      <td>2-dehydropantoate 2-reductase</td>\n      <td>MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>2-ISOPROPYLMALATESYN-MONOMER</td>\n      <td>2-isopropylmalate synthase</td>\n      <td>MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>\n      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>\n      <td>MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>...</th>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n    </tr>\n    <tr>\n      <th>4429</th>\n      <td>YTFR-MONOMER</td>\n      <td>galactofuranose ABC transporter putative ATP b...</td>\n      <td>MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>4430</th>\n      <td>YTFT-MONOMER</td>\n      <td>galactofuranose ABC transporter putative membr...</td>\n      <td>MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>4431</th>\n      <td>ZNUA-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>\n      <td>MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>4432</th>\n      <td>ZNUB-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>\n      <td>MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n    <tr>\n      <th>4433</th>\n      <td>ZNUC-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>\n      <td>MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n      <td>0</td>\n    </tr>\n  </tbody>\n</table>\n<p>4434 rows × 9 columns</p>\n</div>"
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# get a set of all monomers with an associated uniprot id\n",
+    "proteins_df = pd.read_csv('reconstruction/ecoli/flat/proteins.tsv', sep='\\t', comment='#').loc[:, [\"id\", \"common_name\", \"seq\"]]\n",
+    "\n",
+    "for column in [\"enzyme_reaction\", \"cofactors\", \"metal_features\", \"other_features\", \"direct_annotations\", \"go_annotations\"]:\n",
+    "    proteins_df[column] = 0\n",
+    "    proteins_df[column] = proteins_df[column].astype(object)\n",
+    "\n",
+    "proteins_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:12:33.903519Z",
+     "start_time": "2023-11-06T19:12:33.878839Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "0\n",
+      "100\n",
+      "200\n",
+      "300\n",
+      "400\n",
+      "500\n",
+      "600\n",
+      "700\n",
+      "800\n",
+      "900\n",
+      "1000\n",
+      "1100\n",
+      "1200\n",
+      "1300\n",
+      "1400\n",
+      "1500\n",
+      "1600\n",
+      "1700\n",
+      "found selenocysteine\n",
+      "found selenocysteine\n",
+      "found selenocysteine\n",
+      "1800\n",
+      "1900\n",
+      "2000\n",
+      "2100\n",
+      "2200\n",
+      "2300\n",
+      "2400\n",
+      "2500\n",
+      "2600\n",
+      "2700\n",
+      "2800\n",
+      "2900\n",
+      "3000\n",
+      "3100\n",
+      "3200\n",
+      "3300\n",
+      "3400\n",
+      "3500\n",
+      "3600\n",
+      "3700\n",
+      "3800\n",
+      "3900\n",
+      "4000\n",
+      "4100\n",
+      "4200\n",
+      "4300\n",
+      "4400\n"
+     ]
+    }
+   ],
+   "source": [
+    "for i in range(len(proteins_df.index)):\n",
+    "\n",
+    "    if i % 100 == 0:\n",
+    "        print(i)\n",
+    "\n",
+    "    protein = proteins_df.loc[i, 'id']\n",
+    "    proteins_df.at[i, 'other_features'] = set()\n",
+    "    proteins_df.at[i, 'metal_features'] = set()\n",
+    "    proteins_df.at[i, 'enzyme_reaction'] = set()\n",
+    "    proteins_df.at[i, 'cofactors'] = set()\n",
+    "    proteins_df.at[i, 'direct_annotations'] = set()\n",
+    "    proteins_df.at[i, 'go_annotations'] = set()\n",
+    "\n",
+    "    req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{protein}&detail=high'\n",
+    "\n",
+    "\n",
+    "\n",
+    "    r = s.get(req_str)\n",
+    "    if r.status_code != 200:\n",
+    "        print(protein, r.status_code)\n",
+    "        continue\n",
+    "\n",
+    "    o = xmltodict.parse(r.content)['ptools-xml']\n",
+    "\n",
+    "    metal_set = set()\n",
+    "    other_feature_set = set()\n",
+    "    if 'Protein' in o and 'has-feature' in o['Protein']:\n",
+    "        features = o['Protein']['has-feature']\n",
+    "\n",
+    "        if type(features) is dict:\n",
+    "            features = [features]\n",
+    "\n",
+    "        for feature in features:\n",
+    "            if 'parent' not in feature['Feature']:\n",
+    "                continue\n",
+    "\n",
+    "            category = feature['Feature']['parent']['Feature']['@frameid']\n",
+    "            if category == 'Metal-Binding-Sites' and 'comment' in feature['Feature']:\n",
+    "\n",
+    "                # Detect match to any of the allowed metal names and allowed cofactor names and add to list\n",
+    "                comment = feature['Feature']['comment']['#text']\n",
+    "                metal_set.add(comment)\n",
+    "\n",
+    "                proteins_df.at[i, 'metal_features'] = list(metal_set)\n",
+    "\n",
+    "            if category == 'Nucleotide-Phosphate-Binding-Regions' and 'attached-group' in feature['Feature'] and 'Compound' in feature['Feature']['attached-group']:\n",
+    "                attached_group = feature['Feature']['attached-group']['Compound']['@frameid']\n",
+    "                other_feature_set.add(attached_group)\n",
+    "\n",
+    "            if category == 'N6-pyridoxal-phosphate-Lys-Modifications':\n",
+    "                other_feature_set.add('PYRIDOXAL_PHOSPHATE')\n",
+    "\n",
+    "            if category == 'Conserved-Regions' and 'comment' in feature['Feature'] and 'Lipoyl' in feature['Feature']['comment']['#text']:\n",
+    "                other_feature_set.add('LIPOIC-ACID')\n",
+    "\n",
+    "            if category == 'Conserved-Regions' and 'comment' in feature['Feature'] and 'Biotinyl' in feature['Feature']['comment']['#text']:\n",
+    "                other_feature_set.add('BIOTIN')\n",
+    "\n",
+    "            if category == 'Protein-Segments' and 'comment' in feature['Feature'] and 'Thiamine' in feature['Feature']['comment']['#text']:\n",
+    "                other_feature_set.add('THIAMINE-PYROPHOSPHATE')\n",
+    "\n",
+    "            if category == 'Selenocysteine-sites':\n",
+    "                print('found selenocysteine')\n",
+    "                metal_set.add('Selenocysteine.')\n",
+    "\n",
+    "            proteins_df.at[i, 'metal_features'] = list(metal_set)\n",
+    "            proteins_df.at[i, 'other_features'] = list(other_feature_set)\n",
+    "\n",
+    "        if 'catalyzes' in o['Protein']:\n",
+    "            oc = o['Protein']['catalyzes']['Enzymatic-Reaction']\n",
+    "\n",
+    "            if type(oc) is dict:\n",
+    "                oc = [oc]\n",
+    "\n",
+    "            cofactor_set = set()\n",
+    "            enz_rxn_set = set()\n",
+    "\n",
+    "            for enzrxn in oc:\n",
+    "                enz_id = enzrxn['@frameid']\n",
+    "\n",
+    "                enz_rxn_set.add(enz_id)\n",
+    "\n",
+    "                enz_req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{enz_id}&detail=high'\n",
+    "\n",
+    "                rz = s.get(enz_req_str)\n",
+    "                oe = xmltodict.parse(rz.content)['ptools-xml']['Enzymatic-Reaction']\n",
+    "\n",
+    "                if \"cofactor\" in oe:\n",
+    "                    oe = oe['cofactor']\n",
+    "\n",
+    "                    if type(oe) is dict:\n",
+    "                        oe = [oe]\n",
+    "\n",
+    "                    for cofactor in oe:\n",
+    "                        cof = cofactor['Compound']['@frameid']\n",
+    "                        cofactor_set.add(cof)\n",
+    "\n",
+    "            proteins_df.at[i, 'enzyme_reaction'] = enz_rxn_set\n",
+    "            proteins_df.at[i, 'cofactors'] = cofactor_set\n",
+    "\n",
+    "    # save uniprot ID\n",
+    "    if 'Protein' in o and 'dblink' in o['Protein']:\n",
+    "        db_links = o['Protein']['dblink']\n",
+    "\n",
+    "        if type(db_links) is dict:\n",
+    "            db_links = [db_links]\n",
+    "\n",
+    "        for db_link in db_links:\n",
+    "            if 'dblink-db' in db_link and db_link['dblink-db'] == 'UNIPROT':\n",
+    "                uniprot_id = db_link['dblink-oid']\n",
+    "                proteins_df.at[i, 'uniprot_id'] = uniprot_id\n",
+    "\n",
+    "    # get gene pathway annotation\n",
+    "    if 'Protein' in o and 'gene' in o['Protein']:\n",
+    "\n",
+    "        gene = o['Protein']['gene']['Gene']['@frameid']\n",
+    "        gene_req_str = f'https://websvc.biocyc.org/apixml?fn=pathways-of-gene&id=ECOLI:{gene}&detail=none'\n",
+    "\n",
+    "        rg = s.get(gene_req_str)\n",
+    "        og = xmltodict.parse(rg.content)['ptools-xml']\n",
+    "\n",
+    "        if 'Pathway' in og:\n",
+    "            pathways = og['Pathway']\n",
+    "\n",
+    "            if type(pathways) is dict:\n",
+    "                pathways = [pathways]\n",
+    "\n",
+    "            for pathway in pathways:\n",
+    "                pathway_id = pathway['@frameid']\n",
+    "                proteins_df.at[i, 'direct_annotations'].add(pathway_id)\n",
+    "\n",
+    "\n",
+    "    if 'Protein' in o and 'has-go-term' in o['Protein']:\n",
+    "        go_terms = o['Protein']['has-go-term']\n",
+    "\n",
+    "        annotation_set = set()\n",
+    "\n",
+    "        if type(go_terms) is dict:\n",
+    "            go_terms = [go_terms]\n",
+    "\n",
+    "        for go_term in go_terms:\n",
+    "\n",
+    "            annotation_set.add(go_term['GO-Term']['@frameid'])\n",
+    "\n",
+    "\n",
+    "\n",
+    "        proteins_df.at[i, 'go_annotations'] = annotation_set\n",
+    "\n",
+    "\n"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:33:13.057979Z",
+     "start_time": "2023-11-06T19:12:33.911338Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                                            id  \\\n0      1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER   \n1                                1-PFK-MONOMER   \n2             2-DEHYDROPANTOATE-REDUCT-MONOMER   \n3                 2-ISOPROPYLMALATESYN-MONOMER   \n4     2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER   \n...                                        ...   \n4429                              YTFR-MONOMER   \n4430                              YTFT-MONOMER   \n4431                              ZNUA-MONOMER   \n4432                              ZNUB-MONOMER   \n4433                              ZNUC-MONOMER   \n\n                                            common_name  \\\n0     1-acylglycerol-3-phosphate <i>O</i>-acyltransf...   \n1                                 1-phosphofructokinase   \n2                         2-dehydropantoate 2-reductase   \n3                            2-isopropylmalate synthase   \n4     bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...   \n...                                                 ...   \n4429  galactofuranose ABC transporter putative ATP b...   \n4430  galactofuranose ABC transporter putative membr...   \n4431  Zn<sup>2+</sup> ABC transporter periplasmic bi...   \n4432   Zn<sup>2+</sup> ABC transporter membrane subunit   \n4433  Zn<sup>2+</sup> ABC transporter ATP binding su...   \n\n                                                    seq  \\\n0     MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...   \n1     MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...   \n2     MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...   \n3     MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...   \n4     MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...   \n...                                                 ...   \n4429  MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...   \n4430  MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...   \n4431  MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...   \n4432  MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...   \n4433  MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...   \n\n                                        enzyme_reaction cofactors  \\\n0     {ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...        {}   \n1                                                    {}        {}   \n2                     {2-DEHYDROPANTOATE-REDUCT-ENZRXN}        {}   \n3                                        {ENZRXN0-6250}        {}   \n4     {2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...        {}   \n...                                                 ...       ...   \n4429                                                 {}        {}   \n4430                                                 {}        {}   \n4431                                                 {}        {}   \n4432                                                 {}        {}   \n4433                                                 {}        {}   \n\n                                         metal_features other_features  \\\n0                                                    []             []   \n1                                                    []          [ATP]   \n2                                                    []         [NADP]   \n3                                                    []             []   \n4                                                    []             []   \n...                                                 ...            ...   \n4429                                                 []          [ATP]   \n4430                                                 []             []   \n4431  [zinc-coordinating residues, implicated in a s...             []   \n4432                                                 []             []   \n4433                                                 []          [ATP]   \n\n                  direct_annotations  \\\n0              {PWY0-1319, PWY-5667}   \n1                        {PWY0-1314}   \n2                        {PANTO-PWY}   \n3                       {LEUSYN-PWY}   \n4     {PWY-6708, MENAQUINONESYN-PWY}   \n...                              ...   \n4429                              {}   \n4430                              {}   \n4431                              {}   \n4432                              {}   \n4433                              {}   \n\n                                         go_annotations uniprot_id  \n0     {GO:0005886, GO:0016020, GO:0016740, GO:001602...     P26647  \n1     {GO:0000166, GO:0016301, GO:0008443, GO:001631...     P0AEW9  \n2     {GO:0015940, GO:0005737, GO:0008677, GO:001661...     P0A9J4  \n3     {GO:0009082, GO:0046912, GO:0005737, GO:000398...     P09151  \n4     {GO:0102027, GO:0030580, GO:0008168, GO:000674...     P0A887  \n...                                                 ...        ...  \n4429  {GO:0000166, GO:0005886, GO:0016020, GO:001688...     Q6BEX0  \n4430  {GO:0005886, GO:0016020, GO:0140271, GO:005505...     P39328  \n4431  {GO:0006811, GO:0042597, GO:0030001, GO:001602...     P39172  \n4432  {GO:0006811, GO:0005886, GO:0016020, GO:005508...     P39832  \n4433  {GO:0005886, GO:0006811, GO:0000166, GO:001602...     P0A9X1  \n\n[4434 rows x 10 columns]",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>common_name</th>\n      <th>seq</th>\n      <th>enzyme_reaction</th>\n      <th>cofactors</th>\n      <th>metal_features</th>\n      <th>other_features</th>\n      <th>direct_annotations</th>\n      <th>go_annotations</th>\n      <th>uniprot_id</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>\n      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>\n      <td>MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...</td>\n      <td>{ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{PWY0-1319, PWY-5667}</td>\n      <td>{GO:0005886, GO:0016020, GO:0016740, GO:001602...</td>\n      <td>P26647</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>1-PFK-MONOMER</td>\n      <td>1-phosphofructokinase</td>\n      <td>MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{PWY0-1314}</td>\n      <td>{GO:0000166, GO:0016301, GO:0008443, GO:001631...</td>\n      <td>P0AEW9</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>\n      <td>2-dehydropantoate 2-reductase</td>\n      <td>MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...</td>\n      <td>{2-DEHYDROPANTOATE-REDUCT-ENZRXN}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[NADP]</td>\n      <td>{PANTO-PWY}</td>\n      <td>{GO:0015940, GO:0005737, GO:0008677, GO:001661...</td>\n      <td>P0A9J4</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>2-ISOPROPYLMALATESYN-MONOMER</td>\n      <td>2-isopropylmalate synthase</td>\n      <td>MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...</td>\n      <td>{ENZRXN0-6250}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{LEUSYN-PWY}</td>\n      <td>{GO:0009082, GO:0046912, GO:0005737, GO:000398...</td>\n      <td>P09151</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>\n      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>\n      <td>MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...</td>\n      <td>{2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{PWY-6708, MENAQUINONESYN-PWY}</td>\n      <td>{GO:0102027, GO:0030580, GO:0008168, GO:000674...</td>\n      <td>P0A887</td>\n    </tr>\n    <tr>\n      <th>...</th>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n    </tr>\n    <tr>\n      <th>4429</th>\n      <td>YTFR-MONOMER</td>\n      <td>galactofuranose ABC transporter putative ATP b...</td>\n      <td>MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{}</td>\n      <td>{GO:0000166, GO:0005886, GO:0016020, GO:001688...</td>\n      <td>Q6BEX0</td>\n    </tr>\n    <tr>\n      <th>4430</th>\n      <td>YTFT-MONOMER</td>\n      <td>galactofuranose ABC transporter putative membr...</td>\n      <td>MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{GO:0005886, GO:0016020, GO:0140271, GO:005505...</td>\n      <td>P39328</td>\n    </tr>\n    <tr>\n      <th>4431</th>\n      <td>ZNUA-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>\n      <td>MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[zinc-coordinating residues, implicated in a s...</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{GO:0006811, GO:0042597, GO:0030001, GO:001602...</td>\n      <td>P39172</td>\n    </tr>\n    <tr>\n      <th>4432</th>\n      <td>ZNUB-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>\n      <td>MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{GO:0006811, GO:0005886, GO:0016020, GO:005508...</td>\n      <td>P39832</td>\n    </tr>\n    <tr>\n      <th>4433</th>\n      <td>ZNUC-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>\n      <td>MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{}</td>\n      <td>{GO:0005886, GO:0006811, GO:0000166, GO:001602...</td>\n      <td>P0A9X1</td>\n    </tr>\n  </tbody>\n</table>\n<p>4434 rows × 10 columns</p>\n</div>"
+     },
+     "execution_count": 12,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "proteins_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:33:13.102504Z",
+     "start_time": "2023-11-06T19:33:13.095385Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "outputs": [],
+   "source": [
+    "# use uniprot ID to fetch uniprot entry for each protein\n",
+    "for i in range(len(proteins_df.index)):\n",
+    "\n",
+    "    if i == 20:\n",
+    "        break\n",
+    "\n",
+    "\n",
+    "    protein = proteins_df.at[i, 'id']\n",
+    "    uniprot_id = proteins_df.at[i, 'uniprot_id']\n",
+    "\n",
+    "    if uniprot_id is None:\n",
+    "        continue\n",
+    "\n",
+    "    req_str = f'https://rest.uniprot.org/uniprotkb/{uniprot_id}.xml'\n",
+    "\n",
+    "    r = s.get(req_str)\n",
+    "    if r.status_code != 200:\n",
+    "        print(protein, r.status_code)\n",
+    "        continue\n",
+    "\n",
+    "    o = xmltodict.parse(r.content)['uniprot']\n",
+    "\n",
+    "    if 'entry' in o and 'comment' in o['entry']:\n",
+    "\n",
+    "        comments = o['entry']['comment']\n",
+    "\n",
+    "        if type(comments) is dict:\n",
+    "            comments = [comments]\n",
+    "\n",
+    "        for comment in comments:\n",
+    "            if 'text' in comment and 'Metal binding' in comment['text']:\n",
+    "                print(protein, comment['text'])\n",
+    "                proteins_df.at[i, 'metal_features'] = ['METAL-BINDING']\n",
+    "                break"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:33:17.081113Z",
+     "start_time": "2023-11-06T19:33:13.100684Z"
+    }
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Reload protein feature table"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                                            id  \\\n0      1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER   \n1                                1-PFK-MONOMER   \n2             2-DEHYDROPANTOATE-REDUCT-MONOMER   \n3                 2-ISOPROPYLMALATESYN-MONOMER   \n4     2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER   \n...                                        ...   \n4429                              YTFR-MONOMER   \n4430                              YTFT-MONOMER   \n4431                              ZNUA-MONOMER   \n4432                              ZNUB-MONOMER   \n4433                              ZNUC-MONOMER   \n\n                                            common_name  \\\n0     1-acylglycerol-3-phosphate <i>O</i>-acyltransf...   \n1                                 1-phosphofructokinase   \n2                         2-dehydropantoate 2-reductase   \n3                            2-isopropylmalate synthase   \n4     bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...   \n...                                                 ...   \n4429  galactofuranose ABC transporter putative ATP b...   \n4430  galactofuranose ABC transporter putative membr...   \n4431  Zn<sup>2+</sup> ABC transporter periplasmic bi...   \n4432   Zn<sup>2+</sup> ABC transporter membrane subunit   \n4433  Zn<sup>2+</sup> ABC transporter ATP binding su...   \n\n                                         metal_features other_features  \\\n0                                                    []             []   \n1                                                    []          [ATP]   \n2                                                    []         [NADP]   \n3                                                    []             []   \n4                                                    []             []   \n...                                                 ...            ...   \n4429                                                 []          [ATP]   \n4430                                                 []             []   \n4431  [zinc-coordinating residues, implicated in a s...             []   \n4432                                                 []             []   \n4433                                                 []          [ATP]   \n\n                                        enzyme_reaction cofactors  \\\n0     {ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...        {}   \n1                                                    {}        {}   \n2                     {2-DEHYDROPANTOATE-REDUCT-ENZRXN}        {}   \n3                                        {ENZRXN0-6250}        {}   \n4     {2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...        {}   \n...                                                 ...       ...   \n4429                                                 {}        {}   \n4430                                                 {}        {}   \n4431                                                 {}        {}   \n4432                                                 {}        {}   \n4433                                                 {}        {}   \n\n                  direct_annotations  \\\n0              {PWY0-1319, PWY-5667}   \n1                        {PWY0-1314}   \n2                        {PANTO-PWY}   \n3                       {LEUSYN-PWY}   \n4     {PWY-6708, MENAQUINONESYN-PWY}   \n...                              ...   \n4429                              {}   \n4430                              {}   \n4431                              {}   \n4432                              {}   \n4433                              {}   \n\n                                         go_annotations  \n0     {GO:0005886, GO:0016020, GO:0016740, GO:001602...  \n1     {GO:0000166, GO:0016301, GO:0008443, GO:001631...  \n2     {GO:0015940, GO:0005737, GO:0008677, GO:001661...  \n3     {GO:0009082, GO:0046912, GO:0005737, GO:000398...  \n4     {GO:0102027, GO:0030580, GO:0008168, GO:000674...  \n...                                                 ...  \n4429  {GO:0000166, GO:0005886, GO:0016020, GO:001688...  \n4430  {GO:0005886, GO:0016020, GO:0140271, GO:005505...  \n4431  {GO:0006811, GO:0042597, GO:0030001, GO:001602...  \n4432  {GO:0006811, GO:0005886, GO:0016020, GO:005508...  \n4433  {GO:0005886, GO:0006811, GO:0000166, GO:001602...  \n\n[4434 rows x 8 columns]",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>common_name</th>\n      <th>metal_features</th>\n      <th>other_features</th>\n      <th>enzyme_reaction</th>\n      <th>cofactors</th>\n      <th>direct_annotations</th>\n      <th>go_annotations</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>\n      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...</td>\n      <td>{}</td>\n      <td>{PWY0-1319, PWY-5667}</td>\n      <td>{GO:0005886, GO:0016020, GO:0016740, GO:001602...</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>1-PFK-MONOMER</td>\n      <td>1-phosphofructokinase</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{PWY0-1314}</td>\n      <td>{GO:0000166, GO:0016301, GO:0008443, GO:001631...</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>\n      <td>2-dehydropantoate 2-reductase</td>\n      <td>[]</td>\n      <td>[NADP]</td>\n      <td>{2-DEHYDROPANTOATE-REDUCT-ENZRXN}</td>\n      <td>{}</td>\n      <td>{PANTO-PWY}</td>\n      <td>{GO:0015940, GO:0005737, GO:0008677, GO:001661...</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>2-ISOPROPYLMALATESYN-MONOMER</td>\n      <td>2-isopropylmalate synthase</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{ENZRXN0-6250}</td>\n      <td>{}</td>\n      <td>{LEUSYN-PWY}</td>\n      <td>{GO:0009082, GO:0046912, GO:0005737, GO:000398...</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>\n      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...</td>\n      <td>{}</td>\n      <td>{PWY-6708, MENAQUINONESYN-PWY}</td>\n      <td>{GO:0102027, GO:0030580, GO:0008168, GO:000674...</td>\n    </tr>\n    <tr>\n      <th>...</th>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n    </tr>\n    <tr>\n      <th>4429</th>\n      <td>YTFR-MONOMER</td>\n      <td>galactofuranose ABC transporter putative ATP b...</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{GO:0000166, GO:0005886, GO:0016020, GO:001688...</td>\n    </tr>\n    <tr>\n      <th>4430</th>\n      <td>YTFT-MONOMER</td>\n      <td>galactofuranose ABC transporter putative membr...</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{GO:0005886, GO:0016020, GO:0140271, GO:005505...</td>\n    </tr>\n    <tr>\n      <th>4431</th>\n      <td>ZNUA-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>\n      <td>[zinc-coordinating residues, implicated in a s...</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{GO:0006811, GO:0042597, GO:0030001, GO:001602...</td>\n    </tr>\n    <tr>\n      <th>4432</th>\n      <td>ZNUB-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{GO:0006811, GO:0005886, GO:0016020, GO:005508...</td>\n    </tr>\n    <tr>\n      <th>4433</th>\n      <td>ZNUC-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>{GO:0005886, GO:0006811, GO:0000166, GO:001602...</td>\n    </tr>\n  </tbody>\n</table>\n<p>4434 rows × 8 columns</p>\n</div>"
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# proteins_df = pd.read_parquet('notebooks/fbagd/data/raw_protein_features.parquet')\n",
+    "# proteins_df['metal_features'] = proteins_df['metal_features'].apply(ast.literal_eval)\n",
+    "# # for rows of proteins with where other_features is set, convert from string to set with literal_eval\n",
+    "# proteins_df.loc[proteins_df['other_features'].str.startswith('['), 'other_features'] = \\\n",
+    "#     proteins_df.loc[proteins_df['other_features'].str.startswith('['), 'other_features'].apply(ast.literal_eval)\n",
+    "\n",
+    "filter_protein_df = proteins_df.copy().loc[:, ['id', 'common_name', 'metal_features', 'other_features', 'enzyme_reaction', 'cofactors', 'direct_annotations', 'go_annotations']]\n",
+    "filter_protein_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:33:17.120296Z",
+     "start_time": "2023-11-06T19:33:17.080677Z"
+    }
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Annotate complexation with EcoCyc data"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                                    id  \\\n0                                1-PFK   \n1                2OXOGLUTARATEDEH-CPLX   \n2          3-ISOPROPYLMALDEHYDROG-CPLX   \n3              3-ISOPROPYLMALISOM-CPLX   \n4     3-METHYL-2-OXOBUT-OHCH3XFER-CPLX   \n...                                ...   \n1088                        CPLX0-3964   \n1089                        CPLX0-8028   \n1090                        CPLX0-8053   \n1091                        CPLX0-8253   \n1092                          SRP-CPLX   \n\n                                    common_name  \\\n0                                           NaN   \n1          2-oxoglutarate dehydrogenase complex   \n2                                           NaN   \n3                 3-isopropylmalate dehydratase   \n4                                           NaN   \n...                                         ...   \n1088                                   ribosome   \n1089                 CsrA complex with McaS RNA   \n1090  SelB-L-selenocysteinyl-tRNA<sup>sec</sup>   \n1091                 CsrA complex with CsrC RNA   \n1092                Signal Recognition Particle   \n\n                                          stoichiometry  \n0                     {'1-PFK': 1, '1-PFK-MONOMER': -2}  \n1     {'2OXOGLUTARATEDEH-CPLX': 1, 'E1O': -1, 'E2O':...  \n2     {'3-ISOPROPYLMALDEHYDROG-CPLX': 1, '3-ISOPROPY...  \n3     {'3-ISOPROPYLMALISOM-CPLX': 1, 'LEUC-MONOMER':...  \n4     {'3-METHYL-2-OXOBUT-OHCH3XFER-CPLX': 1, '3-CH3...  \n...                                                 ...  \n1088  {'CPLX0-3964': 1, 'CPLX0-3953': -1, 'CPLX0-396...  \n1089  {'CPLX0-8028': 1, 'IS061-RNA': -1, 'CPLX0-7956...  \n1090           {'CPLX0-8053': 1, 'EG10942-MONOMER': -1}  \n1091  {'CPLX0-8253': 1, 'CSRC-RNA': -1, 'EG11447-MON...  \n1092  {'SRP-CPLX': 1, 'EG10300-MONOMER': -1, 'FFS-RN...  \n\n[1093 rows x 3 columns]",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>common_name</th>\n      <th>stoichiometry</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>1-PFK</td>\n      <td>NaN</td>\n      <td>{'1-PFK': 1, '1-PFK-MONOMER': -2}</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>2OXOGLUTARATEDEH-CPLX</td>\n      <td>2-oxoglutarate dehydrogenase complex</td>\n      <td>{'2OXOGLUTARATEDEH-CPLX': 1, 'E1O': -1, 'E2O':...</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>3-ISOPROPYLMALDEHYDROG-CPLX</td>\n      <td>NaN</td>\n      <td>{'3-ISOPROPYLMALDEHYDROG-CPLX': 1, '3-ISOPROPY...</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>3-ISOPROPYLMALISOM-CPLX</td>\n      <td>3-isopropylmalate dehydratase</td>\n      <td>{'3-ISOPROPYLMALISOM-CPLX': 1, 'LEUC-MONOMER':...</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>3-METHYL-2-OXOBUT-OHCH3XFER-CPLX</td>\n      <td>NaN</td>\n      <td>{'3-METHYL-2-OXOBUT-OHCH3XFER-CPLX': 1, '3-CH3...</td>\n    </tr>\n    <tr>\n      <th>...</th>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n    </tr>\n    <tr>\n      <th>1088</th>\n      <td>CPLX0-3964</td>\n      <td>ribosome</td>\n      <td>{'CPLX0-3964': 1, 'CPLX0-3953': -1, 'CPLX0-396...</td>\n    </tr>\n    <tr>\n      <th>1089</th>\n      <td>CPLX0-8028</td>\n      <td>CsrA complex with McaS RNA</td>\n      <td>{'CPLX0-8028': 1, 'IS061-RNA': -1, 'CPLX0-7956...</td>\n    </tr>\n    <tr>\n      <th>1090</th>\n      <td>CPLX0-8053</td>\n      <td>SelB-L-selenocysteinyl-tRNA&lt;sup&gt;sec&lt;/sup&gt;</td>\n      <td>{'CPLX0-8053': 1, 'EG10942-MONOMER': -1}</td>\n    </tr>\n    <tr>\n      <th>1091</th>\n      <td>CPLX0-8253</td>\n      <td>CsrA complex with CsrC RNA</td>\n      <td>{'CPLX0-8253': 1, 'CSRC-RNA': -1, 'EG11447-MON...</td>\n    </tr>\n    <tr>\n      <th>1092</th>\n      <td>SRP-CPLX</td>\n      <td>Signal Recognition Particle</td>\n      <td>{'SRP-CPLX': 1, 'EG10300-MONOMER': -1, 'FFS-RN...</td>\n    </tr>\n  </tbody>\n</table>\n<p>1093 rows × 3 columns</p>\n</div>"
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "complex_df = pd.read_csv('reconstruction/ecoli/flat/complexation_reactions.tsv', sep='\\t', comment='#').loc[:, ['id','common_name', 'stoichiometry']]\n",
+    "\n",
+    "\n",
+    "removed_complexes = pd.read_csv('reconstruction/ecoli/flat/complexation_reactions_removed.tsv', sep='\\t', comment='#')\n",
+    "removed_complex_ids = removed_complexes['id'].tolist()\n",
+    "# add ribosome back in to complex_df\n",
+    "removed_complex_ids.remove('CPLX0-3964_RXN')\n",
+    "\n",
+    "# remove rows where id starts with '#'\n",
+    "complex_df = complex_df[~complex_df['id'].str.startswith('#')].reset_index(drop=True)\n",
+    "\n",
+    "# remove rows of complex_df where id matches an id in removed_complexes\n",
+    "complex_df = complex_df[~complex_df['id'].isin(removed_complex_ids)].reset_index(drop=True)\n",
+    "complex_df.stoichiometry = complex_df.stoichiometry.astype(object)\n",
+    "\n",
+    "\n",
+    "for i, stoich in enumerate(complex_df.loc[:, 'stoichiometry']):\n",
+    "\n",
+    "    if type(stoich) is str and stoich[0] == '{':\n",
+    "        stoich = stoich.replace('null', '-1')\n",
+    "        stoich = ast.literal_eval(stoich)\n",
+    "\n",
+    "        complex_df.at[i, 'stoichiometry'] = stoich\n",
+    "\n",
+    "    else:\n",
+    "        complex_df.at[i, 'stoichiometry'] = {}\n",
+    "\n",
+    "\n",
+    "# for each row, find dict entry with positive value\n",
+    "for i in range(len(complex_df.index)):\n",
+    "\n",
+    "    stoich = complex_df.loc[i, 'stoichiometry']\n",
+    "\n",
+    "    for k,v in stoich.items():\n",
+    "        if v > 0:\n",
+    "            complex_df.at[i, 'id'] = k\n",
+    "\n",
+    "complex_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:38:05.218215Z",
+     "start_time": "2023-11-06T19:38:05.138711Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "0\n",
+      "100\n",
+      "200\n",
+      "300\n",
+      "CPLX0-7450 404\n",
+      "400\n",
+      "500\n",
+      "600\n",
+      "700\n",
+      "800\n",
+      "900\n",
+      "1000\n"
+     ]
+    }
+   ],
+   "source": [
+    "complex_df[\"cofactors\"] = 0\n",
+    "complex_df[\"cofactors\"] = complex_df[\"cofactors\"].astype(object)\n",
+    "\n",
+    "complex_df[\"enzyme_reaction\"] = 0\n",
+    "complex_df[\"enzyme_reaction\"] = complex_df[\"enzyme_reaction\"].astype(object)\n",
+    "\n",
+    "for i in range(len(complex_df.index)):\n",
+    "\n",
+    "    if i % 100 == 0:\n",
+    "        print(i)\n",
+    "\n",
+    "    complex = complex_df.loc[i, 'id']\n",
+    "\n",
+    "    req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{complex}&detail=low'\n",
+    "\n",
+    "    r = s.get(req_str)\n",
+    "    if r.status_code != 200:\n",
+    "        print(complex, r.status_code)\n",
+    "        complex_df.at[i, 'enzyme_reaction'] = set()\n",
+    "        complex_df.at[i, 'cofactors'] = set()\n",
+    "        continue\n",
+    "\n",
+    "    oo = xmltodict.parse(r.content)['ptools-xml']['Protein']\n",
+    "\n",
+    "\n",
+    "    # if enzyme\n",
+    "    if 'catalyzes' in oo:\n",
+    "        o = oo['catalyzes']['Enzymatic-Reaction']\n",
+    "\n",
+    "        if type(o) is dict:\n",
+    "            o = [o]\n",
+    "\n",
+    "        cofactor_set = set()\n",
+    "        enz_rxn_set = set()\n",
+    "\n",
+    "        for enzrxn in o:\n",
+    "\n",
+    "            # i assume common names will be the same, if no existing replace it\n",
+    "            if 'common-name' not in oo:\n",
+    "                complex_df.at[i, 'common_name'] = enzrxn['common-name']['#text']\n",
+    "\n",
+    "            enz_id = enzrxn['@frameid']\n",
+    "\n",
+    "            enz_rxn_set.add(enz_id)\n",
+    "\n",
+    "            enz_req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{enz_id}&detail=high'\n",
+    "\n",
+    "            rz = s.get(enz_req_str)\n",
+    "            oe = xmltodict.parse(rz.content)['ptools-xml']['Enzymatic-Reaction']\n",
+    "\n",
+    "            if \"cofactor\" in oe:\n",
+    "                oe = oe['cofactor']\n",
+    "\n",
+    "                if type(oe) is dict:\n",
+    "                    oe = [oe]\n",
+    "\n",
+    "                for cofactor in oe:\n",
+    "                    cof = cofactor['Compound']['@frameid']\n",
+    "                    cofactor_set.add(cof)\n",
+    "\n",
+    "        complex_df.at[i, 'enzyme_reaction'] = enz_rxn_set\n",
+    "        complex_df.at[i, 'cofactors'] = cofactor_set\n",
+    "\n",
+    "    else:\n",
+    "        complex_df.at[i, 'enzyme_reaction'] = set()\n",
+    "        complex_df.at[i, 'cofactors'] = set()"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:41:25.779892Z",
+     "start_time": "2023-11-06T19:38:13.045267Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                                    id  \\\n0                                1-PFK   \n1                2OXOGLUTARATEDEH-CPLX   \n2          3-ISOPROPYLMALDEHYDROG-CPLX   \n3              3-ISOPROPYLMALISOM-CPLX   \n4     3-METHYL-2-OXOBUT-OHCH3XFER-CPLX   \n...                                ...   \n1088                        CPLX0-3964   \n1089                        CPLX0-8028   \n1090                        CPLX0-8053   \n1091                        CPLX0-8253   \n1092                          SRP-CPLX   \n\n                                           common_name  \\\n0                                1-phosphofructokinase   \n1                 2-oxoglutarate dehydrogenase complex   \n2                      3-isopropylmalate dehydrogenase   \n3                        3-isopropylmalate dehydratase   \n4     3-methyl-2-oxobutanoate hydroxymethyltransferase   \n...                                                ...   \n1088                                          ribosome   \n1089                        CsrA complex with McaS RNA   \n1090         SelB-L-selenocysteinyl-tRNA<sup>sec</sup>   \n1091                        CsrA complex with CsrC RNA   \n1092                       Signal Recognition Particle   \n\n                                          stoichiometry  \\\n0                     {'1-PFK': 1, '1-PFK-MONOMER': -2}   \n1     {'2OXOGLUTARATEDEH-CPLX': 1, 'E1O': -1, 'E2O':...   \n2     {'3-ISOPROPYLMALDEHYDROG-CPLX': 1, '3-ISOPROPY...   \n3     {'3-ISOPROPYLMALISOM-CPLX': 1, 'LEUC-MONOMER':...   \n4     {'3-METHYL-2-OXOBUT-OHCH3XFER-CPLX': 1, '3-CH3...   \n...                                                 ...   \n1088  {'CPLX0-3964': 1, 'CPLX0-3953': -1, 'CPLX0-396...   \n1089  {'CPLX0-8028': 1, 'IS061-RNA': -1, 'CPLX0-7956...   \n1090           {'CPLX0-8053': 1, 'EG10942-MONOMER': -1}   \n1091  {'CPLX0-8253': 1, 'CSRC-RNA': -1, 'EG11447-MON...   \n1092  {'SRP-CPLX': 1, 'EG10300-MONOMER': -1, 'FFS-RN...   \n\n                                             cofactors  \\\n0                                               {MG+2}   \n1     {THIAMINE-PYROPHOSPHATE, FAD, LIPOIC-ACID, MG+2}   \n2                                         {MN+2, MG+2}   \n3                                              {CPD-7}   \n4                                               {MG+2}   \n...                                                ...   \n1088                                                {}   \n1089                                                {}   \n1090                                                {}   \n1091                                                {}   \n1092                                                {}   \n\n                           enzyme_reaction  \n0                  {1PFRUCTPHOSPHN-ENZRXN}  \n1                {2OXOGLUTARATEDEH-ENZRXN}  \n2          {3-ISOPROPYLMALDEHYDROG-ENZRXN}  \n3              {3-ISOPROPYLMALISOM-ENZRXN}  \n4     {3-METHYL-2-OXOBUT-OHCH3XFER-ENZRXN}  \n...                                    ...  \n1088                                    {}  \n1089                                    {}  \n1090                                    {}  \n1091                                    {}  \n1092                                    {}  \n\n[1093 rows x 5 columns]",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>common_name</th>\n      <th>stoichiometry</th>\n      <th>cofactors</th>\n      <th>enzyme_reaction</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>1-PFK</td>\n      <td>1-phosphofructokinase</td>\n      <td>{'1-PFK': 1, '1-PFK-MONOMER': -2}</td>\n      <td>{MG+2}</td>\n      <td>{1PFRUCTPHOSPHN-ENZRXN}</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>2OXOGLUTARATEDEH-CPLX</td>\n      <td>2-oxoglutarate dehydrogenase complex</td>\n      <td>{'2OXOGLUTARATEDEH-CPLX': 1, 'E1O': -1, 'E2O':...</td>\n      <td>{THIAMINE-PYROPHOSPHATE, FAD, LIPOIC-ACID, MG+2}</td>\n      <td>{2OXOGLUTARATEDEH-ENZRXN}</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>3-ISOPROPYLMALDEHYDROG-CPLX</td>\n      <td>3-isopropylmalate dehydrogenase</td>\n      <td>{'3-ISOPROPYLMALDEHYDROG-CPLX': 1, '3-ISOPROPY...</td>\n      <td>{MN+2, MG+2}</td>\n      <td>{3-ISOPROPYLMALDEHYDROG-ENZRXN}</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>3-ISOPROPYLMALISOM-CPLX</td>\n      <td>3-isopropylmalate dehydratase</td>\n      <td>{'3-ISOPROPYLMALISOM-CPLX': 1, 'LEUC-MONOMER':...</td>\n      <td>{CPD-7}</td>\n      <td>{3-ISOPROPYLMALISOM-ENZRXN}</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>3-METHYL-2-OXOBUT-OHCH3XFER-CPLX</td>\n      <td>3-methyl-2-oxobutanoate hydroxymethyltransferase</td>\n      <td>{'3-METHYL-2-OXOBUT-OHCH3XFER-CPLX': 1, '3-CH3...</td>\n      <td>{MG+2}</td>\n      <td>{3-METHYL-2-OXOBUT-OHCH3XFER-ENZRXN}</td>\n    </tr>\n    <tr>\n      <th>...</th>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n    </tr>\n    <tr>\n      <th>1088</th>\n      <td>CPLX0-3964</td>\n      <td>ribosome</td>\n      <td>{'CPLX0-3964': 1, 'CPLX0-3953': -1, 'CPLX0-396...</td>\n      <td>{}</td>\n      <td>{}</td>\n    </tr>\n    <tr>\n      <th>1089</th>\n      <td>CPLX0-8028</td>\n      <td>CsrA complex with McaS RNA</td>\n      <td>{'CPLX0-8028': 1, 'IS061-RNA': -1, 'CPLX0-7956...</td>\n      <td>{}</td>\n      <td>{}</td>\n    </tr>\n    <tr>\n      <th>1090</th>\n      <td>CPLX0-8053</td>\n      <td>SelB-L-selenocysteinyl-tRNA&lt;sup&gt;sec&lt;/sup&gt;</td>\n      <td>{'CPLX0-8053': 1, 'EG10942-MONOMER': -1}</td>\n      <td>{}</td>\n      <td>{}</td>\n    </tr>\n    <tr>\n      <th>1091</th>\n      <td>CPLX0-8253</td>\n      <td>CsrA complex with CsrC RNA</td>\n      <td>{'CPLX0-8253': 1, 'CSRC-RNA': -1, 'EG11447-MON...</td>\n      <td>{}</td>\n      <td>{}</td>\n    </tr>\n    <tr>\n      <th>1092</th>\n      <td>SRP-CPLX</td>\n      <td>Signal Recognition Particle</td>\n      <td>{'SRP-CPLX': 1, 'EG10300-MONOMER': -1, 'FFS-RN...</td>\n      <td>{}</td>\n      <td>{}</td>\n    </tr>\n  </tbody>\n</table>\n<p>1093 rows × 5 columns</p>\n</div>"
+     },
+     "execution_count": 19,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "complex_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:41:25.792944Z",
+     "start_time": "2023-11-06T19:41:25.779718Z"
+    }
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Get cofactor elemental composition and more"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Any+2 404\n"
+     ]
+    }
+   ],
+   "source": [
+    "# get set of all cofactors\n",
+    "all_metal_cofactors = set(ALLOWED_METAL_NAMES.values())\n",
+    "all_other_cofactors = ACCEPTED_OTHER_FEATURES\n",
+    "\n",
+    "filter_cofactor_df = pd.DataFrame(columns=['id', 'common_name', 'elemental_composition'])\n",
+    "filter_cofactor_df['id'] = list(all_metal_cofactors | all_other_cofactors)\n",
+    "\n",
+    "filter_cofactor_df['elemental_composition'] = 0\n",
+    "filter_cofactor_df['elemental_composition'] = filter_cofactor_df['elemental_composition'].astype(object)\n",
+    "\n",
+    "# for each cofactor, get elemental composition\n",
+    "for i in range(len(filter_cofactor_df.index)):\n",
+    "\n",
+    "    compound = filter_cofactor_df.loc[i, 'id']\n",
+    "    atom_dict = {}\n",
+    "\n",
+    "    url_name = compound.replace('+', '%2b')\n",
+    "\n",
+    "    req_str = f'https://websvc.biocyc.org/getxml?id=ECOLI:{url_name}&detail=full'\n",
+    "\n",
+    "    r = s.get(req_str)\n",
+    "    if r.status_code != 200:\n",
+    "        print(compound, r.status_code)\n",
+    "        filter_cofactor_df.at[i, 'elemental_composition'] = {}\n",
+    "        continue\n",
+    "\n",
+    "    o = xmltodict.parse(r.content)['ptools-xml']\n",
+    "\n",
+    "    filter_cofactor_df['common_name'][i] = o['Compound']['common-name']['#text']\n",
+    "\n",
+    "    atoms = o['Compound']['cml']['molecule']['atomArray']['atom']\n",
+    "    if type(atoms) is dict:\n",
+    "        atoms = [atoms]\n",
+    "\n",
+    "    for atom in atoms:\n",
+    "        element = atom['@elementType']\n",
+    "\n",
+    "        # either add new element or add to existing element\n",
+    "        if element not in atom_dict:\n",
+    "            atom_dict[element] = 1\n",
+    "        else:\n",
+    "            atom_dict[element] += 1\n",
+    "\n",
+    "    filter_cofactor_df.at[i, 'elemental_composition'] = atom_dict"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:41:31.270913Z",
+     "start_time": "2023-11-06T19:41:25.793365Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                        id                             common_name  \\\n0      PYRIDOXAL_PHOSPHATE                  pyridoxal 5'-phosphate   \n1              LIPOIC-ACID                      (<i>R</i>)-lipoate   \n2                   3FE-4S          a [3Fe-4S] iron-sulfur cluster   \n3                     ZN+2                         Zn<SUP>2+</SUP>   \n4   THIAMINE-PYROPHOSPHATE                    thiamine diphosphate   \n5                      FMN                                     FMN   \n6                    Any+2                                     NaN   \n7                      NA+                          Na<SUP>+</SUP>   \n8                     MG+2                         Mg<SUP>2+</SUP>   \n9                     FE+2                         Fe<sup>2+</sup>   \n10                    MN+2                         Mn<SUP>2+</SUP>   \n11                  Heme-b                           heme <i>b</i>   \n12                CPD-8123  MoO<sub>2</sub>-molybdopterin cofactor   \n13                  BIOTIN                                  biotin   \n14                    CA+2                         Ca<SUP>2+</SUP>   \n15            COB-I-ALAMIN                            cob(I)alamin   \n16                   CPD-7          a [4Fe-4S] iron-sulfur cluster   \n17                   CPD-6          a [2Fe-2S] iron-sulfur cluster   \n18                   CPD-3                               molybdate   \n19        L-SELENOCYSTEINE                        L-selenocysteine   \n20                    NI+2                         Ni<sup>2+</sup>   \n21                      K+                           K<SUP>+</SUP>   \n22                    CO+2                         Co<SUP>2+</SUP>   \n23                    CU+2                         Cu<SUP>2+</SUP>   \n24                     FAD                                     FAD   \n\n                                elemental_composition  \n0                    {'C': 8, 'N': 1, 'O': 6, 'P': 1}  \n1                            {'C': 8, 'O': 2, 'S': 2}  \n2                                   {'FE': 3, 'S': 4}  \n3                                           {'ZN': 1}  \n4           {'C': 12, 'N': 4, 'O': 7, 'P': 2, 'S': 1}  \n5                   {'C': 17, 'N': 4, 'O': 9, 'P': 1}  \n6                                                  {}  \n7                                           {'NA': 1}  \n8                                           {'MG': 1}  \n9                                           {'FE': 1}  \n10                                          {'MN': 1}  \n11                 {'C': 34, 'N': 4, 'O': 4, 'FE': 1}  \n12  {'C': 10, 'N': 5, 'O': 8, 'P': 1, 'S': 2, 'MO'...  \n13          {'C': 10, 'N': 2, 'O': 3, 'S': 1, 'H': 3}  \n14                                          {'CA': 1}  \n15  {'C': 62, 'N': 13, 'O': 14, 'P': 1, 'CO': 1, '...  \n16                                  {'FE': 4, 'S': 4}  \n17                          {'FE': 2, 'S': 6, 'R': 4}  \n18                                  {'MO': 1, 'O': 4}  \n19                  {'C': 3, 'N': 1, 'O': 2, 'SE': 1}  \n20                                          {'NI': 1}  \n21                                           {'K': 1}  \n22                                          {'CO': 1}  \n23                                          {'CU': 1}  \n24                 {'C': 27, 'N': 9, 'O': 15, 'P': 2}  ",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>common_name</th>\n      <th>elemental_composition</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>PYRIDOXAL_PHOSPHATE</td>\n      <td>pyridoxal 5'-phosphate</td>\n      <td>{'C': 8, 'N': 1, 'O': 6, 'P': 1}</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>LIPOIC-ACID</td>\n      <td>(&lt;i&gt;R&lt;/i&gt;)-lipoate</td>\n      <td>{'C': 8, 'O': 2, 'S': 2}</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>3FE-4S</td>\n      <td>a [3Fe-4S] iron-sulfur cluster</td>\n      <td>{'FE': 3, 'S': 4}</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>ZN+2</td>\n      <td>Zn&lt;SUP&gt;2+&lt;/SUP&gt;</td>\n      <td>{'ZN': 1}</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>THIAMINE-PYROPHOSPHATE</td>\n      <td>thiamine diphosphate</td>\n      <td>{'C': 12, 'N': 4, 'O': 7, 'P': 2, 'S': 1}</td>\n    </tr>\n    <tr>\n      <th>5</th>\n      <td>FMN</td>\n      <td>FMN</td>\n      <td>{'C': 17, 'N': 4, 'O': 9, 'P': 1}</td>\n    </tr>\n    <tr>\n      <th>6</th>\n      <td>Any+2</td>\n      <td>NaN</td>\n      <td>{}</td>\n    </tr>\n    <tr>\n      <th>7</th>\n      <td>NA+</td>\n      <td>Na&lt;SUP&gt;+&lt;/SUP&gt;</td>\n      <td>{'NA': 1}</td>\n    </tr>\n    <tr>\n      <th>8</th>\n      <td>MG+2</td>\n      <td>Mg&lt;SUP&gt;2+&lt;/SUP&gt;</td>\n      <td>{'MG': 1}</td>\n    </tr>\n    <tr>\n      <th>9</th>\n      <td>FE+2</td>\n      <td>Fe&lt;sup&gt;2+&lt;/sup&gt;</td>\n      <td>{'FE': 1}</td>\n    </tr>\n    <tr>\n      <th>10</th>\n      <td>MN+2</td>\n      <td>Mn&lt;SUP&gt;2+&lt;/SUP&gt;</td>\n      <td>{'MN': 1}</td>\n    </tr>\n    <tr>\n      <th>11</th>\n      <td>Heme-b</td>\n      <td>heme &lt;i&gt;b&lt;/i&gt;</td>\n      <td>{'C': 34, 'N': 4, 'O': 4, 'FE': 1}</td>\n    </tr>\n    <tr>\n      <th>12</th>\n      <td>CPD-8123</td>\n      <td>MoO&lt;sub&gt;2&lt;/sub&gt;-molybdopterin cofactor</td>\n      <td>{'C': 10, 'N': 5, 'O': 8, 'P': 1, 'S': 2, 'MO'...</td>\n    </tr>\n    <tr>\n      <th>13</th>\n      <td>BIOTIN</td>\n      <td>biotin</td>\n      <td>{'C': 10, 'N': 2, 'O': 3, 'S': 1, 'H': 3}</td>\n    </tr>\n    <tr>\n      <th>14</th>\n      <td>CA+2</td>\n      <td>Ca&lt;SUP&gt;2+&lt;/SUP&gt;</td>\n      <td>{'CA': 1}</td>\n    </tr>\n    <tr>\n      <th>15</th>\n      <td>COB-I-ALAMIN</td>\n      <td>cob(I)alamin</td>\n      <td>{'C': 62, 'N': 13, 'O': 14, 'P': 1, 'CO': 1, '...</td>\n    </tr>\n    <tr>\n      <th>16</th>\n      <td>CPD-7</td>\n      <td>a [4Fe-4S] iron-sulfur cluster</td>\n      <td>{'FE': 4, 'S': 4}</td>\n    </tr>\n    <tr>\n      <th>17</th>\n      <td>CPD-6</td>\n      <td>a [2Fe-2S] iron-sulfur cluster</td>\n      <td>{'FE': 2, 'S': 6, 'R': 4}</td>\n    </tr>\n    <tr>\n      <th>18</th>\n      <td>CPD-3</td>\n      <td>molybdate</td>\n      <td>{'MO': 1, 'O': 4}</td>\n    </tr>\n    <tr>\n      <th>19</th>\n      <td>L-SELENOCYSTEINE</td>\n      <td>L-selenocysteine</td>\n      <td>{'C': 3, 'N': 1, 'O': 2, 'SE': 1}</td>\n    </tr>\n    <tr>\n      <th>20</th>\n      <td>NI+2</td>\n      <td>Ni&lt;sup&gt;2+&lt;/sup&gt;</td>\n      <td>{'NI': 1}</td>\n    </tr>\n    <tr>\n      <th>21</th>\n      <td>K+</td>\n      <td>K&lt;SUP&gt;+&lt;/SUP&gt;</td>\n      <td>{'K': 1}</td>\n    </tr>\n    <tr>\n      <th>22</th>\n      <td>CO+2</td>\n      <td>Co&lt;SUP&gt;2+&lt;/SUP&gt;</td>\n      <td>{'CO': 1}</td>\n    </tr>\n    <tr>\n      <th>23</th>\n      <td>CU+2</td>\n      <td>Cu&lt;SUP&gt;2+&lt;/SUP&gt;</td>\n      <td>{'CU': 1}</td>\n    </tr>\n    <tr>\n      <th>24</th>\n      <td>FAD</td>\n      <td>FAD</td>\n      <td>{'C': 27, 'N': 9, 'O': 15, 'P': 2}</td>\n    </tr>\n  </tbody>\n</table>\n</div>"
+     },
+     "execution_count": 21,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "filter_cofactor_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:41:31.287093Z",
+     "start_time": "2023-11-06T19:41:31.282359Z"
+    }
+   }
+  },
+  {
+   "cell_type": "markdown",
+   "source": [
+    "## Save tables to avoid having to re-download"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "outputs": [],
+   "source": [
+    "# save complex_df to csv in a way that preserves dicts\n",
+    "complex_df.to_csv('notebooks/cofactors/data/raw_complexes.csv', index=False)\n",
+    "proteins_df.to_csv('notebooks/cofactors/data/raw_proteins.csv', index=False)\n",
+    "filter_cofactor_df.to_csv('notebooks/cofactors/data/raw_cofactors.csv', index=False)\n",
+    "pathway_df.to_csv('notebooks/cofactors/data/raw_pathways.csv', index=False)"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:41:31.358800Z",
+     "start_time": "2023-11-06T19:41:31.287277Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "outputs": [
+    {
+     "data": {
+      "text/plain": "                                            id  \\\n0      1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER   \n1                                1-PFK-MONOMER   \n2             2-DEHYDROPANTOATE-REDUCT-MONOMER   \n3                 2-ISOPROPYLMALATESYN-MONOMER   \n4     2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER   \n...                                        ...   \n4429                              YTFR-MONOMER   \n4430                              YTFT-MONOMER   \n4431                              ZNUA-MONOMER   \n4432                              ZNUB-MONOMER   \n4433                              ZNUC-MONOMER   \n\n                                            common_name  \\\n0     1-acylglycerol-3-phosphate <i>O</i>-acyltransf...   \n1                                 1-phosphofructokinase   \n2                         2-dehydropantoate 2-reductase   \n3                            2-isopropylmalate synthase   \n4     bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...   \n...                                                 ...   \n4429  galactofuranose ABC transporter putative ATP b...   \n4430  galactofuranose ABC transporter putative membr...   \n4431  Zn<sup>2+</sup> ABC transporter periplasmic bi...   \n4432   Zn<sup>2+</sup> ABC transporter membrane subunit   \n4433  Zn<sup>2+</sup> ABC transporter ATP binding su...   \n\n                                                    seq  \\\n0     MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...   \n1     MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...   \n2     MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...   \n3     MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...   \n4     MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...   \n...                                                 ...   \n4429  MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...   \n4430  MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...   \n4431  MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...   \n4432  MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...   \n4433  MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...   \n\n                                        enzyme_reaction cofactors  \\\n0     {ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...        {}   \n1                                                    {}        {}   \n2                     {2-DEHYDROPANTOATE-REDUCT-ENZRXN}        {}   \n3                                        {ENZRXN0-6250}        {}   \n4     {2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...        {}   \n...                                                 ...       ...   \n4429                                                 {}        {}   \n4430                                                 {}        {}   \n4431                                                 {}        {}   \n4432                                                 {}        {}   \n4433                                                 {}        {}   \n\n                                         metal_features other_features  \\\n0                                                    []             []   \n1                                                    []          [ATP]   \n2                                                    []         [NADP]   \n3                                                    []             []   \n4                                                    []             []   \n...                                                 ...            ...   \n4429                                                 []          [ATP]   \n4430                                                 []             []   \n4431  [zinc-coordinating residues, implicated in a s...             []   \n4432                                                 []             []   \n4433                                                 []          [ATP]   \n\n                  direct_annotations  \\\n0              {PWY0-1319, PWY-5667}   \n1                        {PWY0-1314}   \n2                        {PANTO-PWY}   \n3                       {LEUSYN-PWY}   \n4     {PWY-6708, MENAQUINONESYN-PWY}   \n...                              ...   \n4429                              {}   \n4430                              {}   \n4431                              {}   \n4432                              {}   \n4433                              {}   \n\n                                         go_annotations uniprot_id  \n0     {GO:0005886, GO:0016020, GO:0016740, GO:001602...     P26647  \n1     {GO:0000166, GO:0016301, GO:0008443, GO:001631...     P0AEW9  \n2     {GO:0015940, GO:0005737, GO:0008677, GO:001661...     P0A9J4  \n3     {GO:0009082, GO:0046912, GO:0005737, GO:000398...     P09151  \n4     {GO:0102027, GO:0030580, GO:0008168, GO:000674...     P0A887  \n...                                                 ...        ...  \n4429  {GO:0000166, GO:0005886, GO:0016020, GO:001688...     Q6BEX0  \n4430  {GO:0005886, GO:0016020, GO:0140271, GO:005505...     P39328  \n4431  {GO:0006811, GO:0042597, GO:0030001, GO:001602...     P39172  \n4432  {GO:0006811, GO:0005886, GO:0016020, GO:005508...     P39832  \n4433  {GO:0005886, GO:0006811, GO:0000166, GO:001602...     P0A9X1  \n\n[4434 rows x 10 columns]",
+      "text/html": "<div>\n<style scoped>\n    .dataframe tbody tr th:only-of-type {\n        vertical-align: middle;\n    }\n\n    .dataframe tbody tr th {\n        vertical-align: top;\n    }\n\n    .dataframe thead th {\n        text-align: right;\n    }\n</style>\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>id</th>\n      <th>common_name</th>\n      <th>seq</th>\n      <th>enzyme_reaction</th>\n      <th>cofactors</th>\n      <th>metal_features</th>\n      <th>other_features</th>\n      <th>direct_annotations</th>\n      <th>go_annotations</th>\n      <th>uniprot_id</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>1-ACYLGLYCEROL-3-P-ACYLTRANSFER-MONOMER</td>\n      <td>1-acylglycerol-3-phosphate &lt;i&gt;O&lt;/i&gt;-acyltransf...</td>\n      <td>MLYIFRLIITVIYSILVCVFGSIYCLFSPRNPKHVATFGHMFGRLA...</td>\n      <td>{ENZRXN0-7991, 1-ACYLGLYCEROL-3-P-ACYLTRANSFER...</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{PWY0-1319, PWY-5667}</td>\n      <td>{GO:0005886, GO:0016020, GO:0016740, GO:001602...</td>\n      <td>P26647</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>1-PFK-MONOMER</td>\n      <td>1-phosphofructokinase</td>\n      <td>MSRRVATITLNPAYDLVGFCPEIERGEVNLVKTTGLHAAGKGINVA...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{PWY0-1314}</td>\n      <td>{GO:0000166, GO:0016301, GO:0008443, GO:001631...</td>\n      <td>P0AEW9</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>2-DEHYDROPANTOATE-REDUCT-MONOMER</td>\n      <td>2-dehydropantoate 2-reductase</td>\n      <td>MKITVLGCGALGQLWLTALCKQGHEVQGWLRVPQPYCSVNLVETDG...</td>\n      <td>{2-DEHYDROPANTOATE-REDUCT-ENZRXN}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[NADP]</td>\n      <td>{PANTO-PWY}</td>\n      <td>{GO:0015940, GO:0005737, GO:0008677, GO:001661...</td>\n      <td>P0A9J4</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>2-ISOPROPYLMALATESYN-MONOMER</td>\n      <td>2-isopropylmalate synthase</td>\n      <td>MSQQVIIFDTTLRDGEQALQASLSVKEKLQIALALERMGVDVMEVG...</td>\n      <td>{ENZRXN0-6250}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{LEUSYN-PWY}</td>\n      <td>{GO:0009082, GO:0046912, GO:0005737, GO:000398...</td>\n      <td>P09151</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>2-OCTAPRENYL-METHOXY-BENZOQ-METH-MONOMER</td>\n      <td>bifunctional 2-octaprenyl-6-methoxy-1,4-benzoq...</td>\n      <td>MVDKSQETTHFGFQTVAKEQKADMVAHVFHSVASKYDVMNDLMSFG...</td>\n      <td>{2-OCTAPRENYL-METHOXY-BENZOQ-METH-ENZRXN, ADOM...</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{PWY-6708, MENAQUINONESYN-PWY}</td>\n      <td>{GO:0102027, GO:0030580, GO:0008168, GO:000674...</td>\n      <td>P0A887</td>\n    </tr>\n    <tr>\n      <th>...</th>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n      <td>...</td>\n    </tr>\n    <tr>\n      <th>4429</th>\n      <td>YTFR-MONOMER</td>\n      <td>galactofuranose ABC transporter putative ATP b...</td>\n      <td>MTTDQHQEILRTEGLSKFFPGVKALDNVDFSLRRGEIMALLGENGA...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{}</td>\n      <td>{GO:0000166, GO:0005886, GO:0016020, GO:001688...</td>\n      <td>Q6BEX0</td>\n    </tr>\n    <tr>\n      <th>4430</th>\n      <td>YTFT-MONOMER</td>\n      <td>galactofuranose ABC transporter putative membr...</td>\n      <td>MMPQSLPDTTTPKRRFRWPTGMPQLVALLLVLLVDSLVAPHFWQVV...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{GO:0005886, GO:0016020, GO:0140271, GO:005505...</td>\n      <td>P39328</td>\n    </tr>\n    <tr>\n      <th>4431</th>\n      <td>ZNUA-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter periplasmic bi...</td>\n      <td>MLHKKTLLFAALSAALWGGATQAADAAVVASLKPVGFIASAIADGV...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[zinc-coordinating residues, implicated in a s...</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{GO:0006811, GO:0042597, GO:0030001, GO:001602...</td>\n      <td>P39172</td>\n    </tr>\n    <tr>\n      <th>4432</th>\n      <td>ZNUB-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter membrane subunit</td>\n      <td>MIELLFPGWLAGIMLACAAGPLGSFVVWRRMSYFGDTLAHASLLGV...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[]</td>\n      <td>{}</td>\n      <td>{GO:0006811, GO:0005886, GO:0016020, GO:005508...</td>\n      <td>P39832</td>\n    </tr>\n    <tr>\n      <th>4433</th>\n      <td>ZNUC-MONOMER</td>\n      <td>Zn&lt;sup&gt;2+&lt;/sup&gt; ABC transporter ATP binding su...</td>\n      <td>MTSLVSLENVSVSFGQRRVLSDVSLELKPGKILTLLGPNGAGKSTL...</td>\n      <td>{}</td>\n      <td>{}</td>\n      <td>[]</td>\n      <td>[ATP]</td>\n      <td>{}</td>\n      <td>{GO:0005886, GO:0006811, GO:0000166, GO:001602...</td>\n      <td>P0A9X1</td>\n    </tr>\n  </tbody>\n</table>\n<p>4434 rows × 10 columns</p>\n</div>"
+     },
+     "execution_count": 23,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "proteins_df"
+   ],
+   "metadata": {
+    "collapsed": false,
+    "ExecuteTime": {
+     "end_time": "2023-11-06T19:41:31.368421Z",
+     "start_time": "2023-11-06T19:41:31.363473Z"
+    }
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "outputs": [],
+   "source": [
+    "\n",
+    "if 'Protein' in o and 'has-go-term' in o['Protein']:\n",
+    "    go_terms = o['Protein']['has-go-term']\n",
+    "\n",
+    "    annotation_set = set()\n",
+    "\n",
+    "    if type(go_terms) is dict:\n",
+    "        go_terms = [go_terms]\n",
+    "\n",
+    "    for go_term in go_terms:\n",
+    "        # example entry\n",
+    "        entity = go_term['GO-Term']['@frameid']\n",
+    "        entity = entity.replace(':', '%3A')\n",
+    "        req_str = f'https://www.ebi.ac.uk/QuickGO/services/ontology/go/terms/{entity}'\n",
+    "\n",
+    "        r = s.get(req_str)\n",
+    "        if r.status_code != 200:\n",
+    "            print(entity, r.status_code)\n",
+    "\n",
+    "        o = json.loads(r.content)\n",
+    "        if len(o['results']) != 1:\n",
+    "            print('error', entity, len(o['results']))\n",
+    "            continue\n",
+    "        elif o['results'][0]['aspect'] == 'biological_process':\n",
+    "            annotation_set.add(o['results'][0]['name'])\n",
+    "\n",
+    "            o['ptools-xml']['Protein']['gene']['Gene']['@frameid']\n",
+    "\n",
+    "    proteins_df.at[i, 'direct_annotations'] = annotation_set"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "outputs": [],
+   "source": [],
+   "metadata": {
+    "collapsed": false
+   }
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "outputs": [],
+   "source": [
+    "# example entry\n",
+    "entity = go_term['GO-Term']['@frameid']\n",
+    "entity = entity.replace(':', '%3A')\n",
+    "req_str = f'https://www.ebi.ac.uk/QuickGO/services/ontology/go/terms/{entity}'\n",
+    "\n",
+    "r = s.get(req_str)\n",
+    "if r.status_code != 200:\n",
+    "    print(entity, r.status_code)\n",
+    "\n",
+    "o = json.loads(r.content)\n",
+    "if len(o['results']) != 1:\n",
+    "    print('error', entity, len(o['results']))\n",
+    "    continue\n",
+    "elif o['results'][0]['aspect'] == 'biological_process':\n",
+    "    annotation_set.add(o['results'][0]['name'])"
+   ],
+   "metadata": {
+    "collapsed": false
+   }
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 2
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython2",
+   "version": "2.7.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
+}

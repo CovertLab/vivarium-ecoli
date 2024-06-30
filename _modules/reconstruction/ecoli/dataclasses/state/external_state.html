@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.dataclasses.state.external_state &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.dataclasses.state.external_state</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.dataclasses.state.external_state</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Simulation data for external state</span>
+
+<span class="sd">This base class includes all data associated with states external to the cells.</span>
+<span class="sd">Initializes the environment using conditions and time series from raw_data.</span>
+
+<span class="sd">        - saved_timelines: a dictionary of all timelines.</span>
+<span class="sd">        - current_timeline_id: a string specifying the timelines</span>
+<span class="sd">                used for the current simulation.</span>
+<span class="sd">        - current_media: a dictionary of molecules (keys) and</span>
+<span class="sd">                their concentrations (values).</span>
+<span class="sd">        - saved_media: a dictionary of all media, each entry</span>
+<span class="sd">                itself a dictionary molecules (keys) and their concentrations (values).</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+<span class="kn">from</span> <span class="nn">wholecell.utils.make_media</span> <span class="kn">import</span> <span class="n">Media</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span>
+
+<span class="c1"># threshold (units.mmol / units.L) separates concentrations that are import constrained with</span>
+<span class="c1"># max flux = 0 from unconstrained molecules.</span>
+<span class="n">IMPORT_CONSTRAINT_THRESHOLD</span> <span class="o">=</span> <span class="mf">1e-5</span>
+
+
+<div class="viewcode-block" id="ExternalState">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.state.external_state.html#reconstruction.ecoli.dataclasses.state.external_state.ExternalState">[docs]</a>
+<span class="k">class</span> <span class="nc">ExternalState</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;External State&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="c1"># make media object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">make_media</span> <span class="o">=</span> <span class="n">Media</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">carbon_sources</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_groups</span><span class="o">.</span><span class="n">carbon_sources</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialize_environment</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_external_exchange_molecules</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_all_external_exchange_molecules</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">secretion_exchange_molecules</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_secretion_exchange_molecules</span><span class="p">(</span>
+            <span class="n">raw_data</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="ExternalState._get_all_external_exchange_molecules">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.state.external_state.html#reconstruction.ecoli.dataclasses.state.external_state.ExternalState._get_all_external_exchange_molecules">[docs]</a>
+    <span class="k">def</span> <span class="nf">_get_all_external_exchange_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">                list[str]: all external exchange molecules</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">externalExchangeData</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># initiate all molecules with 0 concentrations</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">environment_molecules</span><span class="p">:</span>
+            <span class="n">externalExchangeData</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">row</span><span class="p">[</span><span class="s2">&quot;molecule id&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;exchange molecule location&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">externalExchangeData</span></div>
+
+
+<div class="viewcode-block" id="ExternalState._get_secretion_exchange_molecules">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.state.external_state.html#reconstruction.ecoli.dataclasses.state.external_state.ExternalState._get_secretion_exchange_molecules">[docs]</a>
+    <span class="k">def</span> <span class="nf">_get_secretion_exchange_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">                set[str]: all secretion exchange molecules</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">secretionExchangeMolecules</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">secretion</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">secretions</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">secretion</span><span class="p">[</span><span class="s2">&quot;lower bound&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">secretion</span><span class="p">[</span><span class="s2">&quot;upper bound&quot;</span><span class="p">]:</span>
+                <span class="c1"># &quot;non-growth associated maintenance&quot;, not included in our metabolic model</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">secretionExchangeMolecules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">secretion</span><span class="p">[</span><span class="s2">&quot;molecule id&quot;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">secretionExchangeMolecules</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExternalState._initialize_environment">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.state.external_state.html#reconstruction.ecoli.dataclasses.state.external_state.ExternalState._initialize_environment">[docs]</a>
+    <span class="k">def</span> <span class="nf">_initialize_environment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">import_constraint_threshold</span> <span class="o">=</span> <span class="n">IMPORT_CONSTRAINT_THRESHOLD</span>
+
+        <span class="c1"># create a dictionary with all saved timelines</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">saved_timelines</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">timelines_def</span><span class="p">:</span>
+            <span class="n">timeline_id</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;timeline&quot;</span><span class="p">]</span>
+            <span class="n">timeline_str</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;events&quot;</span><span class="p">]</span>
+            <span class="n">new_timeline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_media</span><span class="o">.</span><span class="n">make_timeline</span><span class="p">(</span><span class="n">timeline_str</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_timelines</span><span class="p">[</span><span class="n">timeline_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_timeline</span>
+
+        <span class="c1"># set default current_timeline_id to None, this can be overwritten by the timelines variant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_timeline_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># make a dictionary with all media conditions specified by media_recipes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">saved_media</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_media</span><span class="o">.</span><span class="n">make_saved_media</span><span class="p">()</span>
+
+        <span class="c1"># make mapping from external molecule to exchange molecule</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env_to_exchange_map</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">mol</span><span class="p">[</span><span class="s2">&quot;molecule id&quot;</span><span class="p">]:</span> <span class="n">mol</span><span class="p">[</span><span class="s2">&quot;molecule id&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">mol</span><span class="p">[</span><span class="s2">&quot;exchange molecule location&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">mol_index</span><span class="p">,</span> <span class="n">mol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">raw_data</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">environment_molecules</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_to_env_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env_to_exchange_map</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># make dict with exchange molecules for all saved environments, using env_to_exchange_map</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">media</span><span class="p">,</span> <span class="n">concentrations</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">saved_media</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchange_dict</span><span class="p">[</span><span class="n">media</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env_to_exchange_map</span><span class="p">[</span><span class="n">mol</span><span class="p">]:</span> <span class="n">conc</span>
+                <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">conc</span> <span class="ow">in</span> <span class="n">concentrations</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ExternalState.exchange_data_from_concentrations">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.state.external_state.html#reconstruction.ecoli.dataclasses.state.external_state.ExternalState.exchange_data_from_concentrations">[docs]</a>
+    <span class="k">def</span> <span class="nf">exchange_data_from_concentrations</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">molecules</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update importExchangeMolecules for FBA based on current nutrient concentrations.</span>
+<span class="sd">        This provides a simple type of transport to accommodate changing nutrient</span>
+<span class="sd">        concentrations in the environment. Transport is modeled as a binary switch:</span>
+<span class="sd">        When there is a high concentrations of environment nutrients, transporters</span>
+<span class="sd">        are unconstrained and nutrients are transported as needed by metabolism.</span>
+<span class="sd">        When concentrations fall below the threshold, that nutrient&#39;s transport</span>
+<span class="sd">        is constrained to max flux of 0.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                molecules: external molecules (no location tag) with external concentration,</span>
+<span class="sd">                        concentration can be inf</span>
+
+<span class="sd">        Returns dict with the following keys:</span>
+<span class="sd">                externalExchangeMolecules (set[str]): all exchange molecules (with</span>
+<span class="sd">                        location tag), includes both import and secretion exchanged molecules</span>
+<span class="sd">                importExchangeMolecules (set[str]): molecules (with location tag) that</span>
+<span class="sd">                        can be imported from the environment into the cell</span>
+<span class="sd">                importConstrainedExchangeMolecules (dict[str, float with mol/mass/time units]):</span>
+<span class="sd">                        constrained molecules (with location tag) with upper bound flux constraints</span>
+<span class="sd">                importUnconstrainedExchangeMolecules (set[str]): exchange molecules</span>
+<span class="sd">                        (with location tag) that do not have an upper bound on their flux</span>
+<span class="sd">                secretionExchangeMolecules (set[str]): molecules (with location tag)</span>
+<span class="sd">                        that can be secreted by the cell into the environment</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">externalExchangeMolecules</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">importExchangeMolecules</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">secretionExchangeMolecules</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">secretion_exchange_molecules</span>
+
+        <span class="n">oxygen_id</span> <span class="o">=</span> <span class="s2">&quot;OXYGEN-MOLECULE[p]&quot;</span>
+
+        <span class="n">exchange_molecules</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env_to_exchange_map</span><span class="p">[</span><span class="n">mol</span><span class="p">]:</span> <span class="n">conc</span> <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">conc</span> <span class="ow">in</span> <span class="n">molecules</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Unconstrained uptake if greater than import threshold</span>
+        <span class="n">importUnconstrainedExchangeMolecules</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">molecule_id</span>
+            <span class="k">for</span> <span class="n">molecule_id</span><span class="p">,</span> <span class="n">concentration</span> <span class="ow">in</span> <span class="n">exchange_molecules</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">concentration</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">import_constraint_threshold</span>
+        <span class="p">}</span>
+        <span class="n">importExchangeMolecules</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">importUnconstrainedExchangeMolecules</span><span class="p">)</span>
+        <span class="n">externalExchangeMolecules</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">importUnconstrainedExchangeMolecules</span><span class="p">)</span>
+
+        <span class="c1"># TODO: functionalize limits based on concentrations of transporters and environment</span>
+        <span class="c1"># Limit carbon uptake if present depending on the presence of oxygen</span>
+        <span class="n">importConstrainedExchangeMolecules</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">carbon_source_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">carbon_sources</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">carbon_source_id</span> <span class="ow">in</span> <span class="n">importUnconstrainedExchangeMolecules</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">oxygen_id</span> <span class="ow">in</span> <span class="n">importUnconstrainedExchangeMolecules</span><span class="p">:</span>
+                    <span class="n">importConstrainedExchangeMolecules</span><span class="p">[</span><span class="n">carbon_source_id</span><span class="p">]</span> <span class="o">=</span> <span class="mf">20.0</span> <span class="o">*</span> <span class="p">(</span>
+                        <span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">h</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">importConstrainedExchangeMolecules</span><span class="p">[</span><span class="n">carbon_source_id</span><span class="p">]</span> <span class="o">=</span> <span class="mf">100.0</span> <span class="o">*</span> <span class="p">(</span>
+                        <span class="n">units</span><span class="o">.</span><span class="n">mmol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">h</span>
+                    <span class="p">)</span>
+                <span class="n">importUnconstrainedExchangeMolecules</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">carbon_source_id</span><span class="p">)</span>
+
+        <span class="n">externalExchangeMolecules</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">secretionExchangeMolecules</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;externalExchangeMolecules&quot;</span><span class="p">:</span> <span class="n">externalExchangeMolecules</span><span class="p">,</span>
+            <span class="s2">&quot;importExchangeMolecules&quot;</span><span class="p">:</span> <span class="n">importExchangeMolecules</span><span class="p">,</span>
+            <span class="s2">&quot;importConstrainedExchangeMolecules&quot;</span><span class="p">:</span> <span class="n">importConstrainedExchangeMolecules</span><span class="p">,</span>
+            <span class="s2">&quot;importUnconstrainedExchangeMolecules&quot;</span><span class="p">:</span> <span class="n">importUnconstrainedExchangeMolecules</span><span class="p">,</span>
+            <span class="s2">&quot;secretionExchangeMolecules&quot;</span><span class="p">:</span> <span class="n">secretionExchangeMolecules</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ExternalState.exchange_data_from_media">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.state.external_state.html#reconstruction.ecoli.dataclasses.state.external_state.ExternalState.exchange_data_from_media">[docs]</a>
+    <span class="k">def</span> <span class="nf">exchange_data_from_media</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_label</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">                dict: exchange_data for a media_label saved in exchange_data_dict.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">concentrations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saved_media</span><span class="p">[</span><span class="n">media_label</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_data_from_concentrations</span><span class="p">(</span><span class="n">concentrations</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExternalState.get_import_constraints">
+<a class="viewcode-back" href="../../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.state.external_state.html#reconstruction.ecoli.dataclasses.state.external_state.ExternalState.get_import_constraints">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_import_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unconstrained</span><span class="p">,</span> <span class="n">constrained</span><span class="p">,</span> <span class="n">units</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">                unconstrained_molecules (list[bool]): the indices of all</span>
+<span class="sd">                        importUnconstrainedExchangeMolecules in</span>
+<span class="sd">                        self.all_external_exchange_molecules are true, the rest as false</span>
+<span class="sd">                constrained_molecules (list[bool]): the indices of all</span>
+<span class="sd">                        importConstrainedExchangeMolecules in</span>
+<span class="sd">                        self.all_external_exchange_molecules are true, the rest as false</span>
+<span class="sd">                constraints (list[float]): uptake constraints for each molecule</span>
+<span class="sd">                        that is constrained, nan for no constraint</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># molecules from all_external_exchange_molecules set to &#39;true&#39; if they are current importExchangeMolecules.</span>
+        <span class="n">unconstrained_molecules</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">molecule_id</span> <span class="ow">in</span> <span class="n">unconstrained</span>
+            <span class="k">for</span> <span class="n">molecule_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_external_exchange_molecules</span>
+        <span class="p">]</span>
+
+        <span class="c1"># molecules from all_external_exchange_molecules set to &#39;true&#39; if they are current importConstrainedExchangeMolecules.</span>
+        <span class="n">constrained_molecules</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">molecule_id</span> <span class="ow">in</span> <span class="n">constrained</span>
+            <span class="k">for</span> <span class="n">molecule_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_external_exchange_molecules</span>
+        <span class="p">]</span>
+
+        <span class="n">constraints</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">constrained</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">molecule_id</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="o">*</span> <span class="n">units</span><span class="p">)</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">molecule_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_external_exchange_molecules</span>
+        <span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">unconstrained_molecules</span><span class="p">,</span> <span class="n">constrained_molecules</span><span class="p">,</span> <span class="n">constraints</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

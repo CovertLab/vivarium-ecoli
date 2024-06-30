@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SimulationData mass data</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numpy.typing</span> <span class="k">as</span> <span class="nn">npt</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">interpolate</span><span class="p">,</span> <span class="n">stats</span>
+<span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">minimize</span>
+<span class="kn">import</span> <span class="nn">unum</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">fitting</span><span class="p">,</span> <span class="n">units</span>
+
+<span class="n">NORMAL_CRITICAL_MASS</span> <span class="o">=</span> <span class="mi">975</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span>
+<span class="n">SLOW_GROWTH_FACTOR</span> <span class="o">=</span> <span class="mf">1.2</span>  <span class="c1"># adjustment for smaller cells</span>
+
+
+<div class="viewcode-block" id="Mass">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass">[docs]</a>
+<span class="k">class</span> <span class="nc">Mass</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mass&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">doubling_time</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_constants</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_submasses</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_CD_periods</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_dry_mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_avg_cell_dry_mass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mass_fractions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mass_fractions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_component_masses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_component_masses</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_dependent_constants</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_trna_data</span><span class="p">(</span><span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">)</span>
+
+    <span class="c1">## Setup constants</span>
+<div class="viewcode-block" id="Mass._build_constants">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._build_constants">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_constants</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="n">mass_parameters</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">mass_parameters</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_dry_mass_fraction</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_water_mass_fraction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_to_initial_cell_conversion_factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_cell_cycle_progress</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cellDensity</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">cell_density</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_glycogenFractions</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_fractions</span><span class="o">.</span><span class="n">glycogen_fractions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mureinFractions</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_fractions</span><span class="o">.</span><span class="n">murein_fractions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_LPSFractions</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_fractions</span><span class="o">.</span><span class="n">LPS_fractions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lipidFractions</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_fractions</span><span class="o">.</span><span class="n">lipid_fractions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ionFractions</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_fractions</span><span class="o">.</span><span class="n">ion_fractions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_solubleFractions</span> <span class="o">=</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_fractions</span><span class="o">.</span><span class="n">soluble_fractions</span>
+
+        <span class="n">metIds</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_glycogenFractions</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mureinFractions</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LPSFractions</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lipidFractions</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ionFractions</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solubleFractions</span><span class="p">]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;WATER[c]&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">mws</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_masses</span><span class="p">(</span><span class="n">metIds</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">metIds</span><span class="p">,</span> <span class="n">mws</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metTargetIds</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span><span class="p">[</span><span class="s2">&quot;Metabolite&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;[c]&quot;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">metabolite_concentrations</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Mass._build_dependent_constants">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._build_dependent_constants">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_dependent_constants</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_dry_mass_init</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_dry_mass</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_to_initial_cell_conversion_factor</span>
+        <span class="p">)</span>
+        <span class="n">avgCellWaterMass</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_dry_mass</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_dry_mass_fraction</span>
+        <span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_water_mass_fraction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_water_mass_init</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">avgCellWaterMass</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_to_initial_cell_conversion_factor</span>
+        <span class="p">)</span></div>
+
+
+    <span class="c1"># Setup sub-masses</span>
+<div class="viewcode-block" id="Mass._build_submasses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._build_submasses">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_submasses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">min</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;doublingTime&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">dryMass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;averageDryMass&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">fg</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dryMassParams</span> <span class="o">=</span> <span class="n">linear_regression</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">dryMass</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proteinMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;proteinMassFraction&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rnaMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;rnaMassFraction&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lipidMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;lipidMassFraction&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lpsMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;lpsMassFraction&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mureinMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;mureinMassFraction&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_glycogenMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;glycogenMassFraction&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_solublePoolMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;solublePoolMassFraction&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inorganicIonMassFractionParams</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getFitParameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">dry_mass_composition</span><span class="p">,</span> <span class="s2">&quot;inorganicIonMassFraction&quot;</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_sequence_mass</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">sim_data</span><span class="o">.</span><span class="n">getter</span><span class="o">.</span><span class="n">get_mass</span><span class="p">(</span><span class="n">sim_data</span><span class="o">.</span><span class="n">molecule_ids</span><span class="o">.</span><span class="n">full_chromosome</span><span class="p">)</span>
+            <span class="o">/</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">n_avogadro</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">asUnit</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Mass._getFitParameters">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._getFitParameters">[docs]</a>
+    <span class="k">def</span> <span class="nf">_getFitParameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dry_mass_composition</span><span class="p">,</span> <span class="n">mass_fraction_name</span><span class="p">):</span>
+        <span class="n">mass_fraction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">mass_fraction_name</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dry_mass_composition</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Doubling time interpolation</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">mass_fraction</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">dt_params</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span>
+                    <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="n">dt_params</span>
+                    <span class="p">)</span>
+                    <span class="o">-</span> <span class="n">mass_fraction</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="o">/</span> <span class="n">mass_fraction</span><span class="o">.</span><span class="n">size</span>
+            <span class="o">&gt;</span> <span class="mf">1.0</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Fitting </span><span class="si">{}</span><span class="s2"> with double exponential, residuals are huge!&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">mass_fraction_name</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># RNA/protein ratio interpolation</span>
+        <span class="n">rna</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;rnaMassFraction&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dry_mass_composition</span><span class="p">])</span>
+        <span class="n">protein</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;proteinMassFraction&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dry_mass_composition</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">rp_ratio</span> <span class="o">=</span> <span class="n">rna</span> <span class="o">/</span> <span class="n">protein</span>
+        <span class="n">rp_params</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">splrep</span><span class="p">(</span><span class="n">rp_ratio</span><span class="p">,</span> <span class="n">mass_fraction</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dt_params</span><span class="p">,</span> <span class="n">rp_params</span></div>
+
+
+<div class="viewcode-block" id="Mass._build_CD_periods">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._build_CD_periods">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_CD_periods</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_c_period</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">c_period</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_d_period</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">d_period</span></div>
+
+
+    <span class="c1"># Set based on growth rate avgCellDryMass</span>
+<div class="viewcode-block" id="Mass.get_avg_cell_dry_mass">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.get_avg_cell_dry_mass">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_avg_cell_dry_mass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">:</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the dry mass for an average cell at the given doubling time.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                doubling_time: expected doubling time</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">                average cell dry mass</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">doubling_time</span> <span class="o">=</span> <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">)</span>
+        <span class="n">inverse_mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dryMassParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">doubling_time</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dryMassParams</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">inverse_mass</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Doubling time (</span><span class="si">{}</span><span class="s2"> min) is too short, could not get mass.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">doubling_time</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">units</span><span class="o">.</span><span class="n">fg</span> <span class="o">/</span> <span class="n">inverse_mass</span></div>
+
+
+<div class="viewcode-block" id="Mass.get_dna_critical_mass">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.get_dna_critical_mass">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_dna_critical_mass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">:</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the critical mass for replication initiation.  Faster growing</span>
+<span class="sd">        cells maintain a consistent initiation mass but slower growing cells</span>
+<span class="sd">        are smaller and will never reach this mass so it needs to be adjusted</span>
+<span class="sd">        lower for them.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                doubling_time: expected doubling time of cell</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">                Critical mass for DNA replication initiation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_avg_cell_dry_mass</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_dry_mass_fraction</span>
+        <span class="n">critical_mass</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">mass</span> <span class="o">*</span> <span class="n">SLOW_GROWTH_FACTOR</span><span class="p">,</span> <span class="n">NORMAL_CRITICAL_MASS</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">critical_mass</span></div>
+
+
+    <span class="c1"># Set mass fractions based on growth rate</span>
+<div class="viewcode-block" id="Mass.get_mass_fractions">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.get_mass_fractions">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_mass_fractions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span> <span class="o">!=</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Doubling time was not set!&quot;</span><span class="p">)</span>
+
+        <span class="n">D</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">dnaMassFraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculateGrowthRateDependentDnaMass</span><span class="p">(</span>
+            <span class="n">doubling_time</span>
+        <span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_avg_cell_dry_mass</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+        <span class="n">dnaMassFraction</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+        <span class="n">dnaMassFraction</span><span class="o">.</span><span class="n">checkNoUnit</span><span class="p">()</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;dna&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dnaMassFraction</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span>
+
+        <span class="n">doubling_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clipTau_d</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;protein&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proteinMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;rna&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rnaMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;lipid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lipidMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;lps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lpsMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;murein&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mureinMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;glycogen&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_glycogenMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;solublePool&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_solublePoolMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;inorganicIon&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span>
+                <span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">min</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_inorganicIonMassFractionParams</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">y</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">D</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">D</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">!=</span> <span class="s2">&quot;dna&quot;</span><span class="p">:</span>
+                <span class="n">D</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span> <span class="o">/</span> <span class="n">total</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">D</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-3</span>
+        <span class="k">return</span> <span class="n">D</span></div>
+
+
+<div class="viewcode-block" id="Mass.get_mass_fractions_from_rna_protein_ratio">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.get_mass_fractions_from_rna_protein_ratio">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_mass_fractions_from_rna_protein_ratio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ratio</span><span class="p">):</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;lipid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lipidMassFractionParams</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;lps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lpsMassFractionParams</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;murein&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mureinMassFractionParams</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;glycogen&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_glycogenMassFractionParams</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;solublePool&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solublePoolMassFractionParams</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="n">D</span><span class="p">[</span><span class="s2">&quot;inorganicIon&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">splev</span><span class="p">(</span><span class="n">ratio</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inorganicIonMassFractionParams</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">D</span></div>
+
+
+<div class="viewcode-block" id="Mass.get_component_masses">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.get_component_masses">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_component_masses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">massFraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mass_fractions</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">massFraction</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">D</span><span class="p">[</span><span class="n">key</span> <span class="o">+</span> <span class="s2">&quot;Mass&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_avg_cell_dry_mass</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">D</span></div>
+
+
+<div class="viewcode-block" id="Mass.get_basal_rna_fractions">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.get_basal_rna_fractions">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_basal_rna_fractions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Measured RNA subgroup mass fractions. Fractions should change in other</span>
+<span class="sd">        conditions with growth rate (see transcription.get_rna_fractions()).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;rRNA&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rrna23s_mass_sub_fraction</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rrna16s_mass_sub_fraction</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rrna5s_mass_sub_fraction</span><span class="p">,</span>
+            <span class="s2">&quot;tRNA&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trna_mass_sub_fraction</span><span class="p">,</span>
+            <span class="s2">&quot;mRNA&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mrna_mass_sub_fraction</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Mass.getBiomassAsConcentrations">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.getBiomassAsConcentrations">[docs]</a>
+    <span class="k">def</span> <span class="nf">getBiomassAsConcentrations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">,</span> <span class="n">rp_ratio</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">avgCellDryMassInit</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_avg_cell_dry_mass</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+            <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">avg_cell_to_initial_cell_conversion_factor</span>
+        <span class="p">)</span>
+        <span class="n">avgCellWaterMassInit</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">avgCellDryMassInit</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_dry_mass_fraction</span>
+        <span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_water_mass_fraction</span>
+
+        <span class="n">initWaterMass</span> <span class="o">=</span> <span class="n">avgCellWaterMassInit</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span><span class="p">)</span>
+        <span class="n">initDryMass</span> <span class="o">=</span> <span class="n">avgCellDryMassInit</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span><span class="p">)</span>
+
+        <span class="n">initCellMass</span> <span class="o">=</span> <span class="n">initWaterMass</span> <span class="o">+</span> <span class="n">initDryMass</span>
+
+        <span class="n">initCellVolume</span> <span class="o">=</span> <span class="n">initCellMass</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cellDensity</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span>
+            <span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+        <span class="p">)</span>  <span class="c1"># L</span>
+
+        <span class="k">if</span> <span class="n">rp_ratio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">massFraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mass_fractions</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">massFraction</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mass_fractions_from_rna_protein_ratio</span><span class="p">(</span><span class="n">rp_ratio</span><span class="p">)</span>
+
+        <span class="n">metaboliteIDs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">metaboliteConcentrations</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_glycogenFractions</span><span class="p">:</span>
+            <span class="n">metaboliteID</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span>
+
+            <span class="k">assert</span> <span class="n">metaboliteID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteIDs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metTargetIds</span>
+
+            <span class="n">massFrac</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;massFraction&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">massFraction</span><span class="p">[</span><span class="s2">&quot;glycogen&quot;</span><span class="p">]</span>
+            <span class="n">molWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span><span class="p">[</span><span class="n">metaboliteID</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+            <span class="n">massInit</span> <span class="o">=</span> <span class="n">massFrac</span> <span class="o">*</span> <span class="n">initDryMass</span>
+            <span class="n">molesInit</span> <span class="o">=</span> <span class="n">massInit</span> <span class="o">/</span> <span class="n">molWeight</span>
+
+            <span class="n">concentration</span> <span class="o">=</span> <span class="n">molesInit</span> <span class="o">/</span> <span class="n">initCellVolume</span>
+
+            <span class="n">metaboliteIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metaboliteID</span><span class="p">)</span>
+            <span class="n">metaboliteConcentrations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">concentration</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mureinFractions</span><span class="p">:</span>
+            <span class="n">metaboliteID</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span>
+
+            <span class="k">assert</span> <span class="n">metaboliteID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteIDs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metTargetIds</span>
+
+            <span class="n">massFrac</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;massFraction&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">massFraction</span><span class="p">[</span><span class="s2">&quot;murein&quot;</span><span class="p">]</span>
+            <span class="n">molWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span><span class="p">[</span><span class="n">metaboliteID</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+            <span class="n">massInit</span> <span class="o">=</span> <span class="n">massFrac</span> <span class="o">*</span> <span class="n">initDryMass</span>
+            <span class="n">molesInit</span> <span class="o">=</span> <span class="n">massInit</span> <span class="o">/</span> <span class="n">molWeight</span>
+
+            <span class="n">concentration</span> <span class="o">=</span> <span class="n">molesInit</span> <span class="o">/</span> <span class="n">initCellVolume</span>
+
+            <span class="n">metaboliteIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metaboliteID</span><span class="p">)</span>
+            <span class="n">metaboliteConcentrations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">concentration</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_LPSFractions</span><span class="p">:</span>
+            <span class="n">metaboliteID</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span>
+
+            <span class="k">assert</span> <span class="n">metaboliteID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteIDs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metTargetIds</span>
+
+            <span class="n">massFrac</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;massFraction&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">massFraction</span><span class="p">[</span><span class="s2">&quot;lps&quot;</span><span class="p">]</span>
+            <span class="n">molWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span><span class="p">[</span><span class="n">metaboliteID</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+            <span class="n">massInit</span> <span class="o">=</span> <span class="n">massFrac</span> <span class="o">*</span> <span class="n">initDryMass</span>
+            <span class="n">molesInit</span> <span class="o">=</span> <span class="n">massInit</span> <span class="o">/</span> <span class="n">molWeight</span>
+
+            <span class="n">concentration</span> <span class="o">=</span> <span class="n">molesInit</span> <span class="o">/</span> <span class="n">initCellVolume</span>
+
+            <span class="n">metaboliteIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metaboliteID</span><span class="p">)</span>
+            <span class="n">metaboliteConcentrations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">concentration</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lipidFractions</span><span class="p">:</span>
+            <span class="n">metaboliteID</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span>
+
+            <span class="k">assert</span> <span class="n">metaboliteID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteIDs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metTargetIds</span>
+
+            <span class="n">massFrac</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;massFraction&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">massFraction</span><span class="p">[</span><span class="s2">&quot;lipid&quot;</span><span class="p">]</span>
+            <span class="n">molWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span><span class="p">[</span><span class="n">metaboliteID</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+            <span class="n">massInit</span> <span class="o">=</span> <span class="n">massFrac</span> <span class="o">*</span> <span class="n">initDryMass</span>
+            <span class="n">molesInit</span> <span class="o">=</span> <span class="n">massInit</span> <span class="o">/</span> <span class="n">molWeight</span>
+
+            <span class="n">concentration</span> <span class="o">=</span> <span class="n">molesInit</span> <span class="o">/</span> <span class="n">initCellVolume</span>
+
+            <span class="n">metaboliteIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metaboliteID</span><span class="p">)</span>
+            <span class="n">metaboliteConcentrations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">concentration</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ionFractions</span><span class="p">:</span>
+            <span class="n">metaboliteID</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span>
+
+            <span class="k">assert</span> <span class="n">metaboliteID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metaboliteIDs</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metTargetIds</span>
+
+            <span class="n">massFrac</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;massFraction&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">massFraction</span><span class="p">[</span><span class="s2">&quot;inorganicIon&quot;</span><span class="p">]</span>
+            <span class="n">molWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span><span class="p">[</span><span class="n">metaboliteID</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+            <span class="n">massInit</span> <span class="o">=</span> <span class="n">massFrac</span> <span class="o">*</span> <span class="n">initDryMass</span>
+            <span class="n">molesInit</span> <span class="o">=</span> <span class="n">massInit</span> <span class="o">/</span> <span class="n">molWeight</span>
+
+            <span class="n">concentration</span> <span class="o">=</span> <span class="n">molesInit</span> <span class="o">/</span> <span class="n">initCellVolume</span>
+
+            <span class="n">metaboliteIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metaboliteID</span><span class="p">)</span>
+            <span class="n">metaboliteConcentrations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">concentration</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_solubleFractions</span><span class="p">:</span>
+            <span class="n">metaboliteID</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;metaboliteId&quot;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">metaboliteID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metTargetIds</span><span class="p">:</span>
+                <span class="n">massFrac</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;massFraction&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">massFraction</span><span class="p">[</span><span class="s2">&quot;solublePool&quot;</span><span class="p">]</span>
+                <span class="n">molWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span><span class="p">[</span><span class="n">metaboliteID</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+
+                <span class="n">massInit</span> <span class="o">=</span> <span class="n">massFrac</span> <span class="o">*</span> <span class="n">initDryMass</span>
+                <span class="n">molesInit</span> <span class="o">=</span> <span class="n">massInit</span> <span class="o">/</span> <span class="n">molWeight</span>
+
+                <span class="n">concentration</span> <span class="o">=</span> <span class="n">molesInit</span> <span class="o">/</span> <span class="n">initCellVolume</span>
+
+                <span class="n">metaboliteIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metaboliteID</span><span class="p">)</span>
+                <span class="n">metaboliteConcentrations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">concentration</span><span class="p">)</span>
+
+        <span class="c1"># H2O: reported water content of E. coli</span>
+        <span class="n">h2oMolWeight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mws</span><span class="p">[</span><span class="s2">&quot;WATER[c]&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+        <span class="n">h2oMoles</span> <span class="o">=</span> <span class="n">initWaterMass</span> <span class="o">/</span> <span class="n">h2oMolWeight</span>
+
+        <span class="n">h2oConcentration</span> <span class="o">=</span> <span class="n">h2oMoles</span> <span class="o">/</span> <span class="n">initCellVolume</span>
+
+        <span class="n">metaboliteIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;WATER[c]&quot;</span><span class="p">)</span>
+        <span class="n">metaboliteConcentrations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">h2oConcentration</span><span class="p">)</span>
+
+        <span class="n">metaboliteConcentrations</span> <span class="o">=</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">mol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="n">metaboliteConcentrations</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">metaboliteIDs</span><span class="p">,</span> <span class="n">metaboliteConcentrations</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Mass._calculateGrowthRateDependentDnaMass">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._calculateGrowthRateDependentDnaMass">[docs]</a>
+    <span class="k">def</span> <span class="nf">_calculateGrowthRateDependentDnaMass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="n">c_plus_d_period</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_c_period</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d_period</span>
+
+        <span class="k">if</span> <span class="n">doubling_time</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d_period</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Can&#39;t have doubling time shorter than cytokinesis time!&quot;</span><span class="p">)</span>
+
+        <span class="n">doubling_time_unit</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">)</span>
+
+        <span class="c1"># TODO: If you really care, this should be a loop.</span>
+        <span class="c1"># It is optimized to run quickly over the range of T_d</span>
+        <span class="c1"># and C and D periods that we have.</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">chromosome_sequence_mass</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="mi">1</span>
+            <span class="o">+</span> <span class="mi">1</span>
+            <span class="o">*</span> <span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="mf">0.0</span> <span class="o">*</span> <span class="n">doubling_time_unit</span><span class="p">,</span> <span class="n">c_plus_d_period</span> <span class="o">-</span> <span class="n">doubling_time</span><span class="p">)</span>
+                <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_c_period</span>
+            <span class="p">)</span>
+            <span class="o">+</span> <span class="mi">2</span>
+            <span class="o">*</span> <span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                    <span class="mf">0.0</span> <span class="o">*</span> <span class="n">doubling_time_unit</span><span class="p">,</span> <span class="n">c_plus_d_period</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">doubling_time</span>
+                <span class="p">)</span>
+                <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_c_period</span>
+            <span class="p">)</span>
+            <span class="o">+</span> <span class="mi">4</span>
+            <span class="o">*</span> <span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
+                    <span class="mf">0.0</span> <span class="o">*</span> <span class="n">doubling_time_unit</span><span class="p">,</span> <span class="n">c_plus_d_period</span> <span class="o">-</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">doubling_time</span>
+                <span class="p">)</span>
+                <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_c_period</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Mass._clipTau_d">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._clipTau_d">[docs]</a>
+    <span class="k">def</span> <span class="nf">_clipTau_d</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="c1"># Clip values to be in the range that we have data for</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="s2">&quot;dtype&quot;</span><span class="p">):</span>
+            <span class="n">doubling_time</span><span class="p">[</span><span class="n">doubling_time</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span>
+            <span class="p">)</span>
+            <span class="n">doubling_time</span><span class="p">[</span><span class="n">doubling_time</span> <span class="o">&lt;</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">doubling_time</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="p">):</span>
+                <span class="n">doubling_time</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">doubling_time</span> <span class="o">&lt;</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="p">):</span>
+                <span class="n">doubling_time</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time_vector</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">doubling_time</span></div>
+
+
+<div class="viewcode-block" id="Mass._build_trna_data">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass._build_trna_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">_build_trna_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="n">growth_rate_unit</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">trna_data</span><span class="o">.</span><span class="n">trna_growth_rates</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;growth rate&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trna_growth_rates</span> <span class="o">=</span> <span class="n">growth_rate_unit</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;growth rate&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">trna_data</span><span class="o">.</span><span class="n">trna_growth_rates</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="n">trna_ratio_to_16SrRNA_by_growth_rate</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">gr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trna_growth_rates</span><span class="p">:</span>  <span class="c1"># TODO: This is a little crazy...</span>
+            <span class="n">trna_ratio_to_16SrRNA_by_growth_rate</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">x</span><span class="p">[</span><span class="s2">&quot;ratio to 16SrRNA&quot;</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span>
+                        <span class="n">raw_data</span><span class="o">.</span><span class="n">trna_data</span><span class="p">,</span>
+                        <span class="s2">&quot;trna_ratio_to_16SrRNA_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">gr</span><span class="o">.</span><span class="n">asNumber</span><span class="p">())</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;p&quot;</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trna_ratio_to_16SrRNA_by_growth_rate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="n">trna_ratio_to_16SrRNA_by_growth_rate</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trna_ids</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span><span class="p">[</span><span class="s2">&quot;rna id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">trna_data</span><span class="o">.</span><span class="n">trna_ratio_to_16SrRNA_0p4</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Mass.get_trna_distribution">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.Mass.get_trna_distribution">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_trna_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="n">unum</span><span class="o">.</span><span class="n">Unum</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">doubling_time</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(),</span> <span class="nb">float</span><span class="p">)</span>
+        <span class="n">growth_rate</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">doubling_time</span>
+        <span class="n">growth_rate</span> <span class="o">=</span> <span class="n">growth_rate</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">h</span><span class="p">)</span>
+
+        <span class="n">trna_abundance_interpolation_functions</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">interpolate</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_trna_growth_rates</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">h</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_trna_ratio_to_16SrRNA_by_growth_rate</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_trna_ratio_to_16SrRNA_by_growth_rate</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="p">]</span>
+
+        <span class="n">id_length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">id_</span><span class="p">)</span> <span class="k">for</span> <span class="n">id_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trna_ids</span><span class="p">)</span>
+        <span class="n">abundance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_trna_ids</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;U</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">id_length</span><span class="p">)),</span>
+                <span class="p">(</span><span class="s2">&quot;molar_ratio_to_16SrRNA&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+            <span class="p">],</span>
+        <span class="p">)</span>
+        <span class="n">abundance</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_trna_ids</span>
+        <span class="n">abundance</span><span class="p">[</span><span class="s2">&quot;molar_ratio_to_16SrRNA&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span><span class="p">(</span><span class="n">growth_rate</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">trna_abundance_interpolation_functions</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">abundance</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="GrowthRateParameters">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters">[docs]</a>
+<span class="k">class</span> <span class="nc">GrowthRateParameters</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    GrowthRateParameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">sim_data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doubling_time</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">doubling_time</span>
+        <span class="n">_loadTableIntoObjectGivenDoublingTime</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_elongation_rate_params</span> <span class="o">=</span> <span class="n">_get_fit_parameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span><span class="p">,</span> <span class="s2">&quot;ribosomeElongationRate&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">RNAP_elongation_rate_params</span> <span class="o">=</span> <span class="n">_get_fit_parameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span><span class="p">,</span> <span class="s2">&quot;rnaPolymeraseElongationRate&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">RNAP_active_fraction_params</span> <span class="o">=</span> <span class="n">_get_fit_parameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span><span class="p">,</span> <span class="s2">&quot;fractionActiveRnap&quot;</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ribosome_active_fraction_params</span> <span class="o">=</span> <span class="n">_get_fit_parameters</span><span class="p">(</span>
+            <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span><span class="p">,</span> <span class="s2">&quot;fractionActiveRibosome&quot;</span>
+        <span class="p">)</span>
+
+        <span class="c1"># ppGpp concentration by linear fit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">per_dry_mass_to_per_volume</span> <span class="o">=</span> <span class="n">sim_data</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">cell_density</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="mf">1.0</span> <span class="o">-</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">mass_parameters</span><span class="p">[</span><span class="s2">&quot;cell_water_mass_fraction&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">doubling_time</span> <span class="o">=</span> <span class="n">_loadRow</span><span class="p">(</span>
+            <span class="s2">&quot;doublingTime&quot;</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span>
+        <span class="p">)</span>
+        <span class="n">ppgpp_conc</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">_loadRow</span><span class="p">(</span><span class="s2">&quot;ppGpp_conc&quot;</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span><span class="p">)</span>
+            <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_dry_mass_to_per_volume</span>
+        <span class="p">)</span>
+        <span class="n">ribosome_elongation_rate</span> <span class="o">=</span> <span class="n">_loadRow</span><span class="p">(</span>
+            <span class="s2">&quot;ribosomeElongationRate&quot;</span><span class="p">,</span> <span class="n">raw_data</span><span class="o">.</span><span class="n">growth_rate_dependent_parameters</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ppGpp_concentration</span> <span class="o">=</span> <span class="n">_get_linearized_fit</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="n">ppgpp_conc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ribosome_elongation_rate_by_ppgpp</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_ribosome_elongation_rate_by_ppgpp</span><span class="p">(</span>
+                <span class="n">ppgpp_conc</span><span class="p">,</span> <span class="n">ribosome_elongation_rate</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Estimate of the amount that the max elongation rate is reduced by having</span>
+        <span class="c1"># charging at less than 100% since measured data is not the max elongation</span>
+        <span class="c1"># rate but the observed elongation rate</span>
+        <span class="c1"># TODO (travis): calculate this value based on expected charging</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_charging_fraction_of_max_elong_rate</span> <span class="o">=</span> <span class="mf">0.9</span>
+
+<div class="viewcode-block" id="GrowthRateParameters._fit_ribosome_elongation_rate_by_ppgpp">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters._fit_ribosome_elongation_rate_by_ppgpp">[docs]</a>
+    <span class="k">def</span> <span class="nf">_fit_ribosome_elongation_rate_by_ppgpp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ppgpp</span><span class="p">,</span> <span class="n">rate</span><span class="p">):</span>
+        <span class="n">ppgpp_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">umol</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">L</span>
+        <span class="n">rate_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">rate</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+                <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">ppgpp</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">ppgpp_units</span><span class="p">)</span> <span class="o">/</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">**</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="o">-</span> <span class="n">rate</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">rate_units</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">x0</span> <span class="o">=</span> <span class="p">[</span><span class="mi">22</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">]</span>
+        <span class="n">sol</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">x0</span><span class="p">)</span>
+        <span class="n">vmax</span><span class="p">,</span> <span class="n">KI</span><span class="p">,</span> <span class="n">H</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">x</span>
+
+        <span class="c1"># Make sure optimization was successful, is a good fit, and the max rate is not more</span>
+        <span class="c1"># than 10% different than the max measured rate (arbitrary level to ensure close fit)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="n">sol</span><span class="o">.</span><span class="n">success</span>
+            <span class="ow">or</span> <span class="n">sol</span><span class="o">.</span><span class="n">fun</span> <span class="o">&gt;</span> <span class="mi">1</span>
+            <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">vmax</span> <span class="o">/</span> <span class="n">rate</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">rate_units</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.1</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Problem fitting ppGpp regulated elongation rate.&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ppgpp_units</span><span class="p">,</span> <span class="n">rate_units</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span> <span class="n">KI</span><span class="p">,</span> <span class="n">H</span></div>
+
+
+<div class="viewcode-block" id="GrowthRateParameters.get_ribosome_elongation_rate">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters.get_ribosome_elongation_rate">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_ribosome_elongation_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_useFitParameters</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome_elongation_rate_params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GrowthRateParameters.get_rnap_elongation_rate">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters.get_rnap_elongation_rate">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_rnap_elongation_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_useFitParameters</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">RNAP_elongation_rate_params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GrowthRateParameters.get_fraction_active_rnap">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters.get_fraction_active_rnap">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_fraction_active_rnap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_useFitParameters</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">RNAP_active_fraction_params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GrowthRateParameters.get_fraction_active_ribosome">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters.get_fraction_active_ribosome">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_fraction_active_ribosome</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_useFitParameters</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">ribosome_active_fraction_params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GrowthRateParameters.get_ppGpp_conc">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters.get_ppGpp_conc">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_ppGpp_conc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doubling_time</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_use_linearized_fit</span><span class="p">(</span><span class="n">doubling_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ppGpp_concentration</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GrowthRateParameters.get_ribosome_elongation_rate_by_ppgpp">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.GrowthRateParameters.get_ribosome_elongation_rate_by_ppgpp">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_ribosome_elongation_rate_by_ppgpp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ppgpp</span><span class="p">,</span> <span class="n">max_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">ppgpp_units</span><span class="p">,</span> <span class="n">rate_units</span><span class="p">,</span> <span class="n">fit_vmax</span><span class="p">,</span> <span class="n">KI</span><span class="p">,</span> <span class="n">H</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ribosome_elongation_rate_by_ppgpp</span>
+        <span class="p">)</span>
+        <span class="n">vmax</span> <span class="o">=</span> <span class="n">fit_vmax</span> <span class="k">if</span> <span class="n">max_rate</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">max_rate</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">rate_units</span>
+            <span class="o">*</span> <span class="n">vmax</span>
+            <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">ppgpp</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">ppgpp_units</span><span class="p">)</span> <span class="o">/</span> <span class="n">KI</span><span class="p">)</span> <span class="o">**</span> <span class="n">H</span><span class="p">)</span>
+            <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_charging_fraction_of_max_elong_rate</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="_get_fit_parameters">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters._get_fit_parameters">[docs]</a>
+<span class="k">def</span> <span class="nf">_get_fit_parameters</span><span class="p">(</span><span class="n">list_of_dicts</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="c1"># Load rows of data</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">_loadRow</span><span class="p">(</span><span class="s2">&quot;doublingTime&quot;</span><span class="p">,</span> <span class="n">list_of_dicts</span><span class="p">)</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">_loadRow</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">list_of_dicts</span><span class="p">)</span>
+
+    <span class="c1"># Save and strip units</span>
+    <span class="n">y_units</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">x_units</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">hasUnit</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+        <span class="n">y_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">y_units</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">hasUnit</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="n">x_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">x_units</span><span class="p">)</span>
+
+    <span class="c1"># Sort data for spine fitting (must be ascending order)</span>
+    <span class="n">idx_order</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">argsort</span><span class="p">()</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">idx_order</span><span class="p">]</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">idx_order</span><span class="p">]</span>
+
+    <span class="c1"># Generate fit</span>
+    <span class="n">cs</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">CubicSpline</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bc_type</span><span class="o">=</span><span class="s2">&quot;natural&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">absolute</span><span class="p">(</span><span class="n">cs</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">y</span><span class="p">))</span> <span class="o">/</span> <span class="n">y</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Fitting </span><span class="si">{}</span><span class="s2"> with 3d spline, residuals are huge!&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;function&quot;</span><span class="p">:</span> <span class="n">cs</span><span class="p">,</span> <span class="s2">&quot;x_units&quot;</span><span class="p">:</span> <span class="n">x_units</span><span class="p">,</span> <span class="s2">&quot;y_units&quot;</span><span class="p">:</span> <span class="n">y_units</span><span class="p">,</span> <span class="s2">&quot;dtype&quot;</span><span class="p">:</span> <span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="_get_linearized_fit">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters._get_linearized_fit">[docs]</a>
+<span class="k">def</span> <span class="nf">_get_linearized_fit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">hasUnit</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="n">x_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">x_units</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">x_units</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">hasUnit</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+        <span class="n">y_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">y_units</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">y_units</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+    <span class="k">return</span> <span class="n">x_units</span><span class="p">,</span> <span class="n">y_units</span><span class="p">,</span> <span class="n">fitting</span><span class="o">.</span><span class="n">fit_linearized_transforms</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="_use_linearized_fit">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters._use_linearized_fit">[docs]</a>
+<span class="k">def</span> <span class="nf">_use_linearized_fit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="n">x_units</span><span class="p">,</span> <span class="n">y_units</span><span class="p">,</span> <span class="n">fit_params</span> <span class="o">=</span> <span class="n">params</span>
+    <span class="n">x_unitless</span> <span class="o">=</span> <span class="n">x</span> <span class="k">if</span> <span class="n">x_units</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">x</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">x_units</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">y_units</span> <span class="o">*</span> <span class="n">fitting</span><span class="o">.</span><span class="n">interpolate_linearized_fit</span><span class="p">(</span><span class="n">x_unitless</span><span class="p">,</span> <span class="o">*</span><span class="n">fit_params</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="_useFitParameters">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters._useFitParameters">[docs]</a>
+<span class="k">def</span> <span class="nf">_useFitParameters</span><span class="p">(</span><span class="n">x_new</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">x_units</span><span class="p">,</span> <span class="n">y_units</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+    <span class="c1"># Convert to same unit base</span>
+    <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">hasUnit</span><span class="p">(</span><span class="n">x_units</span><span class="p">):</span>
+        <span class="n">x_new</span> <span class="o">=</span> <span class="n">x_new</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">x_units</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">units</span><span class="o">.</span><span class="n">hasUnit</span><span class="p">(</span><span class="n">x_new</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;New x value has units but fit does not!&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Calculate new interpolated y value</span>
+    <span class="n">y_new</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="n">x_new</span><span class="p">)</span>
+
+    <span class="c1"># If value should be an integer (i.e. an elongation rate)</span>
+    <span class="c1"># round to the nearest integer</span>
+    <span class="k">if</span> <span class="n">dtype</span> <span class="o">==</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="n">y_new</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">y_new</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">y_units</span> <span class="o">*</span> <span class="n">y_new</span></div>
+
+
+
+<div class="viewcode-block" id="_loadRow">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters._loadRow">[docs]</a>
+<span class="k">def</span> <span class="nf">_loadRow</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">list_of_dicts</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">units</span><span class="o">.</span><span class="n">hasUnit</span><span class="p">(</span><span class="n">list_of_dicts</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">key</span><span class="p">]):</span>
+        <span class="n">row_units</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">getUnit</span><span class="p">(</span><span class="n">list_of_dicts</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">key</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">row_units</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">row_units</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">list_of_dicts</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">list_of_dicts</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="_loadTableIntoObjectGivenDoublingTime">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters._loadTableIntoObjectGivenDoublingTime">[docs]</a>
+<span class="k">def</span> <span class="nf">_loadTableIntoObjectGivenDoublingTime</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">list_of_dicts</span><span class="p">):</span>
+    <span class="n">table_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">list_of_dicts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="s2">&quot;doublingTime&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">table_keys</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+            <span class="s2">&quot;This data has no doubling time column but it is supposed to be growth rate dependent!&quot;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">table_keys</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">table_keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;doublingTime&quot;</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">table_keys</span><span class="p">:</span>
+        <span class="n">fitParameters</span> <span class="o">=</span> <span class="n">_get_fit_parameters</span><span class="p">(</span><span class="n">list_of_dicts</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+        <span class="n">attrValue</span> <span class="o">=</span> <span class="n">_useFitParameters</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">_doubling_time</span><span class="p">,</span> <span class="o">**</span><span class="n">fitParameters</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">attrValue</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="linear_regression">
+<a class="viewcode-back" href="../../../../reference/api/reconstruction/reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.html#reconstruction.ecoli.dataclasses.growth_rate_dependent_parameters.linear_regression">[docs]</a>
+<span class="k">def</span> <span class="nf">linear_regression</span><span class="p">(</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">y</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">],</span>
+    <span class="n">r_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.999</span><span class="p">,</span>
+    <span class="n">p_tol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Perform linear regression on a data set and check that statistics are</span>
+<span class="sd">    within expected values to confirm a good linear fit.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            x: x values for regression</span>
+<span class="sd">            y: y values for regression</span>
+<span class="sd">            r_tol: lower limit for r statistic</span>
+<span class="sd">            p_tol: upper limit for p statistic</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">            2-element tuple containing</span>
+<span class="sd">                    - slope: linear fit slope</span>
+<span class="sd">                    - intercept: linear fit intercept</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">linregress</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">rvalue</span> <span class="o">&lt;</span> <span class="n">r_tol</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Could not fit linear regression with high enough r&quot;</span>
+            <span class="s2">&quot; value: </span><span class="si">{}</span><span class="s2"> &lt; </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">rvalue</span><span class="p">,</span> <span class="n">r_tol</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">pvalue</span> <span class="o">&gt;</span> <span class="n">p_tol</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Could not fit linear regression with low enough p&quot;</span>
+            <span class="s2">&quot; value: </span><span class="si">{}</span><span class="s2"> &gt; </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">pvalue</span><span class="p">,</span> <span class="n">p_tol</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">slope</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">intercept</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import simulation output &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/nbsphinx-code-cells.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Import simulation output</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/notebooks/fbagd/old/test_network_flow.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
+<span class="o">%</span><span class="k">autoreload</span> 2
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">dill</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+<span class="kn">import</span> <span class="nn">cvxpy</span> <span class="k">as</span> <span class="nn">cp</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">from</span> <span class="nn">scipy.special</span> <span class="kn">import</span> <span class="n">logsumexp</span>
+
+<span class="n">sns</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s1">&#39;darkgrid&#39;</span><span class="p">,</span> <span class="n">palette</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;talk&#39;</span><span class="p">)</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~/vivarium-ecoli&#39;</span><span class="p">))</span>
+
+
+<span class="kn">from</span> <span class="nn">ecoli.processes.metabolism_redux</span> <span class="kn">import</span> <span class="n">NetworkFlowModel</span><span class="p">,</span> <span class="n">FlowResult</span><span class="p">,</span> <span class="n">BAD_RXNS</span><span class="p">,</span> <span class="n">FREE_RXNS</span>
+</pre></div>
+</div>
+</div>
+<section id="Import-simulation-output">
+<h1>Import simulation output<a class="headerlink" href="#Import-simulation-output" title="Link to this heading"></a></h1>
+<p>Before running this, run a sim in ecoli/experiments/metabolism_redux_sim.py with -n 2 to generate a simulation output. This is necessary to replicate the simulation environment. Use the default .json config.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">time</span> <span class="o">=</span> <span class="s1">&#39;10&#39;</span>
+<span class="n">date</span> <span class="o">=</span> <span class="s1">&#39;2023-04-24&#39;</span>
+<span class="n">experiment</span> <span class="o">=</span> <span class="s1">&#39;fba-redux&#39;</span>
+<span class="n">entry</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">experiment</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">time</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">date</span><span class="si">}</span><span class="s1">&#39;</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;out/fbagd/</span><span class="si">{</span><span class="n">entry</span><span class="si">}</span><span class="s1">/&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;output.npy&#39;</span><span class="p">,</span><span class="n">allow_pickle</span><span class="o">=</span><span class="s1">&#39;TRUE&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+<span class="c1"># output = np.load(r&quot;out/geneRxnVerifData/output_glc.npy&quot;, allow_pickle=True, encoding=&#39;ASCII&#39;).tolist()</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;agents&#39;</span><span class="p">][</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>
+<span class="n">fba</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;fba_results&#39;</span><span class="p">]</span>
+<span class="n">mass</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;listeners&#39;</span><span class="p">][</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span>
+<span class="n">bulk</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s1">&#39;bulk&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;agent_steps.pkl&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span>
+<span class="n">agent</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;ecoli-metabolism-redux&#39;</span>
+
+<span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;ecoli-metabolism-redux&#39;</span><span class="p">:</span>
+    <span class="n">metabolism</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism-redux&#39;</span><span class="p">]</span>
+    <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">metabolism</span><span class="o">.</span><span class="n">stoichiometry</span>
+    <span class="n">stoichiometric_matrix_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;reaction id&quot;</span><span class="p">]:</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;stoichiometry&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">stoichiometry</span><span class="p">}</span>
+<span class="k">elif</span> <span class="nb">type</span> <span class="o">==</span> <span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">:</span>
+    <span class="n">stoichiometry</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">stoichiometry</span>
+    <span class="n">maintenance_reaction</span> <span class="o">=</span> <span class="n">agent</span><span class="p">[</span><span class="s1">&#39;ecoli-metabolism&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">maintenance_reaction</span>
+    <span class="n">stoichiometry</span><span class="p">[</span><span class="s2">&quot;maintenance_reaction&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">maintenance_reaction</span>
+
+
+<span class="c1"># for rxn in BAD_RXNS:</span>
+<span class="c1">#     stoichiometric_matrix_dict.pop(rxn, None)</span>
+</pre></div>
+</div>
+</div>
+<p>Pandas automatically understands dicts of dicts as matrices.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span>
+<span class="n">sim_exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_exchanges</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">sim_exchanges</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># plot the top 10 fluxes from sim_fluxes as a bar plot.</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sim_exchanges</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+
+<span class="c1"># shorten all xtick names to 10 characters</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">)],</span> <span class="p">[</span><span class="n">i</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sim_exchanges</span><span class="o">.</span><span class="n">index</span><span class="p">[:</span><span class="mi">20</span><span class="p">]],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span> <span class="s1">&#39;right&#39;</span><span class="p">)</span>
+<span class="c1"># make xticks aligned to right left of bar</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Flux counts&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Top 10 Fluxes&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../../_images/notebooks_fbagd_old_test_network_flow_7_0.png" src="../../../_images/notebooks_fbagd_old_test_network_flow_7_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_fluxes&quot;</span><span class="p">])</span>
+<span class="n">sim_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_fluxes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+
+
+<span class="c1"># plot the top 10 fluxes from sim_fluxes as a bar plot.</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sim_fluxes</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+
+<span class="c1"># shorten all xtick names to 10 characters</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">)],</span> <span class="p">[</span><span class="n">i</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sim_fluxes</span><span class="o">.</span><span class="n">index</span><span class="p">[:</span><span class="mi">20</span><span class="p">]],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span> <span class="s1">&#39;right&#39;</span><span class="p">)</span>
+<span class="c1"># make xticks aligned to right left of bar</span>
+
+
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Flux counts&#39;</span><span class="p">)</span>
+<span class="c1"># log scale</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Top 10 Fluxes&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../../_images/notebooks_fbagd_old_test_network_flow_8_0.png" src="../../../_images/notebooks_fbagd_old_test_network_flow_8_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_fluxes</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>4</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>TRANS-RXN-145</th>
+      <td>15675360.0</td>
+    </tr>
+    <tr>
+      <th>ATPSYN-RXN (reverse)</th>
+      <td>9936179.0</td>
+    </tr>
+    <tr>
+      <th>maintenance_reaction</th>
+      <td>9067240.0</td>
+    </tr>
+    <tr>
+      <th>NADH-DEHYDROG-A-RXN-NADH/UBIQUINONE-8/PROTON//NAD/CPD-9956/PROTON.46.</th>
+      <td>4744591.0</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN0-545[CCO-PM-BAC-NEG]-CARBON-DIOXIDE//CARBON-DIOXIDE.47. (reverse)</th>
+      <td>3364670.0</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN0-474</th>
+      <td>2771827.0</td>
+    </tr>
+    <tr>
+      <th>RXN-21817-CPD-9956/PROTON/OXYGEN-MOLECULE//UBIQUINONE-8/PROTON/WATER.59.</th>
+      <td>2771749.0</td>
+    </tr>
+    <tr>
+      <th>PYRUVDEH-RXN</th>
+      <td>1910777.0</td>
+    </tr>
+    <tr>
+      <th>GAPOXNPHOSPHN-RXN</th>
+      <td>1813836.0</td>
+    </tr>
+    <tr>
+      <th>PHOSGLYPHOS-RXN (reverse)</th>
+      <td>1813828.0</td>
+    </tr>
+    <tr>
+      <th>3PGAREARR-RXN (reverse)</th>
+      <td>1591241.0</td>
+    </tr>
+    <tr>
+      <th>2PGADEHYDRAT-RXN</th>
+      <td>1591193.0</td>
+    </tr>
+    <tr>
+      <th>RXN0-7166</th>
+      <td>1482753.0</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN-157-PTSH-PHOSPHORYLATED/GLC//GLC-6-P/PTSH-MONOMER.46.</th>
+      <td>1438691.0</td>
+    </tr>
+    <tr>
+      <th>GLU6PDEHYDROG-RXN-GLC-6-P/NADP//D-6-P-GLUCONO-DELTA-LACTONE/NADPH/PROTON.55.</th>
+      <td>1149193.0</td>
+    </tr>
+    <tr>
+      <th>6PGLUCONOLACT-RXN</th>
+      <td>1149193.0</td>
+    </tr>
+    <tr>
+      <th>PGLUCONDEHYDRAT-RXN</th>
+      <td>1009534.0</td>
+    </tr>
+    <tr>
+      <th>KDPGALDOL-RXN</th>
+      <td>1009534.0</td>
+    </tr>
+    <tr>
+      <th>CITSYN-RXN</th>
+      <td>927632.0</td>
+    </tr>
+    <tr>
+      <th>RXN-14047</th>
+      <td>926660.0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sim_catalysts</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;reaction_catalyst_counts&quot;</span><span class="p">])</span>
+<span class="n">sim_catalysts</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">sim_catalysts</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">sim_catalysts</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>4</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>RXN0-1741-MALTOSE//MALTOSE.17.</th>
+      <td>40249</td>
+    </tr>
+    <tr>
+      <th>RXN-15315</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN0-445-CHITOBIOSE//CHITOBIOSE.23.</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>RXN0-0-N-ACETYLNEURAMINATE//N-ACETYLNEURAMINATE.41.</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>RXN0-0-N-ACETYLNEURAMINATE//CPD0-1123.31.</th>
+      <td>40223</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th>TRANS-RXN-100</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17726-CPD-3561/WATER//GALACTOSE/CPD-10723.36.</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17726-CPD-3561/WATER//GALACTOSE/BETA-D-FRUCTOSE.42.</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17726</th>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>RXN-17786 (reverse)</th>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+<p>7503 rows × 1 columns</p>
+</div></div>
+</div>
+</section>
+<section id="Test-changing-nutrient-composition">
+<h1>Test changing nutrient composition<a class="headerlink" href="#Test-changing-nutrient-composition" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">uptake</span> <span class="o">=</span> <span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;unconstrained_molecules&quot;</span><span class="p">][</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">uptake_c</span> <span class="o">=</span> <span class="n">fba</span><span class="p">[</span><span class="s2">&quot;constrained_molecules&quot;</span><span class="p">]</span>
+
+<span class="n">uptake</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">uptake_c</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">uptake</span><span class="p">)</span>
+
+<span class="c1"># addition = set([&quot;CPD0-1074[c]&quot;])</span>
+<span class="n">addition</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+        <span class="c1"># &quot;FRU[p]&quot;,</span>
+        <span class="c1"># &quot;NITRATE[p]&quot;</span>
+        <span class="c1"># &#39;THIAMINE[p]&#39;,</span>
+        <span class="c1"># &#39;HYDROGEN-MOLECULE[p]&#39;,</span>
+        <span class="c1"># &#39;FUM[p]&#39;</span>
+<span class="p">])</span>
+<span class="n">removals</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+                  <span class="c1"># &quot;GLC[p]&quot;,</span>
+               <span class="c1">#      # &#39;AMMONIUM[c]&#39;,</span>
+               <span class="c1">#      # &#39;WATER[p]&#39;</span>
+               <span class="c1">#       # &#39;Pi[p]&#39;,</span>
+               <span class="c1">#       # &#39;SULFATE[p]&#39;</span>
+               <span class="c1"># &#39;OXYGEN-MOLECULE[p]&#39;</span>
+<span class="p">])</span>
+
+
+<span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">|</span> <span class="n">addition</span>
+<span class="n">uptake</span> <span class="o">=</span> <span class="n">uptake</span> <span class="o">-</span> <span class="n">removals</span>
+<span class="n">uptake</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;AMMONIUM[c]&#39;,
+ &#39;CA+2[p]&#39;,
+ &#39;CARBON-DIOXIDE[p]&#39;,
+ &#39;CL-[p]&#39;,
+ &#39;CO+2[p]&#39;,
+ &#39;FE+2[p]&#39;,
+ &#39;GLC[p]&#39;,
+ &#39;K+[p]&#39;,
+ &#39;L-SELENOCYSTEINE[c]&#39;,
+ &#39;MG+2[p]&#39;,
+ &#39;MN+2[p]&#39;,
+ &#39;NA+[p]&#39;,
+ &#39;NI+2[p]&#39;,
+ &#39;OXYGEN-MOLECULE[p]&#39;,
+ &#39;Pi[p]&#39;,
+ &#39;SULFATE[p]&#39;,
+ &#39;WATER[p]&#39;,
+ &#39;ZN+2[p]&#39;}
+</pre></div></div>
+</div>
+</section>
+<section id="Use-NetworkFlowModel-class-to-run-model">
+<h1>Use NetworkFlowModel class to run model<a class="headerlink" href="#Use-NetworkFlowModel-class-to-run-model" title="Link to this heading"></a></h1>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">homeostatic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_homeostatic_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;estimated_exchange_dmdt&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">maintenance</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;maintenance_target&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;maintenance_reaction&#39;</span><span class="p">]</span>
+<span class="n">kinetic</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">fba</span><span class="p">[</span><span class="s2">&quot;target_kinetic_fluxes&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">:]</span>
+<span class="n">homeostatic</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+2-3-DIHYDROXYBENZOATE[c]     73.0
+2-KETOGLUTARATE[c]          186.0
+2-PG[c]                      49.0
+2K-4CH3-PENTANOATE[c]        73.0
+4-AMINO-BUTYRATE[c]         160.0
+                            ...
+MN+2[p]                      52.0
+NA+[p]                       52.0
+OXYGEN-MOLECULE[p]           51.0
+CA+2[p]                      52.0
+Pi[p]                        52.0
+Name: 4, Length: 171, dtype: float64
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">NetworkFlowModel</span><span class="p">(</span><span class="n">reactions</span><span class="o">=</span><span class="n">stoichiometric_matrix_dict</span><span class="p">,</span>
+                         <span class="n">homeostatic_metabolites</span><span class="o">=</span><span class="n">metabolism</span><span class="o">.</span><span class="n">homeostatic_objective</span><span class="p">,</span>
+                         <span class="n">free_reactions</span><span class="o">=</span><span class="n">FREE_RXNS</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">set_up_exchanges</span><span class="p">(</span><span class="n">exchanges</span><span class="o">=</span><span class="n">metabolism</span><span class="o">.</span><span class="n">exchange_molecules</span><span class="p">,</span> <span class="n">uptakes</span><span class="o">=</span><span class="n">metabolism</span><span class="o">.</span><span class="n">allowed_exchange_uptake</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">solution</span><span class="p">:</span> <span class="n">FlowResult</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">homeostatic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">homeostatic</span><span class="p">),</span>
+                                   <span class="n">maintenance_target</span><span class="o">=</span><span class="n">maintenance</span><span class="p">,</span>
+                                   <span class="n">kinetic_targets</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">kinetic</span><span class="p">),</span>
+                                   <span class="n">reaction_catalyst_counts</span><span class="o">=</span><span class="n">sim_catalysts</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()[</span><span class="mi">4</span><span class="p">],</span>
+                                   <span class="n">objective_weights</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;secretion&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s1">&#39;efficiency&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="s1">&#39;kinetics&#39;</span><span class="p">:</span> <span class="mf">0.000001</span><span class="p">},</span>
+                                   <span class="n">upper_flux_bound</span><span class="o">=</span><span class="mi">100000000</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cur_exchanges</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">exchanges</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># plot the top 10 fluxes from sim_fluxes as a bar plot.</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cur_exchanges</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">30</span><span class="p">),</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+
+<span class="c1"># shorten all xtick names to 10 characters</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">30</span><span class="p">)],</span> <span class="p">[</span><span class="n">i</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">cur_exchanges</span><span class="o">.</span><span class="n">index</span><span class="p">[:</span><span class="mi">30</span><span class="p">]],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span> <span class="s1">&#39;right&#39;</span><span class="p">)</span>
+<span class="c1"># make xticks aligned to right left of bar</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Flux counts&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Top 10 Fluxes&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../../_images/notebooks_fbagd_old_test_network_flow_18_0.png" src="../../../_images/notebooks_fbagd_old_test_network_flow_18_0.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cur_fluxes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">solution</span><span class="o">.</span><span class="n">velocities</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># plot the top 10 fluxes from sim_fluxes as a bar plot.</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">cur_fluxes</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">20</span><span class="p">),</span> <span class="s1">&#39;o&#39;</span><span class="p">)</span>
+
+<span class="c1"># shorten all xtick names to 10 characters</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">)],</span> <span class="p">[</span><span class="n">i</span><span class="p">[:</span><span class="mi">20</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">cur_fluxes</span><span class="o">.</span><span class="n">index</span><span class="p">[:</span><span class="mi">20</span><span class="p">]],</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span> <span class="s1">&#39;right&#39;</span><span class="p">)</span>
+<span class="c1"># make xticks aligned to right left of bar</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Flux counts&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;Top 10 Fluxes&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../../_images/notebooks_fbagd_old_test_network_flow_19_0.png" src="../../../_images/notebooks_fbagd_old_test_network_flow_19_0.png" />
+</div>
+</div>
+</section>
+<section id="Use-parametrized-method">
+<h1>Use parametrized method<a class="headerlink" href="#Use-parametrized-method" title="Link to this heading"></a></h1>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ecoli.library.schema &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ecoli.library.schema</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ecoli.library.schema</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">===========================</span>
+<span class="sd">Simulation Helper Functions</span>
+<span class="sd">===========================</span>
+
+<span class="sd">This is a collection of helper functions used thoughout our code base.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.store</span> <span class="kn">import</span> <span class="n">Store</span>
+<span class="kn">from</span> <span class="nn">vivarium.core.registry</span> <span class="kn">import</span> <span class="n">Serializer</span>
+
+<span class="n">RAND_MAX</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">31</span> <span class="o">-</span> <span class="mi">1</span>
+
+<span class="n">UNIQUE_DIVIDERS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;active_ribosome&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;ribosome_by_RNA&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;RNA&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;RNA&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;active_RNAP&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;active_RNAP&quot;</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;full_chromosomes&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;chromosome_domains&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;active_replisomes&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;oriCs&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;promoters&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;chromosomal_segments&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;DnaA_boxes&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;active_RNAPs&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;RNAs&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;rna_by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;active_RNAP&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;active_RNAP&quot;</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;genes&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;divider&quot;</span><span class="p">:</span> <span class="s2">&quot;by_domain&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;topology&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;full_chromosome&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;full_chromosome&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;chromosome_domain&quot;</span><span class="p">),</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;A mapping of unique molecules to the names of their divider functions ars they are registered </span>
+<span class="sd">in the ``divider_registry`` in ``ecoli/__init__.py``</span>
+
+<span class="sd">:meta hide-value:</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="array_from">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.array_from">[docs]</a>
+<span class="k">def</span> <span class="nf">array_from</span><span class="p">(</span><span class="n">d</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Makes a Numpy array from dictionary values.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        d: Dictionary whose values are to be converted</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Array of all values in d.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span></div>
+
+
+
+<div class="viewcode-block" id="create_unique_indexes">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.create_unique_indexes">[docs]</a>
+<span class="k">def</span> <span class="nf">create_unique_indexes</span><span class="p">(</span>
+    <span class="n">n_indexes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">random_state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Creates a list of unique indexes by making them random.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        n_indexes: Number of indexes to generate.</span>
+<span class="sd">        random_state: PRNG.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of indexes. Each index is a string representing a number in</span>
+<span class="sd">        the range :math:`[0, 2^{63})`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">num</span> <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">random_state</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">63</span><span class="p">,</span> <span class="n">n_indexes</span><span class="p">)]</span></div>
+
+
+
+<div class="viewcode-block" id="not_a_process">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.not_a_process">[docs]</a>
+<span class="k">def</span> <span class="nf">not_a_process</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns ``True`` if not a :py:class:`vivarium.core.process.Process` instance.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Store</span><span class="p">)</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">topology</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="counts">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.counts">[docs]</a>
+<span class="k">def</span> <span class="nf">counts</span><span class="p">(</span><span class="n">states</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function to pull out counts at given indices.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        states: Either a Numpy structured array with a `&#39;count&#39;` field or a 1D</span>
+<span class="sd">            Numpy array of counts.</span>
+<span class="sd">        idx: Indices for the counts of interest.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Counts of molecules at specified indices (copy so can be safely mutated)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">states</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span>
+    <span class="c1"># evolve_state reads from (&#39;allocate&#39;, process_name, &#39;bulk&#39;)</span>
+    <span class="c1"># which is a simple Numpy array (not structured)</span>
+    <span class="k">return</span> <span class="n">states</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="get_bulk_counts">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.get_bulk_counts">[docs]</a>
+<span class="k">class</span> <span class="nc">get_bulk_counts</span><span class="p">(</span><span class="n">Serializer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Serializer for bulk molecules that saves counts without IDs or masses.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="get_bulk_counts.serialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.get_bulk_counts.serialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="n">bulk</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            bulk: Numpy structured array with a `count` field</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Contiguous (required by orjson) array of bulk molecule counts</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">bulk</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">])</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_unique_fields">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.get_unique_fields">[docs]</a>
+<span class="k">class</span> <span class="nc">get_unique_fields</span><span class="p">(</span><span class="n">Serializer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Serializer for unique molecules.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="get_unique_fields.serialize">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.get_unique_fields.serialize">[docs]</a>
+    <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="n">unique</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            unique: Numpy structured array of attributes for one unique molecule</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of contiguous (required by orjson) arrays, one for each attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">unique</span><span class="p">[</span><span class="n">field</span><span class="p">])</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">unique</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">]</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="numpy_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.numpy_schema">[docs]</a>
+<span class="k">def</span> <span class="nf">numpy_schema</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">emit</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function used in ports schemas for bulk and unique molecules</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: `bulk` for bulk molecules or one of the keys in :py:data:`UNIQUE_DIVIDERS`</span>
+<span class="sd">            for unique molecules</span>
+<span class="sd">        emit: `True` if should be emitted (default)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Fully configured ports schema for molecules of type `name`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">schema</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;_emit&quot;</span><span class="p">:</span> <span class="n">emit</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;bulk&quot;</span><span class="p">:</span>
+        <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;_updater&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bulk_numpy_updater</span>
+        <span class="c1"># Only pull out counts to be serialized (save space and time)</span>
+        <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;_serializer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_bulk_counts</span>
+        <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;_divider&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;bulk_binomial&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Since vivarium-core ensures that each store will only have a single</span>
+        <span class="c1"># updater, it&#39;s OK to create new UniqueNumpyUpdater objects each time</span>
+        <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;_updater&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">UniqueNumpyUpdater</span><span class="p">()</span><span class="o">.</span><span class="n">updater</span>
+        <span class="c1"># Convert to list of contiguous Numpy arrays for faster and more</span>
+        <span class="c1"># efficient serialization (still do not recommend emitting unique)</span>
+        <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;_serializer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_unique_fields</span>
+        <span class="n">schema</span><span class="p">[</span><span class="s2">&quot;_divider&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">UNIQUE_DIVIDERS</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">schema</span></div>
+
+
+
+<div class="viewcode-block" id="bulk_name_to_idx">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.bulk_name_to_idx">[docs]</a>
+<span class="k">def</span> <span class="nf">bulk_name_to_idx</span><span class="p">(</span>
+    <span class="n">names</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="p">(</span><span class="n">List</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">),</span> <span class="n">bulk_names</span><span class="p">:</span> <span class="n">List</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Primarily used to retrieve indices for groups of bulk molecules (e.g. NTPs)</span>
+<span class="sd">    in the first run of a process and cache for future runs</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        names: List or array of things to find. Can also be single string.</span>
+<span class="sd">        bulk_names: List of array of things to search</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Index or indices such that ``bulk_names[indices] == names``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Convert from string names to indices in bulk array</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="c1"># Big brain solution from https://stackoverflow.com/a/32191125</span>
+        <span class="c1"># One downside: all values in names MUST be in bulk_names</span>
+        <span class="c1"># Can mask missing values with bulk_names[return value] == names</span>
+        <span class="n">sorter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">bulk_names</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">take</span><span class="p">(</span>
+            <span class="n">sorter</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">bulk_names</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">sorter</span><span class="o">=</span><span class="n">sorter</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;clip&quot;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">bulk_names</span> <span class="o">==</span> <span class="n">names</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="bulk_numpy_updater">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.bulk_numpy_updater">[docs]</a>
+<span class="k">def</span> <span class="nf">bulk_numpy_updater</span><span class="p">(</span>
+    <span class="n">current</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Updater function for bulk molecule structured array.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        current: Bulk molecule structured array</span>
+<span class="sd">        update: List of tuples ``(mol_idx, add_val)``, where</span>
+<span class="sd">            ``mol_idx`` is the index (or array of indices) for</span>
+<span class="sd">            the molecule(s) to be updated and ``add_val`` is the</span>
+<span class="sd">            count (or array of counts) to be added to the current</span>
+<span class="sd">            count(s) for the specified molecule(s).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Updated bulk molecule structured array</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Bulk updates are lists of tuples, where first value</span>
+    <span class="c1"># in each tuple is an array of indices to update and</span>
+    <span class="c1"># second value is array of updates to apply</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">current</span>
+    <span class="c1"># Numpy arrays are read-only outside of updater</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">writeable</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">update</span><span class="p">:</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span> <span class="o">+=</span> <span class="n">value</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">writeable</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="attrs">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.attrs">[docs]</a>
+<span class="k">def</span> <span class="nf">attrs</span><span class="p">(</span><span class="n">states</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">attributes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function to pull out arrays for unique molecule attributes</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        states: Structured Numpy array for all unique molecules of a given</span>
+<span class="sd">            type (e.g. RNA, active RNAP, etc.)</span>
+<span class="sd">        attributes: List of field names (attributes) whose data should be</span>
+<span class="sd">            retrieved for all active unique molecules in ``states``</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of arrays, one for each attribute. nth entry in each array</span>
+<span class="sd">        corresponds to the value of that attribute for the nth active</span>
+<span class="sd">        unique molecule in ``states``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># _entryState has dtype int8 so this works</span>
+    <span class="n">mol_mask</span> <span class="o">=</span> <span class="n">states</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">states</span><span class="p">[</span><span class="n">attribute</span><span class="p">][</span><span class="n">mol_mask</span><span class="p">]</span> <span class="k">for</span> <span class="n">attribute</span> <span class="ow">in</span> <span class="n">attributes</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="get_free_indices">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.get_free_indices">[docs]</a>
+<span class="k">def</span> <span class="nf">get_free_indices</span><span class="p">(</span>
+    <span class="n">result</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">n_objects</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find inactive rows for new molecules and expand array if needed</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        result: Structured Numpy array for all unique molecules of a given</span>
+<span class="sd">            type (e.g. RNA, active RNAP, etc.)</span>
+<span class="sd">        n_objects: Number of new unique molecules to be added</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A tuple ``(result, free_idx)``. ``result`` is the same as the</span>
+<span class="sd">        input argument unless ``n_objects`` is greater than the number</span>
+<span class="sd">        of inactive rows in ``result``. In this case, ``result`` is</span>
+<span class="sd">        grown by at least 10% by concatenating new rows (all zeros).</span>
+<span class="sd">        ``free_idx`` is an array of size ``n_objects`` that contains</span>
+<span class="sd">        the indices of rows in ``result`` that are inactive (``_entryState``</span>
+<span class="sd">        field is 0).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">free_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">n_free_indices</span> <span class="o">=</span> <span class="n">free_indices</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="k">if</span> <span class="n">n_free_indices</span> <span class="o">&lt;</span> <span class="n">n_objects</span><span class="p">:</span>
+        <span class="n">old_size</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">n_new_entries</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">old_size</span> <span class="o">*</span> <span class="mf">0.1</span><span class="p">),</span> <span class="n">n_objects</span> <span class="o">-</span> <span class="n">n_free_indices</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">n_new_entries</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
+
+        <span class="n">free_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">free_indices</span><span class="p">,</span> <span class="n">old_size</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_new_entries</span><span class="p">))</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">free_indices</span><span class="p">[:</span><span class="n">n_objects</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="UniqueNumpyUpdater">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.UniqueNumpyUpdater">[docs]</a>
+<span class="k">class</span> <span class="nc">UniqueNumpyUpdater</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Updates that set attributes of currently active unique molecules</span>
+<span class="sd">    must be applied before any updates that add or delete molecules. If this</span>
+<span class="sd">    is not enforced, in a single timestep, an update might delete a molecule</span>
+<span class="sd">    and allow a subsequent update to add a new molecule in the same row. Then,</span>
+<span class="sd">    an update that intends to modify an attribute of the original molecule</span>
+<span class="sd">    in that row will actually corrupt the data for the new molecule.</span>
+
+<span class="sd">    To fix this, this unique molecule updater is a bound method with access</span>
+<span class="sd">    to instance attributes that allow it to accumulate updates until given</span>
+<span class="sd">    the signal to apply the accumulated updates in the proper order. The</span>
+<span class="sd">    signal to apply these updates is given by a special process (</span>
+<span class="sd">    :py:class:`ecoli.processes.unique_update.UniqueUpdate`) that is</span>
+<span class="sd">    automatically added to the simulation by</span>
+<span class="sd">    :py:meth:`ecoli.composites.ecoli_master.Ecoli.generate_processes_and_steps`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets up instance attributes to accumulate updates.</span>
+
+<span class="sd">        Attributes:</span>
+<span class="sd">            add_updates: List of updates that add unique molecules</span>
+<span class="sd">            set_updates: List of updates that modify existing unique molecules</span>
+<span class="sd">            delete_updates: List of updates that delete unique molecules</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_updates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_updates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delete_updates</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="UniqueNumpyUpdater.updater">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.UniqueNumpyUpdater.updater">[docs]</a>
+    <span class="k">def</span> <span class="nf">updater</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Accumulates updates in instance attributes until given signal to</span>
+<span class="sd">        apply all updates in the following order: ``set``, ``add``, ``delete``</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            current: Structured Numpy array for a given unique molecule</span>
+<span class="sd">            update: Dictionary of updates to apply that can contain any</span>
+<span class="sd">                combination of the following keys:</span>
+
+<span class="sd">                - ``set``: List of dictionaries</span>
+<span class="sd">                    Each key is an attribute of the given unique molecule</span>
+<span class="sd">                    and each value is an array. Each array contains</span>
+<span class="sd">                    the new attribute values for all active unique</span>
+<span class="sd">                    molecules in a givne timestep.</span>
+
+<span class="sd">                - ``add``: List of dictionaries</span>
+<span class="sd">                    Each key is an attribute of the given unique moleucle</span>
+<span class="sd">                    and each value is an array. The nth element of</span>
+<span class="sd">                    each array is the value for the corresponding</span>
+<span class="sd">                    attribute for the nth unique molecule to be added.</span>
+
+<span class="sd">                - ``delete``: List-like</span>
+<span class="sd">                    List of **active** molecule indices to delete. Note that</span>
+<span class="sd">                    ``current`` may have rows that are marked as inactive, so</span>
+<span class="sd">                    deleting the 10th active molecule may not equate to</span>
+<span class="sd">                    deleting the value in the 10th row of ``current``.</span>
+
+<span class="sd">                - ``update``: Boolean</span>
+<span class="sd">                    Special key that should only be included in the update of</span>
+<span class="sd">                    :py:class:`ecoli.processes.unique_update.UniqueUpdate`.</span>
+<span class="sd">                    Tells updater to apply all cached updates (e.g. at the</span>
+<span class="sd">                    end of an &quot;execution layer&quot;; see :ref:`partitioning`).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Updated unique molecule structured Numpy array.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">update</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">current</span>
+
+        <span class="c1"># Store updates in class instance variables until all</span>
+        <span class="c1"># evolvers have finished running. The UniqueUpdate process</span>
+        <span class="c1"># then signals for all the updates to be applied in the</span>
+        <span class="c1"># following order: set, add, delete (prevents overwriting)</span>
+        <span class="k">for</span> <span class="n">update_type</span><span class="p">,</span> <span class="n">update_val</span> <span class="ow">in</span> <span class="n">update</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">update_type</span> <span class="o">==</span> <span class="s2">&quot;add&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">update_val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">update_type</span> <span class="o">==</span> <span class="s2">&quot;set&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">set_updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">update_val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">update_type</span> <span class="o">==</span> <span class="s2">&quot;delete&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">delete_updates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">update_val</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">update</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;update&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">current</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">current</span>
+        <span class="c1"># Numpy arrays are read-only outside of updater</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">writeable</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">active_mask</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+        <span class="c1"># Generate array of active indices for delete updates only</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delete_updates</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">initially_active_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">active_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">set_update</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_updates</span><span class="p">:</span>
+            <span class="c1"># Set updates are dictionaries where each key is a column and</span>
+            <span class="c1"># each value is an array. They are designed to apply to all rows</span>
+            <span class="c1"># (molecules) that were active at the beginning of a timestep</span>
+            <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">col_values</span> <span class="ow">in</span> <span class="n">set_update</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">col</span><span class="p">][</span><span class="n">active_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">col_values</span>
+        <span class="k">for</span> <span class="n">add_update</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_updates</span><span class="p">:</span>
+            <span class="c1"># Add updates are dictionaries where each key is a column and</span>
+            <span class="c1"># each value is an array. The nth element of each array is the value</span>
+            <span class="c1"># for the corresponding column of the nth new molecule to be added.</span>
+            <span class="n">n_new_molecules</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">add_update</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+            <span class="n">result</span><span class="p">,</span> <span class="n">free_indices</span> <span class="o">=</span> <span class="n">get_free_indices</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">n_new_molecules</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="n">col_values</span> <span class="ow">in</span> <span class="n">add_update</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">col</span><span class="p">][</span><span class="n">free_indices</span><span class="p">]</span> <span class="o">=</span> <span class="n">col_values</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">][</span><span class="n">free_indices</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">delete_indices</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete_updates</span><span class="p">:</span>
+            <span class="c1"># Delete updates are arrays of active row indices to delete</span>
+            <span class="n">rows_to_delete</span> <span class="o">=</span> <span class="n">initially_active_idx</span><span class="p">[</span><span class="n">delete_indices</span><span class="p">]</span>
+            <span class="n">result</span><span class="p">[</span><span class="n">rows_to_delete</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_updates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delete_updates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_updates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">writeable</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="listener_schema">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.listener_schema">[docs]</a>
+<span class="k">def</span> <span class="nf">listener_schema</span><span class="p">(</span><span class="n">elements</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function that can be used in ``ports_schema`` to create generic</span>
+<span class="sd">    schema for a collection of listeners.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        elements: Dictionary where keys are listener names and values are the</span>
+<span class="sd">            defaults for each listener. Alternatively, if the value is a</span>
+<span class="sd">            tuple, assume that the first element is the default and the second</span>
+<span class="sd">            is metadata that will be emitted at the beginning of a simulation</span>
+<span class="sd">            when ``emitter`` is set to ``database`` and ``emit_config`` is</span>
+<span class="sd">            set to ``True`` (see :py:mod:`ecoli.experiments.ecoli_master_sim`).</span>
+<span class="sd">            This metadata can then be retrieved later to aid in interpreting</span>
+<span class="sd">            listener values (see :py:func:`vivarium.core.emitter.data_from_database`</span>
+<span class="sd">            for sample code to query experiment configuration collection).</span>
+<span class="sd">            As an example, this metadata might be an array of molecule names</span>
+<span class="sd">            for a listener whose emits are arrays of counts, where the nth</span>
+<span class="sd">            molecule name in the metadata corresponds to the nth value in the</span>
+<span class="sd">            counts that are emitted.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Ports schemas for all listeners in ``elements``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">basic_schema</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;_updater&quot;</span><span class="p">:</span> <span class="s2">&quot;set&quot;</span><span class="p">,</span> <span class="s2">&quot;_emit&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+    <span class="n">schema</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">element</span><span class="p">,</span> <span class="n">default</span> <span class="ow">in</span> <span class="n">elements</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Assume that tuples contain (default, metadata) in that order</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">default</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">schema</span><span class="p">[</span><span class="n">element</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="o">**</span><span class="n">basic_schema</span><span class="p">,</span>
+                <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="n">default</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="s2">&quot;_properties&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">default</span><span class="p">[</span><span class="mi">1</span><span class="p">]},</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">schema</span><span class="p">[</span><span class="n">element</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">basic_schema</span><span class="p">,</span> <span class="s2">&quot;_default&quot;</span><span class="p">:</span> <span class="n">default</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">schema</span></div>
+
+
+
+<span class="c1"># :term:`dividers`</span>
+<div class="viewcode-block" id="divide_binomial">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.divide_binomial">[docs]</a>
+<span class="k">def</span> <span class="nf">divide_binomial</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Binomial Divider</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state: The value to divide.</span>
+<span class="sd">        config: Must contain a ``seed`` key with an integer seed. This</span>
+<span class="sd">            seed will be added to ``int(state)`` to seed a random number</span>
+<span class="sd">            generator used to calculate the binomial.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The divided values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">seed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">state</span><span class="p">)</span> <span class="o">%</span> <span class="n">RAND_MAX</span>
+    <span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">counts_1</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">counts_2</span> <span class="o">=</span> <span class="n">state</span> <span class="o">-</span> <span class="n">counts_1</span>
+    <span class="k">return</span> <span class="n">counts_1</span><span class="p">,</span> <span class="n">counts_2</span></div>
+
+
+
+<div class="viewcode-block" id="divide_bulk">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.divide_bulk">[docs]</a>
+<span class="k">def</span> <span class="nf">divide_bulk</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divider function for bulk molecules. Automatically added to bulk</span>
+<span class="sd">    molecule ports schemas by :py:func:`ecoli.library.schema.numpy_schema`</span>
+<span class="sd">    when ``name == &#39;bulk&#39;``. Uses binomial distribution with ``p=0.5`` to</span>
+<span class="sd">    randomly partition counts.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state: Structured Numpy array of bulk molecule data.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of two structured Numpy arrays, each representing the bulk</span>
+<span class="sd">        molecule state of a daughter cell.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+    <span class="n">seed</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">%</span> <span class="n">RAND_MAX</span>
+    <span class="c1"># TODO: Random state/seed in store?</span>
+    <span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">daughter_1</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">daughter_2</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">daughter_1</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">daughter_2</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">counts</span> <span class="o">-</span> <span class="n">daughter_1</span><span class="p">[</span><span class="s2">&quot;count&quot;</span><span class="p">]</span>
+    <span class="n">daughter_1</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">writeable</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">daughter_2</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">writeable</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">daughter_1</span><span class="p">,</span> <span class="n">daughter_2</span></div>
+
+
+
+<span class="c1"># TODO: Create a store for growth rate noise simulation parameter</span>
+
+
+<div class="viewcode-block" id="divide_ribosomes_by_RNA">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.divide_ribosomes_by_RNA">[docs]</a>
+<span class="k">def</span> <span class="nf">divide_ribosomes_by_RNA</span><span class="p">(</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divider function for active ribosome unique molecules. Automatically</span>
+<span class="sd">    added to ports schema by :py:func:`ecoli.library.schema.numpy_schema` when</span>
+<span class="sd">    ``name == &#39;active_ribosome&#39;``. Ensures that ribosomes are divided the same</span>
+<span class="sd">    way that their associated mRNAs are.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        values: Structured Numpy array of active ribosome unique molecule state</span>
+<span class="sd">        state: View into relevant unique molecule states according to the</span>
+<span class="sd">            topology defined under the ``active_ribosome`` key in</span>
+<span class="sd">            :py:data:`ecoli.library.schema.UNIQUE_DIVIDERS`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of two structured Numpy arrays, each containing the active</span>
+<span class="sd">        ribosome unique molecule state of a daughter cell</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="p">(</span><span class="n">mRNA_index</span><span class="p">,)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;mRNA_index&quot;</span><span class="p">])</span>
+    <span class="n">n_molecules</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mRNA_index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_molecules</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Divide ribosomes based on their mRNA index</span>
+        <span class="n">d1_rnas</span><span class="p">,</span> <span class="n">d2_rnas</span> <span class="o">=</span> <span class="n">divide_RNAs_by_domain</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">&quot;RNA&quot;</span><span class="p">],</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">d1_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">mRNA_index</span><span class="p">,</span> <span class="n">d1_rnas</span><span class="p">[</span><span class="s2">&quot;unique_index&quot;</span><span class="p">])</span>
+        <span class="n">d2_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">mRNA_index</span><span class="p">,</span> <span class="n">d2_rnas</span><span class="p">[</span><span class="s2">&quot;unique_index&quot;</span><span class="p">])</span>
+
+        <span class="c1"># Binomially divide indexes of mRNAs that are degraded but still</span>
+        <span class="c1"># has bound ribosomes. This happens because mRNA degradation does</span>
+        <span class="c1"># not abort ongoing translation of the mRNA</span>
+        <span class="n">degraded_mRNA_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span>
+            <span class="n">mRNA_index</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">d1_bool</span><span class="p">,</span> <span class="n">d2_bool</span><span class="p">))]</span>
+        <span class="p">)</span>
+        <span class="n">n_degraded_mRNA</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">degraded_mRNA_indexes</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_degraded_mRNA</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># TODO: Random state/seed in store?</span>
+            <span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">n_molecules</span><span class="p">)</span>
+            <span class="n">n_degraded_mRNA_d1</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span><span class="n">n_degraded_mRNA</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+            <span class="n">degraded_mRNA_indexes_d1</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+                <span class="n">degraded_mRNA_indexes</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_degraded_mRNA_d1</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="n">degraded_mRNA_indexes_d2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">setdiff1d</span><span class="p">(</span>
+                <span class="n">degraded_mRNA_indexes</span><span class="p">,</span> <span class="n">degraded_mRNA_indexes_d1</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Divide &quot;lost&quot; ribosomes based on how these mRNAs were divided</span>
+            <span class="n">lost_ribosomes_d1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">mRNA_index</span><span class="p">,</span> <span class="n">degraded_mRNA_indexes_d1</span><span class="p">)</span>
+            <span class="n">lost_ribosomes_d2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">mRNA_index</span><span class="p">,</span> <span class="n">degraded_mRNA_indexes_d2</span><span class="p">)</span>
+
+            <span class="n">d1_bool</span><span class="p">[</span><span class="n">lost_ribosomes_d1</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">d2_bool</span><span class="p">[</span><span class="n">lost_ribosomes_d2</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">n_d1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">d1_bool</span><span class="p">)</span>
+        <span class="n">n_d2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">d2_bool</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">n_molecules</span> <span class="o">==</span> <span class="n">n_d1</span> <span class="o">+</span> <span class="n">n_d2</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">d1_bool</span><span class="p">,</span> <span class="n">d2_bool</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="n">ribosomes</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">ribosomes</span><span class="p">[</span><span class="n">d1_bool</span><span class="p">],</span> <span class="n">ribosomes</span><span class="p">[</span><span class="n">d2_bool</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="divide_domains">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.divide_domains">[docs]</a>
+<span class="k">def</span> <span class="nf">divide_domains</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divider function for chromosome domains. Ensures that all chromosome</span>
+<span class="sd">    domains associated with a full chromosome go to the same daughter cell</span>
+<span class="sd">    that the full chromosome does.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        state: Structured Numpy array of chromosome domain unique molecule</span>
+<span class="sd">            state.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of two structured Numpy arrays, each containing the chromosome</span>
+<span class="sd">        domain unique molecule state for a daughter cell.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="p">(</span><span class="n">domain_index_full_chroms</span><span class="p">,)</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">&quot;full_chromosome&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;domain_index&quot;</span><span class="p">])</span>
+    <span class="n">domain_index_domains</span><span class="p">,</span> <span class="n">child_domains</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span>
+        <span class="n">state</span><span class="p">[</span><span class="s2">&quot;chromosome_domain&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;domain_index&quot;</span><span class="p">,</span> <span class="s2">&quot;child_domains&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+
+    <span class="c1"># TODO: Random state/seed in store?</span>
+    <span class="c1"># d1_gets_first_chromosome = randomState.rand() &lt; 0.5</span>
+    <span class="c1"># index = not d1_gets_first_chromosome</span>
+    <span class="c1"># d1_domain_index_full_chroms = domain_index_full_chroms[index::2]</span>
+    <span class="c1"># d2_domain_index_full_chroms = domain_index_full_chroms[not index::2]</span>
+
+    <span class="n">d1_domain_index_full_chroms</span> <span class="o">=</span> <span class="n">domain_index_full_chroms</span><span class="p">[</span><span class="mi">0</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">d2_domain_index_full_chroms</span> <span class="o">=</span> <span class="n">domain_index_full_chroms</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">d1_all_domain_indexes</span> <span class="o">=</span> <span class="n">get_descendent_domains</span><span class="p">(</span>
+        <span class="n">d1_domain_index_full_chroms</span><span class="p">,</span> <span class="n">domain_index_domains</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="p">)</span>
+    <span class="n">d2_all_domain_indexes</span> <span class="o">=</span> <span class="n">get_descendent_domains</span><span class="p">(</span>
+        <span class="n">d2_domain_index_full_chroms</span><span class="p">,</span> <span class="n">domain_index_domains</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Check that the domains are being divided correctly</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span><span class="n">d1_all_domain_indexes</span><span class="p">,</span> <span class="n">d2_all_domain_indexes</span><span class="p">)</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;d1_all_domain_indexes&quot;</span><span class="p">:</span> <span class="n">d1_all_domain_indexes</span><span class="p">,</span>
+        <span class="s2">&quot;d2_all_domain_indexes&quot;</span><span class="p">:</span> <span class="n">d2_all_domain_indexes</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="divide_by_domain">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.divide_by_domain">[docs]</a>
+<span class="k">def</span> <span class="nf">divide_by_domain</span><span class="p">(</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divider function for unique molecules that are attached to the</span>
+<span class="sd">    chromsome. Ensures that these molecules are divided in accordance</span>
+<span class="sd">    with the way that chromosome domains are divided.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        values: Structured Numpy array of unique molecule state</span>
+<span class="sd">        state: View of ``full_chromosome`` and ``chromosome_domain``</span>
+<span class="sd">            state as configured under any of the unique molecules with</span>
+<span class="sd">            a divider of `by_domain` in</span>
+<span class="sd">            :py:data:`ecoli.library.schema.UNIQUE_DIVIDERS`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of two structured Numpy arrays, each containing the</span>
+<span class="sd">        unique molecule state of a daughter cell.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">domain_division</span> <span class="o">=</span> <span class="n">divide_domains</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)]</span>
+    <span class="n">d1_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;domain_index&quot;</span><span class="p">],</span> <span class="n">domain_division</span><span class="p">[</span><span class="s2">&quot;d1_all_domain_indexes&quot;</span><span class="p">])</span>
+    <span class="n">d2_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;domain_index&quot;</span><span class="p">],</span> <span class="n">domain_division</span><span class="p">[</span><span class="s2">&quot;d2_all_domain_indexes&quot;</span><span class="p">])</span>
+    <span class="c1"># Some chromosome domains may be left behind because</span>
+    <span class="c1"># they no longer exist after chromosome division. Skip</span>
+    <span class="c1"># this assert when checking division of domains</span>
+    <span class="k">if</span> <span class="s2">&quot;child_domains&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">d1_bool</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">+</span> <span class="n">d2_bool</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">values</span><span class="p">[</span><span class="n">d1_bool</span><span class="p">],</span> <span class="n">values</span><span class="p">[</span><span class="n">d2_bool</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="divide_RNAs_by_domain">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.divide_RNAs_by_domain">[docs]</a>
+<span class="k">def</span> <span class="nf">divide_RNAs_by_domain</span><span class="p">(</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divider function for RNA unique molecules. Ensures that incomplete</span>
+<span class="sd">    transcripts are divided in accordance with how active RNAPs are</span>
+<span class="sd">    divided (which themselves depend on how chromosome domains are divided).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        values: Structured Numpy array of RNA unique molecule state</span>
+<span class="sd">        state: View of relevant unique molecule states according to the</span>
+<span class="sd">            topology under the ``RNAs`` key in</span>
+<span class="sd">            :py:data:`ecoli.library.schema.UNIQUE_DIVIDERS`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of two structured Numpy arrays, each containing the RNA</span>
+<span class="sd">        unique molecule state of a daughter cell.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">is_full_transcript</span><span class="p">,</span> <span class="n">RNAP_index</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;is_full_transcript&quot;</span><span class="p">,</span> <span class="s2">&quot;RNAP_index&quot;</span><span class="p">])</span>
+
+    <span class="n">n_molecules</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">is_full_transcript</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">n_molecules</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Figure out which RNAPs went to each daughter cell</span>
+        <span class="n">domain_division</span> <span class="o">=</span> <span class="n">divide_domains</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="n">rnaps</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;active_RNAP&quot;</span><span class="p">]</span>
+        <span class="n">rnaps</span> <span class="o">=</span> <span class="n">rnaps</span><span class="p">[</span><span class="n">rnaps</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)]</span>
+        <span class="n">d1_rnap_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span>
+            <span class="n">rnaps</span><span class="p">[</span><span class="s2">&quot;domain_index&quot;</span><span class="p">],</span> <span class="n">domain_division</span><span class="p">[</span><span class="s2">&quot;d1_all_domain_indexes&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">d2_rnap_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span>
+            <span class="n">rnaps</span><span class="p">[</span><span class="s2">&quot;domain_index&quot;</span><span class="p">],</span> <span class="n">domain_division</span><span class="p">[</span><span class="s2">&quot;d2_all_domain_indexes&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">d1_rnap_indexes</span> <span class="o">=</span> <span class="n">rnaps</span><span class="p">[</span><span class="s2">&quot;unique_index&quot;</span><span class="p">][</span><span class="n">d1_rnap_bool</span><span class="p">]</span>
+        <span class="n">d2_rnap_indexes</span> <span class="o">=</span> <span class="n">rnaps</span><span class="p">[</span><span class="s2">&quot;unique_index&quot;</span><span class="p">][</span><span class="n">d2_rnap_bool</span><span class="p">]</span>
+
+        <span class="n">d1_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_molecules</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+        <span class="n">d2_bool</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_molecules</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+
+        <span class="c1"># Divide full transcripts binomially</span>
+        <span class="n">full_transcript_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">is_full_transcript</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">full_transcript_indexes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># TODO: Random state/seed in store?</span>
+            <span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">n_molecules</span><span class="p">)</span>
+            <span class="n">n_full_d1</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">binomial</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">is_full_transcript</span><span class="p">),</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span>
+            <span class="p">)</span>
+            <span class="n">full_d1_indexes</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+                <span class="n">full_transcript_indexes</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_full_d1</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="n">full_d2_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">setdiff1d</span><span class="p">(</span><span class="n">full_transcript_indexes</span><span class="p">,</span> <span class="n">full_d1_indexes</span><span class="p">)</span>
+
+            <span class="n">d1_bool</span><span class="p">[</span><span class="n">full_d1_indexes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">d2_bool</span><span class="p">[</span><span class="n">full_d2_indexes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Divide partial transcripts based on how their associated</span>
+        <span class="c1"># RNAPs were divided</span>
+        <span class="n">partial_transcript_indexes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">is_full_transcript</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">RNAP_index_partial_transcripts</span> <span class="o">=</span> <span class="n">RNAP_index</span><span class="p">[</span><span class="n">partial_transcript_indexes</span><span class="p">]</span>
+
+        <span class="n">partial_d1_indexes</span> <span class="o">=</span> <span class="n">partial_transcript_indexes</span><span class="p">[</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">RNAP_index_partial_transcripts</span><span class="p">,</span> <span class="n">d1_rnap_indexes</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="n">partial_d2_indexes</span> <span class="o">=</span> <span class="n">partial_transcript_indexes</span><span class="p">[</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">RNAP_index_partial_transcripts</span><span class="p">,</span> <span class="n">d2_rnap_indexes</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="n">d1_bool</span><span class="p">[</span><span class="n">partial_d1_indexes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">d2_bool</span><span class="p">[</span><span class="n">partial_d2_indexes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">n_d1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">d1_bool</span><span class="p">)</span>
+        <span class="n">n_d2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">d2_bool</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">n_molecules</span> <span class="o">==</span> <span class="n">n_d1</span> <span class="o">+</span> <span class="n">n_d2</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">d1_bool</span><span class="p">,</span> <span class="n">d2_bool</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span>
+
+        <span class="n">rnas</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">values</span><span class="p">[</span><span class="s2">&quot;_entryState&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">rnas</span><span class="p">[</span><span class="n">d1_bool</span><span class="p">],</span> <span class="n">rnas</span><span class="p">[</span><span class="n">d2_bool</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="empty_dict_divider">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.empty_dict_divider">[docs]</a>
+<span class="k">def</span> <span class="nf">empty_dict_divider</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divider function that sets both daughter cell states to empty dicts.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{},</span> <span class="p">{}</span></div>
+
+
+
+<div class="viewcode-block" id="divide_set_none">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.divide_set_none">[docs]</a>
+<span class="k">def</span> <span class="nf">divide_set_none</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divider function that sets both daughter cell states to ``None``.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="remove_properties">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.remove_properties">[docs]</a>
+<span class="k">def</span> <span class="nf">remove_properties</span><span class="p">(</span><span class="n">schema</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">properties</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function to recursively remove certain properties from a</span>
+<span class="sd">    ports schema.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        schema: Ports schema to remove properties from</span>
+<span class="sd">        properties: List of properties to remove</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Ports schema with all properties in ``properties`` recursively removed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">for</span> <span class="nb">property</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+            <span class="n">schema</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="nb">property</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">schema</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">schema</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">remove_properties</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">properties</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">schema</span></div>
+
+
+
+<div class="viewcode-block" id="flatten">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.flatten">[docs]</a>
+<span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="n">nested_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flattens a nested list into a single list.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        l: Nested list to flatten.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">nested_list</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="follow_domain_tree">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.follow_domain_tree">[docs]</a>
+<span class="k">def</span> <span class="nf">follow_domain_tree</span><span class="p">(</span>
+    <span class="n">domain</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">domain_index</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">place_holder</span><span class="p">:</span> <span class="nb">int</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Recursive function that returns all the descendents of a single node in</span>
+<span class="sd">    the domain tree, including itself.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        domain: Domain index to find all descendents for</span>
+<span class="sd">        domain_index: Array of all domain indices</span>
+<span class="sd">        child_domains: Array of child domains for each index in ``domain_index``</span>
+<span class="sd">        place_holder: Placeholder domain index (e.g. used in ``child_domains``</span>
+<span class="sd">            for domain indices that do not have child domains)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">children_nodes</span> <span class="o">=</span> <span class="n">child_domains</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">domain_index</span> <span class="o">==</span> <span class="n">domain</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span>
+
+    <span class="k">if</span> <span class="n">children_nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">place_holder</span><span class="p">:</span>
+        <span class="c1"># If the node has children, recursively run function on each of the</span>
+        <span class="c1"># node&#39;s two children</span>
+        <span class="n">branches</span> <span class="o">=</span> <span class="n">flatten</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">follow_domain_tree</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">domain_index</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">,</span> <span class="n">place_holder</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">children_nodes</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Append index of the node itself</span>
+        <span class="n">branches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">domain</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">branches</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># If the node has no children, return the index of itself</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">domain</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="get_descendent_domains">
+<a class="viewcode-back" href="../../../reference/api/ecoli/ecoli.library.schema.html#ecoli.library.schema.get_descendent_domains">[docs]</a>
+<span class="k">def</span> <span class="nf">get_descendent_domains</span><span class="p">(</span><span class="n">root_domains</span><span class="p">,</span> <span class="n">domain_index</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">,</span> <span class="n">place_holder</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns an array of domain indexes that are descendents of the indexes</span>
+<span class="sd">    listed in root_domains, including the indexes in root_domains themselves.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        root_domains: List of domains to get descendents of</span>
+<span class="sd">        domain_index: Array of all domain indices for chromosome domains</span>
+<span class="sd">        child_domains: Array of child domains for each index in ``domain_index``</span>
+<span class="sd">        place_holder: Placeholder domain index (e.g. used in ``child_domains``</span>
+<span class="sd">            for domain indices that do not have any child domains)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+        <span class="n">flatten</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">follow_domain_tree</span><span class="p">(</span>
+                    <span class="n">root_domain</span><span class="p">,</span> <span class="n">domain_index</span><span class="p">,</span> <span class="n">child_domains</span><span class="p">,</span> <span class="n">place_holder</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">root_domain</span> <span class="ow">in</span> <span class="n">root_domains</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

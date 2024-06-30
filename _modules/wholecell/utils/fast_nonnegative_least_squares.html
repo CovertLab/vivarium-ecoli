@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.fast_nonnegative_least_squares &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.fast_nonnegative_least_squares</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.fast_nonnegative_least_squares</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Faster implementation of nonnegative least squares.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">nnls</span>
+
+
+<div class="viewcode-block" id="fast_nnls">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.fast_nonnegative_least_squares.html#wholecell.utils.fast_nonnegative_least_squares.fast_nnls">[docs]</a>
+<span class="k">def</span> <span class="nf">fast_nnls</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Faster implementation of the nonnegative least squares algorithm, which</span>
+<span class="sd">    returns a nonnegative vector x that minimizes ||Ax - b||_2. This function</span>
+<span class="sd">    utilizes the property that both matrix A and vector b can be divided into</span>
+<span class="sd">    matrices and vectors that each form a smaller nonnegative least squares</span>
+<span class="sd">    problem, which can each be solved independently and the solutions later</span>
+<span class="sd">    concatenated to yield the full vector x. Argument A can given as either a</span>
+<span class="sd">    full numpy array or a scipy sparse matrix.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">            A: np.ndarray or scipy.sparse.csr.csr_matrix of size (M, N)</span>
+<span class="sd">            b: numpy.ndarray of size (M, )</span>
+<span class="sd">    Returns:</span>
+<span class="sd">            x: numpy.ndarray of size (N, ), the solution to the NNLS problem.</span>
+<span class="sd">            r: numpy.ndarray of size (M, ), the residual vector (Ax - b) of the NNLS</span>
+<span class="sd">                    problem.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Check input types and dimensions</span>
+    <span class="k">if</span> <span class="n">A</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Input array A must be a two-dimensional numpy ndarray or sparse csr_matrix&quot;</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">or</span> <span class="n">b</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Input array b must be a one-dimensional ndarray.&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Dimensions of input arrays A and b do not match.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Divide matrix A into smaller submatrices</span>
+    <span class="n">A_nonzero_row_indexes</span><span class="p">,</span> <span class="n">A_nonzero_column_indexes</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()</span>
+
+    <span class="n">visited_row_indexes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">visited_column_indexes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">submatrix_indexes</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">column_DFS</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">all_row_indexes</span><span class="p">,</span> <span class="n">all_column_indexes</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Recursive function to look for columns and rows in matrix A that should</span>
+<span class="sd">        be grouped into the same NNLS problem.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">visited_column_indexes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="n">all_column_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">A_nonzero_row_indexes</span><span class="p">[</span><span class="n">A_nonzero_column_indexes</span> <span class="o">==</span> <span class="n">index</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited_row_indexes</span><span class="p">:</span>
+                <span class="n">row_DFS</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">all_row_indexes</span><span class="p">,</span> <span class="n">all_column_indexes</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">row_DFS</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">all_row_indexes</span><span class="p">,</span> <span class="n">all_column_indexes</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Recursive function to look for columns and rows in matrix A that should</span>
+<span class="sd">        be grouped into the same NNLS problem.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">visited_row_indexes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="n">all_row_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">A_nonzero_column_indexes</span><span class="p">[</span><span class="n">A_nonzero_row_indexes</span> <span class="o">==</span> <span class="n">index</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited_column_indexes</span><span class="p">:</span>
+                <span class="n">column_DFS</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">all_row_indexes</span><span class="p">,</span> <span class="n">all_column_indexes</span><span class="p">)</span>
+
+    <span class="c1"># Loop through each column of matrix A</span>
+    <span class="k">for</span> <span class="n">column_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="c1"># Search for columns and rows that can be grouped into a single NNLS</span>
+        <span class="c1"># problem as the given column</span>
+        <span class="k">if</span> <span class="n">column_index</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited_column_indexes</span><span class="p">:</span>
+            <span class="n">submatrix_row_indexes</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">submatrix_column_indexes</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">column_DFS</span><span class="p">(</span><span class="n">column_index</span><span class="p">,</span> <span class="n">submatrix_row_indexes</span><span class="p">,</span> <span class="n">submatrix_column_indexes</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">submatrix_row_indexes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">submatrix_indexes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">(</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">submatrix_row_indexes</span><span class="p">),</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">submatrix_column_indexes</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+    <span class="c1"># Initialize x</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1"># Solve NNLS for each subproblem identified above</span>
+    <span class="k">for</span> <span class="n">row_indexes</span><span class="p">,</span> <span class="n">column_indexes</span> <span class="ow">in</span> <span class="n">submatrix_indexes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">row_indexes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">column_indexes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">[</span><span class="n">column_indexes</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">b</span><span class="p">[</span><span class="n">row_indexes</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Build a full submatrix A for each subproblem</span>
+            <span class="n">submatrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">row_indexes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">column_indexes</span><span class="p">)))</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">A_nonzero_row_indexes</span><span class="p">,</span> <span class="n">row_indexes</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="n">A_nonzero_row_indexes</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">A_nonzero_column_indexes</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+            <span class="p">):</span>
+                <span class="n">submatrix</span><span class="p">[</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">row_indexes</span> <span class="o">==</span> <span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">column_indexes</span> <span class="o">==</span> <span class="n">j</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="p">]</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span>
+
+            <span class="c1"># Solve the subproblem</span>
+            <span class="n">x_subproblem</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nnls</span><span class="p">(</span><span class="n">submatrix</span><span class="p">,</span> <span class="n">b</span><span class="p">[</span><span class="n">row_indexes</span><span class="p">])</span>
+            <span class="n">x</span><span class="p">[</span><span class="n">column_indexes</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_subproblem</span>
+
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Calculate residuals vector</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">b</span>
+
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">r</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

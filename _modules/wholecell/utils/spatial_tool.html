@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wholecell.utils.spatial_tool &mdash; Vivarium E. coli 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Vivarium E. coli
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/processes.html">Processes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/composites.html">Composites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/experiments.html">Experiments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs.html">Working with Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/stores.html">Stores</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../reference/api_ref.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Vivarium E. coli</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">wholecell.utils.spatial_tool</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for wholecell.utils.spatial_tool</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions that may be useful for future investigation in spatial model.</span>
+<span class="sd">Some of the functions contain default values specific to E coli. Please read</span>
+<span class="sd">before you use. References for the numbers are included in each function.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.constants</span>
+<span class="kn">from</span> <span class="nn">unum</span> <span class="kn">import</span> <span class="n">Unum</span>
+
+<span class="kn">from</span> <span class="nn">wholecell.utils</span> <span class="kn">import</span> <span class="n">units</span>
+
+
+<span class="n">K_B</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">Boltzmann</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">K</span>  <span class="c1"># Boltzmann constant, unit: J/K</span>
+
+
+<div class="viewcode-block" id="compute_hydrodynamic_radius">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.spatial_tool.html#wholecell.utils.spatial_tool.compute_hydrodynamic_radius">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_hydrodynamic_radius</span><span class="p">(</span><span class="n">mw</span><span class="p">,</span> <span class="n">mtype</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function compute the hydrodynamic diameter of a macromolecules from</span>
+<span class="sd">    its molecular weight. It is important to note that the hydrodynamic</span>
+<span class="sd">    diameter is mainly used for computation of diffusion constant, and can</span>
+<span class="sd">    be different from the observed diameter under microscopes or the radius</span>
+<span class="sd">    of gyration, especially for loose polymers such as RNAs. This function</span>
+<span class="sd">    is not E coli specific.</span>
+
+<span class="sd">    References: Bioinformatics (2012). doi:10.1093/bioinformatics/bts537</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        mw: molecular weight of the macromolecules, units: Daltons.</span>
+<span class="sd">        mtype: There are 5 possible mtype options: protein, RNA, linear_DNA,</span>
+<span class="sd">            circular_DNA, and supercoiled_DNA.</span>
+
+<span class="sd">    Returns: the hydrodynamic radius (in unit of nm) of the macromolecules</span>
+<span class="sd">        using the following formula</span>
+<span class="sd">        - rp = 0.0515*MW^(0.392) nm (Hong &amp; Lei 2008) (protein)</span>
+<span class="sd">        - rp = 0.0566*MW^(0.38) nm (Werner 2011) (RNA)</span>
+<span class="sd">        - rp = 0.024*MW^(0.57) nm (Robertson et al 2006) (linear DNA)</span>
+<span class="sd">        - rp = 0.0125*MW^(0.59) nm (Robertson et al 2006) (circular DNA)</span>
+<span class="sd">        - rp = 0.0145*MW^(0.57) nm (Robertson et al 2006) (supercoiled DNA)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">mtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mtype</span> <span class="o">=</span> <span class="s2">&quot;protein&quot;</span>
+
+    <span class="n">dic_rp</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;protein&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0515</span><span class="p">,</span> <span class="mf">0.392</span><span class="p">),</span>
+        <span class="s2">&quot;RNA&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0566</span><span class="p">,</span> <span class="mf">0.38</span><span class="p">),</span>
+        <span class="s2">&quot;linear_DNA&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.024</span><span class="p">,</span> <span class="mf">0.57</span><span class="p">),</span>
+        <span class="s2">&quot;circular_DNA&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0125</span><span class="p">,</span> <span class="mf">0.59</span><span class="p">),</span>
+        <span class="s2">&quot;supercoiled_DNA&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0145</span><span class="p">,</span> <span class="mf">0.57</span><span class="p">),</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mw</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">mw_unitless</span> <span class="o">=</span> <span class="n">mw</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">g</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mw_unitless</span> <span class="o">=</span> <span class="n">mw</span>
+
+    <span class="k">if</span> <span class="n">mtype</span> <span class="ow">in</span> <span class="n">dic_rp</span><span class="p">:</span>
+        <span class="n">rp_0</span><span class="p">,</span> <span class="n">rp_power</span> <span class="o">=</span> <span class="n">dic_rp</span><span class="p">[</span><span class="n">mtype</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+            <span class="s2">&quot;The input &#39;mtype&#39; should be one of the following 5 &quot;</span>
+            <span class="s2">&quot;options: &#39;protein&#39;, &#39;RNA&#39;, &#39;linear_DNA&#39;, &quot;</span>
+            <span class="s2">&quot;&#39;circular_DNA&#39;, &#39;supercoiled_DNA&#39;.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">rp</span> <span class="o">=</span> <span class="n">rp_0</span> <span class="o">*</span> <span class="n">mw_unitless</span><span class="o">**</span><span class="n">rp_power</span>
+    <span class="n">rp</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">nm</span> <span class="o">*</span> <span class="n">rp</span>
+    <span class="k">return</span> <span class="n">rp</span></div>
+
+
+
+<div class="viewcode-block" id="compute_rg_rna">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.spatial_tool.html#wholecell.utils.spatial_tool.compute_rg_rna">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_rg_rna</span><span class="p">(</span><span class="n">n_nt</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function computes the radius of gyration (in units of nm) of an RNA</span>
+<span class="sd">    with length n_nt(in units of nt). This function is not E coli specific.</span>
+<span class="sd">    It is important to note that radius of gyration can be very different</span>
+<span class="sd">    from the hydrodynamic radius or the radius you can observe under</span>
+<span class="sd">    microscopes, especially for RNAs.</span>
+
+<span class="sd">    References: Nucleic Acids Research, 2017, vol 45, 5: 2919-2934.</span>
+<span class="sd">        doi: 10.1093/nar/gkx023</span>
+
+<span class="sd">    Formula: Rg = a*N**nu. a = 0.366 +/- 0.146 nm, nu = 0.50 +/- 0.05</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        n_nt: the number of nucleotide in an RNA.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The radius of gyration of an RNA in the unit of nm.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_nt</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">n_nt</span> <span class="o">=</span> <span class="n">n_nt</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">nt</span><span class="p">)</span>
+
+    <span class="n">a</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">nm</span> <span class="o">*</span> <span class="mf">0.366</span>  <span class="c1"># unit: nm</span>
+    <span class="n">nu</span> <span class="o">=</span> <span class="mf">0.50</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">*</span> <span class="n">n_nt</span><span class="o">**</span><span class="n">nu</span></div>
+
+
+
+<div class="viewcode-block" id="compute_diffusion_constant_from_mw">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.spatial_tool.html#wholecell.utils.spatial_tool.compute_diffusion_constant_from_mw">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_diffusion_constant_from_mw</span><span class="p">(</span>
+    <span class="n">mw</span><span class="p">,</span> <span class="n">mtype</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Warning: The default values of the &#39;parameters&#39; are E coli specific.</span>
+
+<span class="sd">    This function computes the hypothesized diffusion constant of</span>
+<span class="sd">    macromolecules within the nucleoid and the cytoplasm region.</span>
+<span class="sd">    In literature, there is no known differentiation between the diffusion</span>
+<span class="sd">    constant of a molecule in the nucleoid and in the cytoplasm up to the</span>
+<span class="sd">    best of our knowledge in 2019. However, there is a good reason why we</span>
+<span class="sd">    can assume that previously reported diffusion constant are in fact the</span>
+<span class="sd">    diffusion constant of a protein in the nucleoid region:</span>
+<span class="sd">    (1) The image traces of a protein within a bacteria usually cross the</span>
+<span class="sd">        nucleoid regions.</span>
+<span class="sd">    (2) The nucleoid region, compared to the cytoplasm, should be the main</span>
+<span class="sd">    limiting factor restricting the magnitude of diffusion constant.</span>
+<span class="sd">    (3) The same theory of diffusion constant has been implemented to</span>
+<span class="sd">    mammalian cells, and the term &#39;rh&#39;, the average hydrodynamic radius of</span>
+<span class="sd">    the biggest crowders, are different in mammalian cytoplasm, and it seems</span>
+<span class="sd">    to reflect the hydrodynamic radius of the actin filament (note: the</span>
+<span class="sd">    hydrodynamic radius of actin filament should be computed based on the</span>
+<span class="sd">    average length of actin fiber, and is not equal to the radius of the</span>
+<span class="sd">    actin filament itself.) (ref: Nano Lett. 2011, 11, 2157-2163).</span>
+<span class="sd">    As for E coli, the &#39;rh&#39; term = 40nm, which may correspond to the 80nm</span>
+<span class="sd">    DNA fiber. On the other hand, for the diffusion constant of E coli in</span>
+<span class="sd">    the true cytoplasm, we will expect the value of &#39;rh&#39; term to be</span>
+<span class="sd">    approximately 10 nm, which correspond to the radius of active ribosomes.</span>
+
+<span class="sd">    However, all the above statements are just hypothesis. If you want to</span>
+<span class="sd">    compute the diffusion constant of a macromolecule in the whole E coli</span>
+<span class="sd">    cell, you should set loc = &#39;nucleoid&#39;: the formula for this is obtained</span>
+<span class="sd">    from actual experimental data set. When you set loc = &#39;cytoplasm&#39;, the</span>
+<span class="sd">    entire results are merely hypothesis.</span>
+
+<span class="sd">    Ref: Kalwarczyk, T., Tabaka, M. &amp; Holyst, R.</span>
+<span class="sd">    Bioinformatics (2012). doi:10.1093/bioinformatics/bts537</span>
+
+<span class="sd">    D_0 = K_B*T/(6*pi*eta_0*rp)</span>
+<span class="sd">    ln(D_0/D_cyto) = ln(eta/eta_0) = (xi^2/Rh^2 + xi^2/rp^2)^(-a/2)</span>
+<span class="sd">    D_0 = the diffusion constant of a macromolecule in pure solvent</span>
+<span class="sd">    eta_0 = the viscosity of pure solvent, in this case, water</span>
+<span class="sd">    eta = the size-dependent viscosity experienced by the macromolecule.</span>
+<span class="sd">    xi = average distance between the surface of proteins</span>
+<span class="sd">    rh = average hydrodynamic radius of the biggest crowders</span>
+<span class="sd">    a = some constant of the order of 1</span>
+<span class="sd">    rp = hydrodynamic radius of probed molecule</span>
+
+<span class="sd">    In this formula, since we allow the changes in temperature, we also</span>
+<span class="sd">    consider the viscosity changes of water under different temperature:</span>
+<span class="sd">    Ref: Dortmund Data Bank</span>
+<span class="sd">    eta_0 = A*10^(B/(T-C))</span>
+<span class="sd">    A = 2.414*10^(-5) Pa*sec</span>
+<span class="sd">    B = 247.8 K</span>
+<span class="sd">    C = 140 K</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        mw: molecular weight(unit: Da) of the macromolecule</span>
+<span class="sd">        mtype: There are 5 possible mtype options: protein, RNA, linear_DNA,</span>
+<span class="sd">        circular_DNA, and supercoiled_DNA.</span>
+<span class="sd">        loc: The location of the molecule: &#39;nucleoid&#39; or &#39;cytoplasm&#39;.</span>
+<span class="sd">        temp: The temperature of interest. unit: K.</span>
+<span class="sd">        parameters: The 4 parameters required to compute the diffusion</span>
+<span class="sd">            constant: xi, a, rh_nuc, rh_cyto.</span>
+<span class="sd">            The default values are E coli specific.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dc: the diffusion constant of the macromolecule, units: um**2/sec</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">mtype</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mtype</span> <span class="o">=</span> <span class="s2">&quot;protein&quot;</span>
+    <span class="k">if</span> <span class="n">loc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="s2">&quot;nucleoid&quot;</span>
+    <span class="k">if</span> <span class="n">temp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="mi">300</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">K</span>
+    <span class="k">if</span> <span class="n">parameters</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.51</span><span class="p">,</span> <span class="mf">0.53</span><span class="p">,</span> <span class="mi">42</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+    <span class="n">rp</span> <span class="o">=</span> <span class="n">compute_hydrodynamic_radius</span><span class="p">(</span><span class="n">mw</span><span class="p">,</span> <span class="n">mtype</span><span class="o">=</span><span class="n">mtype</span><span class="p">)</span>
+    <span class="n">dc</span> <span class="o">=</span> <span class="n">compute_diffusion_constant_from_rp</span><span class="p">(</span>
+        <span class="n">rp</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="n">loc</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="n">temp</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">parameters</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">dc</span></div>
+
+
+
+<div class="viewcode-block" id="compute_diffusion_constant_from_rp">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.spatial_tool.html#wholecell.utils.spatial_tool.compute_diffusion_constant_from_rp">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_diffusion_constant_from_rp</span><span class="p">(</span><span class="n">rp</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Warning: The default values of the &#39;parameters&#39; are E coli specific.</span>
+
+<span class="sd">    This is the same function as &#39;compute_diffusion_constant_from_mw&#39;</span>
+<span class="sd">    except that it accepts the hydrodynamic radius of the macromolecules</span>
+<span class="sd">    as the input. All hypothesis and statements in</span>
+<span class="sd">    &#39;compute_diffusion_constant_from_mw&#39; apply here as well.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        rp: the hydrodynamic radius of the macromolecule, units: nm.</span>
+<span class="sd">        loc: The location of the molecule: &#39;nucleoid&#39; or &#39;cytoplasm&#39;.</span>
+<span class="sd">        temp: The temperature of interest. unit: K.</span>
+<span class="sd">        parameters: The 4 parameters required to compute the diffusion</span>
+<span class="sd">            constant: xi, a, rh_nuc, rh_cyto.</span>
+<span class="sd">            The default values are E coli specific.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dc: the diffusion constant of the macromolecule, units: um**2/sec</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">loc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="s2">&quot;nucleoid&quot;</span>
+    <span class="k">if</span> <span class="n">temp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="mi">300</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">K</span>
+    <span class="k">if</span> <span class="n">parameters</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parameters</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.51</span><span class="p">,</span> <span class="mf">0.53</span><span class="p">,</span> <span class="mi">42</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+    <span class="c1"># unpack constants required for the calculation</span>
+    <span class="n">xi</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">rh_nuc</span><span class="p">,</span> <span class="n">rh_cyto</span> <span class="o">=</span> <span class="n">parameters</span>  <span class="c1"># unit: nm, 1, nm, nm</span>
+
+    <span class="c1"># viscosity of water</span>
+    <span class="n">a_visc</span> <span class="o">=</span> <span class="mf">2.414</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">)</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">Pa</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">s</span>  <span class="c1"># unit: Pa*sec</span>
+    <span class="n">b_visc</span> <span class="o">=</span> <span class="mf">247.8</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">K</span>  <span class="c1"># unit: K</span>
+    <span class="n">c_visc</span> <span class="o">=</span> <span class="mi">140</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">K</span>  <span class="c1"># unit: K</span>
+    <span class="n">eta_0</span> <span class="o">=</span> <span class="n">a_visc</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">(</span><span class="n">b_visc</span> <span class="o">/</span> <span class="p">(</span><span class="n">temp</span> <span class="o">-</span> <span class="n">c_visc</span><span class="p">))</span>  <span class="c1"># unit: Pa*sec</span>
+
+    <span class="c1"># determine Rh</span>
+    <span class="k">if</span> <span class="n">loc</span> <span class="o">==</span> <span class="s2">&quot;nucleoid&quot;</span><span class="p">:</span>
+        <span class="n">rh</span> <span class="o">=</span> <span class="n">rh_nuc</span>  <span class="c1"># unit: nm</span>
+    <span class="k">elif</span> <span class="n">loc</span> <span class="o">==</span> <span class="s2">&quot;cytoplasm&quot;</span><span class="p">:</span>
+        <span class="n">rh</span> <span class="o">=</span> <span class="n">rh_cyto</span>  <span class="c1"># unit: nm</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s2">&quot;The location can only be &#39;nucleoid&#39; or &#39;cytoplasm&#39;.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rp</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">rp</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">nm</span> <span class="o">*</span> <span class="n">rp</span>
+
+    <span class="c1"># compute DC(diffusion constant)</span>
+    <span class="n">dc_0</span> <span class="o">=</span> <span class="n">K_B</span> <span class="o">*</span> <span class="n">temp</span> <span class="o">/</span> <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">eta_0</span> <span class="o">*</span> <span class="n">rp</span><span class="p">)</span>
+    <span class="n">dc</span> <span class="o">=</span> <span class="n">dc_0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span>
+        <span class="o">-</span><span class="p">((</span><span class="n">xi</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">rh</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">xi</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">rp</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">nm</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="o">-</span><span class="n">a</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">dc</span></div>
+
+
+
+<div class="viewcode-block" id="compute_nucleoid_size">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.spatial_tool.html#wholecell.utils.spatial_tool.compute_nucleoid_size">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_nucleoid_size</span><span class="p">(</span>
+    <span class="n">l_cell</span><span class="p">,</span> <span class="n">d_cell</span><span class="p">,</span> <span class="n">length_scaling_parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nucleoid_area_ratio</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Warning 1: This function contains default values that are specific to</span>
+<span class="sd">    E coli grew on M9 media under aerobic condition only. The shape and size</span>
+<span class="sd">    of nucleoid of a bacteria can be very different across species.</span>
+<span class="sd">    Warning 2: This function is not suitable to compute the nucleoid size of</span>
+<span class="sd">    E coli when its shape turn filamentaous. This is because the scaling</span>
+<span class="sd">    formula of the length of the nucleoid is obtained from a dnaC mutant</span>
+<span class="sd">    E coli strain. According to our reference, when the cells are allowed</span>
+<span class="sd">    to replicate their DNA normally, a constant N/C area ratio is maintained</span>
+<span class="sd">    even for filamentous variants (treated with cephalexin). However, if the</span>
+<span class="sd">    DNA is not allowed to replicate, the N/C area ratio will decrease as the</span>
+<span class="sd">    cell elongate. It is therefore recommended to carefully examine the</span>
+<span class="sd">    condition when the length of the cells grow beyond 3 um.</span>
+<span class="sd">    Warning 3: the default values of length_scaling_parameters and</span>
+<span class="sd">    nucleoid_area_ratio are set to be E coli specific, grew on M9 media</span>
+<span class="sd">    under aerobic condition. The N/C area ratio for E coli grew on LB under</span>
+<span class="sd">    aerobic condition is close to 0.4. For E coli grew under anaerobic</span>
+<span class="sd">    condition it is close to 0.5.</span>
+<span class="sd">    Warning 4: It is also important to note that a single cell can contain</span>
+<span class="sd">    more than 1 nucleoid, and this formula may not be suitable for these</span>
+<span class="sd">    cases.</span>
+
+<span class="sd">    Reference on nucleoid length:</span>
+<span class="sd">    Wu, F. et al. Curr. Biol. (2019). doi:10.1016/j.cub.2019.05.015</span>
+<span class="sd">    Reference on nucleoid/cytoplasm area ratio:</span>
+<span class="sd">    Gray, W. T. et al. Cell (2019). doi:10.1016/j.cell.2019.05.017</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        l_cell: the length of the cell, in units of um</span>
+<span class="sd">        d_cell: the width of the cell, in units of um</span>
+<span class="sd">        length_scaling_parameters: the parameters used for the scaling</span>
+<span class="sd">            formula of the length of the nucleoid with respect to the length</span>
+<span class="sd">            of the whole cell.</span>
+<span class="sd">        nucleoid_area_ratio: the nucleoid/cytoplasm area ratio measured</span>
+<span class="sd">            under microscope.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        l_nuc: the length of the nucleoid</span>
+<span class="sd">        d_nuc: the diameter of the nucleoid</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">length_scaling_parameters</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">length_scaling_parameters</span> <span class="o">=</span> <span class="p">(</span><span class="mf">6.6</span><span class="p">,</span> <span class="mf">8.3</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nucleoid_area_ratio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">nucleoid_area_ratio</span> <span class="o">=</span> <span class="mf">0.60</span>
+
+    <span class="n">l_sat</span><span class="p">,</span> <span class="n">l_c</span> <span class="o">=</span> <span class="n">length_scaling_parameters</span>  <span class="c1"># unit: um</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">l_cell</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">l_cell</span> <span class="o">=</span> <span class="n">l_cell</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d_cell</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">d_cell</span> <span class="o">=</span> <span class="n">d_cell</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">l_sat</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">l_sat</span> <span class="o">=</span> <span class="n">l_sat</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">l_c</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">l_c</span> <span class="o">=</span> <span class="n">l_c</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">um</span><span class="p">)</span>
+
+    <span class="n">l_nuc</span> <span class="o">=</span> <span class="n">l_sat</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">l_cell</span> <span class="o">/</span> <span class="n">l_c</span><span class="p">))</span>
+    <span class="n">d_nuc</span> <span class="o">=</span> <span class="n">nucleoid_area_ratio</span> <span class="o">*</span> <span class="n">l_cell</span> <span class="o">*</span> <span class="n">d_cell</span> <span class="o">/</span> <span class="n">l_nuc</span>
+    <span class="k">return</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span> <span class="o">*</span> <span class="n">l_nuc</span><span class="p">,</span> <span class="n">units</span><span class="o">.</span><span class="n">um</span> <span class="o">*</span> <span class="n">d_nuc</span></div>
+
+
+
+<div class="viewcode-block" id="compute_free_volume_ratio">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.spatial_tool.html#wholecell.utils.spatial_tool.compute_free_volume_ratio">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_free_volume_ratio</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">eta</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a function that computes the free volume ratio of existing</span>
+<span class="sd">    macromolecules with respect to a new molecule based on the scaled</span>
+<span class="sd">    particle theory. This is not E coli specific. It is important to note</span>
+<span class="sd">    that the results may not be accurate for large q or eta &gt; 0.50.</span>
+
+<span class="sd">    References:</span>
+<span class="sd">    Malloggi, F. Soft Matter at Aqueous Interfaces.</span>
+<span class="sd">    Lecture Notes in Physics (2016). doi:10.1007/978-3-319-24502-7.</span>
+<span class="sd">    Chapter 3-4-2.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        q: the size ratio between the new particle and existing particles.</span>
+<span class="sd">            For example, if the radius of the new particle = delta, and the</span>
+<span class="sd">            radius of the existing particle = R, then q = delta/R.</span>
+<span class="sd">        eta: the compaction ratio, or the volume occupancy of the existing</span>
+<span class="sd">            particle. eta = n*v_particle/v_total</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        alpha: the free volume ratio of the space = v_free/v_total.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">q</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">q</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">q</span><span class="o">**</span><span class="mi">3</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="mi">9</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">q</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">q</span><span class="o">**</span><span class="mi">3</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">q</span><span class="o">**</span><span class="mi">3</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">eta</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">eta</span><span class="p">)</span>
+    <span class="n">q_capital</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">y</span> <span class="o">+</span> <span class="n">b</span> <span class="o">*</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">c</span> <span class="o">*</span> <span class="n">y</span><span class="o">**</span><span class="mi">3</span>
+    <span class="n">alpha</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">eta</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">q_capital</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">alpha</span></div>
+
+
+
+<div class="viewcode-block" id="compute_n_blob">
+<a class="viewcode-back" href="../../../reference/api/wholecell/wholecell.utils.spatial_tool.html#wholecell.utils.spatial_tool.compute_n_blob">[docs]</a>
+<span class="k">def</span> <span class="nf">compute_n_blob</span><span class="p">(</span><span class="n">choice_model</span><span class="p">,</span> <span class="n">choice_unit</span><span class="p">,</span> <span class="n">bp_dna</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function computes the number of DNA blobs within a bacteria. This</span>
+<span class="sd">    functions contain multiple assumptions that demand careful examination.</span>
+
+<span class="sd">    Previous research (Ref: Skoko D, Wong B, Johnson R, Marko J (2004)</span>
+<span class="sd">    Biochemistry 43: 13867-13874.) directly observed the structure of</span>
+<span class="sd">    chromosomal DNA of E coli under AFM. They observed that the DNA are</span>
+<span class="sd">    composed of 40nm &amp; 80nm fibers. The 80nm fibers are the main type within</span>
+<span class="sd">    the cells, but it is hypothesized to be folded from 2 threads of 40nm</span>
+<span class="sd">    fibers. Therefore, we hypothesized that chromosomal DNA are composed of</span>
+<span class="sd">    DNA blobs with diameter of 40nm.</span>
+
+<span class="sd">    For the model choice, there are 2 possible options. In the Flory chain</span>
+<span class="sd">    option, the DNA within a blob is assumed to be self-avoidant. In the</span>
+<span class="sd">    ideal chain option, the DNA within a blob is assumed to be in a melted</span>
+<span class="sd">    state.</span>
+
+<span class="sd">    For the unit choice, there are 3 possible options. You can choose single</span>
+<span class="sd">    base pair of DNA as the smallest unit in the formation of DNA blob.</span>
+<span class="sd">    In conventional physics, 2*persistence length is regarded as the</span>
+<span class="sd">    standard choice of the smallest unit in a polymer. It is important to</span>
+<span class="sd">    note that, the persistence length of DNA can be drastically different</span>
+<span class="sd">    under in vitro &amp; in vivo conditions. The persistence length of DNA in</span>
+<span class="sd">    vitro is ~ 50nm, while the persistence length of DNA in vivo can be</span>
+<span class="sd">    down to 20nm. This is because the binding of DNA binding proteins &amp;</span>
+<span class="sd">    DNA supercoiling can decrease the energy of DNA and makes it softer.</span>
+<span class="sd">    Another possible choice of the smallest unit of DNA is 10bp, which</span>
+<span class="sd">    corresponds to the average binding distance between HU protein, a</span>
+<span class="sd">    structural DNA binding protein.</span>
+
+<span class="sd">    Choosing different model setting and different smallest unit of DNA can</span>
+<span class="sd">    result in drastically different results.</span>
+
+<span class="sd">    The default value of genomic size is set to be E coli specific.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        choice_model: the physical model of DNA within a blob. The 2</span>
+<span class="sd">            possible options are &#39;ideal&#39; &amp; &#39;flory&#39;.</span>
+<span class="sd">        choice_unit: the choice of the smallest unit within a blob. The 3</span>
+<span class="sd">            possible options are &#39;single&#39;, &#39;lp&#39;, or an integer number</span>
+<span class="sd">            indicating the number of base pairs within a single unit.</span>
+<span class="sd">        bp_dna: the number of base pairs in the chromosome. The default</span>
+<span class="sd">            value is set to be the chromosome size of E coli.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        n_blob: the number of DNA blobs in a bacteria.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">bp_dna</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">bp_dna</span> <span class="o">=</span> <span class="mi">4639221</span>
+
+    <span class="n">lp</span> <span class="o">=</span> <span class="mi">20</span>  <span class="c1"># persistence length of the DNA in vivo, unit: nm</span>
+    <span class="n">r_blob</span> <span class="o">=</span> <span class="mi">20</span>  <span class="c1"># radius of the DNA blob deduced from AFM, unit: nm</span>
+    <span class="n">length_bp_conv</span> <span class="o">=</span> <span class="mf">0.34</span>  <span class="c1"># unit: nm/bp</span>
+    <span class="n">bp_per_lp</span> <span class="o">=</span> <span class="n">lp</span> <span class="o">/</span> <span class="n">length_bp_conv</span>  <span class="c1"># unit: bp</span>
+    <span class="n">d_dna</span> <span class="o">=</span> <span class="mi">2</span>  <span class="c1"># unit: nm</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">choice_unit</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">choice_unit</span> <span class="o">=</span> <span class="n">choice_unit</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">nt</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bp_dna</span><span class="p">,</span> <span class="n">Unum</span><span class="p">):</span>
+        <span class="n">bp_dna</span> <span class="o">=</span> <span class="n">bp_dna</span><span class="o">.</span><span class="n">asNumber</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">nt</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">choice_model</span> <span class="o">==</span> <span class="s2">&quot;ideal&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">choice_unit</span> <span class="o">==</span> <span class="s2">&quot;single&quot;</span><span class="p">:</span>
+            <span class="n">n_bp_per_blob</span> <span class="o">=</span> <span class="mi">6</span> <span class="o">*</span> <span class="p">(</span><span class="n">r_blob</span> <span class="o">/</span> <span class="n">length_bp_conv</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">n_blob</span> <span class="o">=</span> <span class="n">bp_dna</span> <span class="o">/</span> <span class="n">n_bp_per_blob</span>
+        <span class="k">elif</span> <span class="n">choice_unit</span> <span class="o">==</span> <span class="s2">&quot;lp&quot;</span><span class="p">:</span>
+            <span class="n">n_lp_per_blob</span> <span class="o">=</span> <span class="mi">6</span> <span class="o">*</span> <span class="p">(</span><span class="n">r_blob</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">lp</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">n_bp_per_blob</span> <span class="o">=</span> <span class="n">n_lp_per_blob</span> <span class="o">*</span> <span class="n">bp_per_lp</span> <span class="o">*</span> <span class="mi">2</span>
+            <span class="n">n_blob</span> <span class="o">=</span> <span class="n">bp_dna</span> <span class="o">/</span> <span class="n">n_bp_per_blob</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">choice_unit</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">length_per_unit</span> <span class="o">=</span> <span class="n">choice_unit</span> <span class="o">*</span> <span class="n">length_bp_conv</span>
+            <span class="n">n_unit_per_blob</span> <span class="o">=</span> <span class="mi">6</span> <span class="o">*</span> <span class="p">(</span><span class="n">r_blob</span> <span class="o">/</span> <span class="n">length_per_unit</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">n_bp_per_blob</span> <span class="o">=</span> <span class="n">choice_unit</span> <span class="o">*</span> <span class="n">n_unit_per_blob</span>
+            <span class="n">n_blob</span> <span class="o">=</span> <span class="n">bp_dna</span> <span class="o">/</span> <span class="n">n_bp_per_blob</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span>
+                <span class="s2">&quot;Your choice_unit should either be &#39;single&#39;, &quot;</span>
+                <span class="s2">&quot;&#39;lp&#39;, or an integer indicating&quot;</span>
+                <span class="s2">&quot;the number of base pair within a unit.&quot;</span>
+            <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">choice_model</span> <span class="o">==</span> <span class="s2">&quot;flory&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">choice_unit</span> <span class="o">==</span> <span class="s2">&quot;single&quot;</span><span class="p">:</span>
+            <span class="n">n_bp_per_blob</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">r_blob</span> <span class="o">/</span> <span class="p">(</span><span class="mi">3</span> <span class="o">/</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">length_bp_conv</span><span class="o">**</span><span class="mi">4</span> <span class="o">*</span> <span class="n">d_dna</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">5</span><span class="p">)</span>
+            <span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mi">5</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="n">n_blob</span> <span class="o">=</span> <span class="n">bp_dna</span> <span class="o">/</span> <span class="n">n_bp_per_blob</span>
+        <span class="k">elif</span> <span class="n">choice_unit</span> <span class="o">==</span> <span class="s2">&quot;lp&quot;</span><span class="p">:</span>
+            <span class="n">n_lp_per_blob</span> <span class="o">=</span> <span class="p">(</span><span class="n">r_blob</span> <span class="o">/</span> <span class="p">(</span><span class="mi">3</span> <span class="o">/</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">lp</span><span class="o">**</span><span class="mi">4</span> <span class="o">*</span> <span class="n">d_dna</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">5</span><span class="p">))</span> <span class="o">**</span> <span class="p">(</span><span class="mi">5</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="n">n_bp_per_blob</span> <span class="o">=</span> <span class="n">n_lp_per_blob</span> <span class="o">*</span> <span class="n">bp_per_lp</span>
+            <span class="n">n_blob</span> <span class="o">=</span> <span class="n">bp_dna</span> <span class="o">/</span> <span class="n">n_bp_per_blob</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">choice_unit</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">length_per_unit</span> <span class="o">=</span> <span class="n">choice_unit</span> <span class="o">*</span> <span class="n">length_bp_conv</span>
+            <span class="n">n_unit_per_blob</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">r_blob</span> <span class="o">/</span> <span class="p">(</span><span class="mi">3</span> <span class="o">/</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">length_per_unit</span><span class="o">**</span><span class="mi">4</span> <span class="o">*</span> <span class="n">d_dna</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">5</span><span class="p">)</span>
+            <span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mi">5</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="n">n_bp_per_blob</span> <span class="o">=</span> <span class="n">choice_unit</span> <span class="o">*</span> <span class="n">n_unit_per_blob</span>
+            <span class="n">n_blob</span> <span class="o">=</span> <span class="n">bp_dna</span> <span class="o">/</span> <span class="n">n_bp_per_blob</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span>
+                <span class="s2">&quot;Your choice_unit should either be &#39;single&#39;, &quot;</span>
+                <span class="s2">&quot;&#39;lp&#39;, or an integer indicating&quot;</span>
+                <span class="s2">&quot;the number of base pair within a unit.&quot;</span>
+            <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s2">&quot;Your choice_model should either be &#39;ideal&#39; or &#39;flory&#39;.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">n_blob</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2024, The Vivarium E. coli Authors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
